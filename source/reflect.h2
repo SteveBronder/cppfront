@@ -1,7 +1,7 @@
 
 //  Copyright 2022-2026 Herb Sutter
 //  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//  
+//
 //  Part of the Cppfront Project, under the Apache License v2.0 with LLVM Exceptions.
 //  See https://github.com/hsutter/cppfront/blob/main/LICENSE for license information.
 
@@ -688,7 +688,7 @@ parameter_declaration: @copy_constructible type =
 
 
 //-----------------------------------------------------------------------
-// 
+//
 //  Expressions
 //
 //-----------------------------------------------------------------------
@@ -1234,7 +1234,7 @@ expression: @polymorphic_base @copy_constructible type =
 
     get_lhs_rhs_if_simple_assignment: (this)
         -> (
-            lhs: postfix_expression, 
+            lhs: postfix_expression,
             rhs: logical_or_expression
         )
     = {
@@ -1291,11 +1291,11 @@ is_as_expression: @polymorphic_base @copy_constructible type =
     is_unqualified_id : (this) -> bool = this.n*.is_unqualified_id ();
     is_expression_list: (this) -> bool = this.n*.is_expression_list();
     is_literal        : (this) -> bool = this.n*.is_literal        ();
-                      
+
     as_expression_list: (this) -> expression_list = (this.n*.get_expression_list(), this);
     as_literal        : (this) -> std::string     = n*.get_literal()*.to_string();
-                      
-    get_identifier    : (this) -> std::string_view = { 
+
+    get_identifier    : (this) -> std::string_view = {
         ptok := this.n*.get_identifier();
         if ptok { return ptok*; }
         return "";
@@ -1306,7 +1306,7 @@ is_as_expression: @polymorphic_base @copy_constructible type =
 
 
 //-----------------------------------------------------------------------
-// 
+//
 //  Statements
 //
 //-----------------------------------------------------------------------
@@ -1710,12 +1710,12 @@ copyable: (inout t: meta::type_declaration) =
             || smfs.inout_this_move_that
         )
     {
-        t.error( 
+        t.error(
             "this type is partially copyable/movable - when you provide "
             "any of the more-specific operator= signatures, you must also provide "
             "the one with the general signature (out this, that); alternatively, "
             "consider removing all the operator= functions and let them all be "
-            "generated for you with default memberwise semantics" 
+            "generated for you with default memberwise semantics"
         );
     }
     else if !smfs.out_this_in_that {
@@ -1738,13 +1738,13 @@ copy_constructible: (inout t: meta::type_declaration) =
     if  !smfs.out_this_in_that
         && smfs.out_this_move_that
     {
-        t.error( 
+        t.error(
             "this type is partially copy/move constructible - when you provide "
             "the (out this, move that) operator= signature, you must also provide "
-            "the one with the general signature (out this, that)" 
+            "the one with the general signature (out this, that)"
         );
     }
-    else if 
+    else if
         !smfs.out_this_in_that
         && !smfs.out_this_move_that
     {
@@ -1768,7 +1768,7 @@ hashable: (inout t: meta::type_declaration) =
     hash: std::string = "    hash: (this) -> size_t = {\n"
                         "        ret: size_t = 0;";
 
-    for  t.get_member_objects() 
+    for  t.get_member_objects()
     do   (o)
     {
         o_hash: std::string;
@@ -1898,7 +1898,7 @@ cpp1_rule_of_zero: (inout t: meta::type_declaration) =
 //  a type with only public bases, objects, and functions,
 //  no virtual functions, and no user-defined constructors
 //  (i.e., no invariants) or assignment or destructors.
-// 
+//
 //  For GCC 10 compatibility, optionally allow passing struct<noforward>
 //  that generates a memberwise constructor with a generic deduced
 //  parameters instead of concrete forwarding parameters (mainly used
@@ -2011,7 +2011,7 @@ basic_enum: (
 
         mo := m.as_object();
         if !mo.has_wildcard_type() {
-            mo.error( 
+            mo.error(
                 "an explicit underlying type should be specified as a compile-time argument "
                 "to the metafunction - try 'enum<u16>' or 'flag_enum<u64>'"
             );
@@ -2071,7 +2071,7 @@ basic_enum: (
             else {
                 t.error(
                     "values are outside the range representable by the "
-                    "largest supported underlying signed type (i64)" 
+                    "largest supported underlying signed type (i64)"
                 );
             }
         }
@@ -2188,14 +2188,14 @@ basic_enum: (
         t.add_member( "    to_code  : (this) -> std::string = to_string_impl( \"(t.name())$::\" );" );
     }
 
-    //  Provide a 'from_string' function to parse strings into enumerators    
+    //  Provide a 'from_string' function to parse strings into enumerators
     (copy from_string: std::string = "    from_string: (s: std::string_view) -> (t.name())$ = { \n")
     {
         prefix    : std::string_view = "";
         combine_op: std::string_view = "return";
 
         //  For flags, accept a list that we break apart and then |= together
-        if bitwise 
+        if bitwise
         {
             prefix      = "flag_";
             combine_op  = "ret |=";
@@ -2474,7 +2474,7 @@ encapsulated: (inout t: meta::type_declaration) =
     for t.get_member_objects()
     do  (m)
     {
-        m.require( 
+        m.require(
             !m.is_public(),
             "an @encapsulated type must not have public data members"
         );
@@ -2496,7 +2496,7 @@ noncopyable: (inout t: meta::type_declaration) =
         && !smfs.out_this_move_that
         && !smfs.inout_this_in_that
         && !smfs.inout_this_move_that,
-        "a @noncopyable type must not have operator= with this and that parameters" 
+        "a @noncopyable type must not have operator= with this and that parameters"
     );
 }
 
@@ -2504,7 +2504,7 @@ noncopyable: (inout t: meta::type_declaration) =
 //-----------------------------------------------------------------------
 //
 //  singleton
-// 
+//
 //  An encapsulated noncopyable type with a single instance accessed via
 //  an ::instance() function
 //
@@ -2568,16 +2568,16 @@ noisy: (t: meta::type_declaration) =
 //-----------------------------------------------------------------------
 //
 //  python - expose the type using pybind11
-// 
+//
 //  *** Basic proof of concept only, limited and not well tested
 //      Hardcoded for pybind11 and g++10 and my local cppfront include path
 //
 python_param_names_and_types: (mf: meta::function_declaration)
-    -> 
+    ->
     (
     names: std::string = (),
     types: std::string = ()
-    ) 
+    )
 = {
     for mf.get_parameters()
     do  (param)
@@ -2634,7 +2634,7 @@ python: (inout t: meta::type_declaration) =
 //-----------------------------------------------------------------------
 //
 //  javascript - expose the type using emscripten
-// 
+//
 //  *** Basic proof of concept only, limited and not well tested
 //
 javascript: (inout t: meta::type_declaration) =
@@ -3397,9 +3397,9 @@ simple_traverser: type = {
 //-----------------------------------------------------------------------
 //
 //  sample_traverser serves two purposes:
-// 
+//
 //      - infrastructure for writing reflection API test cases
-// 
+//
 //      - a sample for how code can use the reflection API, notably
 //        for reflecting on function bodies (statements, expressions)
 //
@@ -3470,7 +3470,7 @@ sample_traverser: (t: meta::type_declaration, indent: i32 = 0) =
 {
     sample_print("Type: (t.name())$", indent);
 
-    if t.parent_is_nonglobal_namespace() 
+    if t.parent_is_nonglobal_namespace()
     {
         ns := t.get_parent().as_nonglobal_namespace();
         sample_print("is a member of namespace (ns.name())$ which contains the following names:", indent+1);
@@ -3534,7 +3534,7 @@ sample_traverser: (stmt: meta::statement, indent: i32) =
 
         sample_print("true branch:", indent+1);
         sample_traverser(sel.get_true_branch(), indent+2);
-        
+
         if sel.has_false_branch() {
             sample_print("false branch:", indent+1);
             sample_traverser(sel.get_false_branch(), indent+2);
@@ -4178,18 +4178,169 @@ sample_traverser: (idexpr: meta::id_expression, indent: i32) =
 //  autodiff
 //
 
+/**
+ * @brief Automatic differentiation support for Cpp2 metaprogramming.
+ *
+ * This section implements the `@autodiff` metafunction. It traverses a type
+ * declaration, discovers active variables, and emits differentiated members.
+ * This is a proof-of-concept implementation; reverse mode is only partially
+ * implemented and not yet well tested (see docs).
+ *
+ * Options are parsed from text template arguments:
+ * - "reverse" enables reverse-mode adjoints (default suffix `_b`).
+ * - "order=<n>" enables higher-order derivatives via `cpp2::taylor`.
+ * - "suffix=<s>" overrides the forward suffix (default `_d`).
+ * - "rws_suffix=<s>" overrides the reverse suffix.
+ *
+ * Pipeline overview:
+ * - `autodiff(...)` parses the options, builds an `autodiff_context`, sets suffixes,
+ *   and pushes the namespace/type stack so lookups can resolve declarations.
+ * - `autodiff_declaration_handler` walks declarations and emits new members:
+ *   `f_d` for forward mode and `f_b` for reverse mode. Signatures are expanded
+ *   with `_d` and `_b` parameters and with return storage for the primal value.
+ * - `autodiff_stmt_handler` walks statements and emits the primal block plus
+ *   a reverse block. It uses `cpp2::ad_stack` to save/restore overwritten locals.
+ * - `autodiff_expression_handler` converts each expression into three strings:
+ *   `primal_expr`, `fwd_expr`, and `rws_expr` (backprop template). It uses
+ *   placeholders like `_r_`, `_rd_`, `_rb_` and creates temporaries for
+ *   active subexpressions via `gen_temporary()`.
+ * - `autodiff_diff_code` buffers the output; reverse backprop snippets are
+ *   prepended so they execute in reverse order after the primal pass.
+ * - Function calls are handled by `handle_function_call()`: it either expands a
+ *   `special_func` template (sin/cos/exp/sqrt/push_back) or emits calls to
+ *   `f_d`/`f_b`. When a call is emitted, `add_for_differentiation()` queues the
+ *   callee so `pop_stack()` can generate its derivative later.
+ *
+ * Reverse-mode AST traversal and manipulation:
+ * - `apply_metafunctions` builds a `meta::type_declaration` and calls `autodiff`.
+ *   In reverse mode, `autodiff_context.reverse` is set and `rws_suffix` is applied.
+ * - `autodiff_declaration_handler` is a `simple_traverser`; its `pre_traverse`
+ *   drives a depth-first walk of the reflection AST. Each node visit calls the
+ *   handler's `traverse` override, then recurses into children via `pre_traverse`.
+ * - When a `meta::function_declaration` is visited, the handler constructs a new
+ *   reverse-mode signature (adds `_b` parameters and return adjoint storage) and
+ *   then uses `autodiff_stmt_handler::pre_traverse` on the function body.
+ * - The statement handler uses `autodiff_activity_check` (also a `simple_traverser`)
+ *   to decide which variables are active, and `autodiff_expression_handler` to
+ *   translate each RHS expression into primal code and a backprop template.
+ * - The handler emits new code into `autodiff_diff_code` buffers, and mutates the
+ *   reflection AST by calling `decl.add_member(...)` on the enclosing type to add
+ *   the generated `f_b` function (and includes `cpp2ad_stack.h` for save/restore).
+ * - Reverse-mode accumulation is created by prepending backprop snippets so they
+ *   execute in exact reverse order of the primal statements, mirroring a tape.
+ *   Overwrites inside a compound statement are guarded with `ad_stack::push/pop`.
+ *
+ * Reverse-mode pipeline diagram:
+ * @code
+ * @autodiff<"reverse"> tag
+ *   |
+ *   v
+ * apply_metafunctions
+ *   |
+ *   v
+ * autodiff(type_declaration)
+ *   |
+ *   v
+ * autodiff_declaration_handler::pre_traverse
+ *   |
+ *   +--> function_declaration:
+ *   |      - build f_b signature (add _b params, return adjoint)
+ *   |      - autodiff_stmt_handler::pre_traverse(body)
+ *   |             |
+ *   |             +--> statement/expr nodes:
+ *   |                   - autodiff_activity_check (is active?)
+ *   |                   - autodiff_expression_handler (primal + backprop)
+ *   |                   - append to diff buffers
+ *   |      - emit f_b into type via decl.add_member(...)
+ *   |
+ *   +--> type/object members (if any)
+ *   |
+ *   v
+ * autodiff_context.finish()  // process queued callee diffs
+ * @endcode
+ *
+ * Reverse-mode example:
+ * @code
+ * f: (x: double, y: double) -> double = {
+ *     z := x * y;
+ *     return z + sin(x);
+ * }
+ * @endcode
+ *
+ * Tag the enclosing type with `@autodiff<"reverse">`. The reflection pipeline
+ * parses `f` into `meta::function_declaration` and its statements/expressions
+ * (via `simple_traverser::pre_traverse`) and emits a reverse function:
+ * @code
+ * f_b: (in x: double, inout x_b: double,
+ *       in y: double, inout y_b: double,
+ *       inout r_b: double) -> (r: double) = { ... }
+ * @endcode
+ *
+ * Callers seed the return adjoint and zero the input adjoints:
+ * @code
+ * x_b := 0.0; y_b := 0.0; r_b := 1.0;
+ * r := ad::f_b(x, x_b, y, y_b, r_b);
+ * // x_b == df/dx, y_b == df/dy
+ * @endcode
+ *
+ * How the reverse body is generated:
+ * - For `z := x * y`, `autodiff_activity_check` marks `x` and `y` active
+ *   (type `double`), so `z` becomes active. The multiplicative handler sets
+ *   `primal_expr` to `x * y` and `rws_expr` to:
+ *     `x_b += y * _rb_;`
+ *     `y_b += x * _rb_;`
+ *   `gen_declaration("z")` emits:
+ *     `z_b : double = 0.0;`
+ *     `z   : double = x * y;`
+ *   and backprop that substitutes `_rb_` with `z_b` and appends `z_b = 0.0`
+ *   (the prepend order means `z_b` is cleared after it is used).
+ * - For `return z + sin(x)`, `sin` is handled by `special_funcs`, so its
+ *   reverse template becomes `x_b += cos(x) * _rb_;`. The additive handler
+ *   also adds `z_b += _rb_;`. `gen_assignment("r")` connects the incoming
+ *   `r_b` to both `z_b` and `x_b`, then clears `r_b`.
+ * - `autodiff_diff_code::add_reverse_backprop` prepends statements so the
+ *   backprop block executes in reverse order of the primal block, yielding
+ *   the correct adjoint accumulation for `x_b` and `y_b`.
+ *
+ * Note: There is no explicit graph object. The "graph" is implicit in the
+ * AST traversal, generated temporaries, and the backprop templates that link
+ * each temporary's adjoint to its inputs.
+ */
+/// Special-case function templates used for AD code generation.
 autodiff_special_func: type = {
+    /// Function name to match.
     public name      : std::string;
+    /// Arity for the special-case entry.
     public n_args    : int;
+    /// True when matching a member function call.
     public is_member : bool;
 
+    /// Primal code template.
     public code_primal             : std::string;
+    /// Forward-mode code template.
     public code_fwd                : std::string;
+    /// Reverse-mode backprop code template.
     public code_rws                : std::string;
+    /// Higher-order primal template.
     public code_primal_higher_order: std::string;
+    /// Higher-order forward template.
     public code_fwd_higher_order   : std::string;
+    /// Higher-order reverse template.
     public code_rws_higher_order   : std::string;
 
+    /**
+     * @brief Construct a special-case entry and derive higher-order defaults.
+     * @param name_ Function name to match.
+     * @param n_args_ Number of arguments expected.
+     * @param is_member_ True when matching a member function call.
+     * @param code_primal_ Primal template code.
+     * @param code_fwd_ Forward-mode template code.
+     * @param code_rws_ Reverse-mode backprop template code.
+     * @param code_primal_higher_order_ Primal template for higher order.
+     * @param code_fwd_higher_order_ Forward template for higher order.
+     * @param code_rws_higher_order_ Reverse template for higher order.
+     * @return No return value.
+     */
     operator=: (out this, name_: std::string, n_args_: int, is_member_: bool, code_primal_: std::string = "", code_fwd_: std::string = "",
                           code_rws_: std::string = "", code_primal_higher_order_: std::string = "", code_fwd_higher_order_: std::string = "",
                           code_rws_higher_order_: std::string = "") = {
@@ -4215,21 +4366,48 @@ autodiff_special_func: type = {
         }
     }
 
+    /**
+     * @brief Copy another special function entry.
+     * @param that Entry to copy from.
+     * @return No return value.
+     */
     operator=: (out this, that) = {} // Default copy.
 
+    /**
+     * @brief Test if this entry matches another by name, arity, and member flag.
+     * @param o Candidate entry to compare.
+     * @return True when name, argument count, and member flag match.
+     */
     is_match: (this, o: autodiff_special_func) -> bool = {
         return name == o.name && n_args == o.n_args && is_member == o.is_member;
     }
 }
 
+/// Records a declared variable and its AD activity.
 autodiff_declared_variable: @copy_constructible type = {
+    /// Variable name.
     public name     : std::string = "";
+    /// Declared type name (string form).
     public decl     : std::string = ""; // TODO: Maybe use variant here.
+    /// True if this variable participates in AD.
     public is_active: bool        = false;
+    /// True if this is a member variable of `this`.
     public is_member: bool        = false;
 
+    /**
+     * @brief Default initialize the variable record.
+     * @return No return value.
+     */
     operator=:(out this) = {}
 
+    /**
+     * @brief Construct a declared variable record.
+     * @param name_ Variable name.
+     * @param decl_ Declared type string.
+     * @param is_active_ True if the variable participates in AD.
+     * @param is_member_ True if the variable is a member of `this`.
+     * @return No return value.
+     */
     operator=:(out this, name_: std::string, decl_: std::string, is_active_: bool, is_member_: bool) = {
         name      = name_;
         decl      = decl_;
@@ -4237,23 +4415,45 @@ autodiff_declared_variable: @copy_constructible type = {
         is_member = is_member_;
     }
 
+    /**
+     * @brief Copy another variable record.
+     * @param that Record to copy from.
+     * @return No return value.
+     */
     operator=:(out this, that) = {}
 }
 
+/// Stack entry for a type or namespace during AD traversal.
 autodiff_declaration_stack_item: @copy_constructible type = {
+    /// Fully qualified name of the declaration.
     public full_name:   std::string;  // namespace + type name
+    /// The declaration itself.
     public decl: meta::type_or_namespace_declaration;
 
+    /// Declarations requested for differentiation.
     public diff_request: std::vector<meta::declaration> = ();
+    /// Declarations already differentiated.
     public diff_done:    std::vector<meta::declaration> = ();
 
+    /// Nested variable scopes for the current declaration.
     public declared_variables_stack: std::vector<std::vector<autodiff_declared_variable>> = (1);
 
+    /**
+     * @brief Construct a stack item for a declaration context.
+     * @param full_name_ Fully qualified name for the declaration.
+     * @param decl_ Declaration being tracked.
+     * @return No return value.
+     */
     operator=: (out this, full_name_: std::string, decl_: meta::type_or_namespace_declaration) = {
         full_name = full_name_;
         decl      = decl_;
     }
 
+    /**
+     * @brief Find declarations in the current type or namespace by name.
+     * @param decl_name Name to look up.
+     * @return List of matching declarations (overloads are preserved).
+     */
     lookup_declaration: (this, decl_name: std::string) -> (r: std::vector<meta::declaration> = ()) = {
         for decl.get_members() do (cur) {
             if cur.has_name() && decl_name  == cur.name() {
@@ -4264,6 +4464,11 @@ autodiff_declaration_stack_item: @copy_constructible type = {
         }
     }
 
+    /**
+     * @brief Find a variable declaration in the current scope chain.
+     * @param decl_name Variable name to look up.
+     * @return Tuple with `found` flag and the matching variable record.
+     */
     lookup_variable_declaration: (this, decl_name: std::string) -> (found: bool = false, r: autodiff_declared_variable = ()) = {
         //  Note: Not using "for std::ranges::views::reverse(...)" because
         //  that does not work correctly in Clang 12 + older libstdc++
@@ -4284,16 +4489,16 @@ autodiff_declaration_stack_item: @copy_constructible type = {
 
 }
 
+/**
+ * @brief Shared state for one autodiff run (order, mode, suffixes, lookup caches).
+ */
 autodiff_context: type = {
+    /// Counter for generating unique temporary names.
     private temporary_count : int = 0;
 
-    // Code in special function is replaced. Placeholders are:
-    //   _o_  : name of object for member functions.
-    //   _o_  : name of derivative object for member functions.
-    //   _a1_ : First argument value
-    //   _ad1_: First derivative argument value
-    //   _a2_ : Second argument value
-    //   _ad2_: Second derivative argument value
+    /// Code in special functions is replaced using placeholder tokens:
+    /// _o_ object, _od_ object derivative, _ob_ object adjoint,
+    /// _aN_ argument, _adN_ derivative argument, _abN_ adjoint, _rb_ incoming adjoint.
     public special_funcs : std::vector<autodiff_special_func> = (
         autodiff_special_func("sin", 1, /* is_member = */ false,
             "sin(_a1_)",
@@ -4334,19 +4539,36 @@ autodiff_context: type = {
             "TODO")
     );
 
+    /// Suffix for forward-mode values.
     public  fwd_suffix : std::string = "_d";
+    /// Suffix for reverse-mode adjoints.
     public  rws_suffix : std::string = "_b";
+    /// AD order (1 for standard dual/adjoint).
     private order  : int         = 1;
+    /// True for reverse mode; forward mode otherwise.
     public  reverse: bool        = false;
 
-    // Members depending on order
+    /// Forward-mode AD scalar type for the configured order.
     public fwd_ad_type: std::string = "double";
+    /// Reverse-mode AD scalar type for the configured order.
     public rws_ad_type: std::string = "double";
 
+    /// Cache of declaration lookups by fully qualified name.
     public declaration_map  : std::map<std::string, std::vector<meta::declaration>> = ();
+    /// Stack of namespace/type contexts.
     public declaration_stack: std::vector<autodiff_declaration_stack_item> = ();
 
+    /**
+     * @brief Default initialize the autodiff context.
+     * @return No return value.
+     */
     operator=:(out this) = {}
+    /**
+     * @brief Initialize order and mode and configure AD types.
+     * @param order_ Differentiation order (1 for standard).
+     * @param reverse_ True to enable reverse mode.
+     * @return No return value.
+     */
     operator=:(out this, order_: int, reverse_: bool) = {
         order = order_;
         reverse = reverse_;
@@ -4363,14 +4585,32 @@ autodiff_context: type = {
 
     }
 
+    /**
+     * @brief Record a local or member variable and whether it is active.
+     * @param name Variable name.
+     * @param type Declared type string.
+     * @param is_active True if the variable participates in AD.
+     * @param is_member True if the variable is a member of `this`.
+     * @return No return value.
+     */
     add_variable_declaration: (inout this, name: std::string, type: std::string, is_active: bool, is_member: bool = false) = {
         declaration_stack.back().declared_variables_stack.back().push_back(autodiff_declared_variable(name, type, is_active, is_member));
     }
 
+    /**
+     * @brief Query whether a variable name is marked active.
+     * @param name Variable name to look up.
+     * @return True if the variable is marked active.
+     */
     is_variable_active: (inout this, name: std::string) -> bool = {
         return lookup_variable_declaration(name).is_active;
     }
 
+    /**
+     * @brief Build the declaration stack for nested namespaces/types.
+     * @param t Type or namespace declaration to push.
+     * @return No return value.
+     */
     create_namespace_stack: (inout this, t: meta::type_or_namespace_declaration) = {
         if t.parent_is_nonglobal_namespace() {
             create_namespace_stack(t.get_parent().as_nonglobal_namespace());
@@ -4388,15 +4628,36 @@ autodiff_context: type = {
         _ = declaration_stack.push_back(autodiff_declaration_stack_item(full_name, t));
     }
 
+    /**
+     * @brief Check if forward code should be emitted.
+     * @return True when forward-mode code is enabled.
+     */
     is_forward: (this) = !reverse || (reverse && order != 1);
+    /**
+     * @brief Check if reverse code should be emitted.
+     * @return True when reverse-mode code is enabled.
+     */
     is_reverse: (this) = reverse;
+    /**
+     * @brief Check if higher-order Taylor types are used.
+     * @return True when order is not 1.
+     */
     is_taylor : (this) = order != 1;
 
+    /**
+     * @brief Generate a unique temporary name for intermediate expressions.
+     * @return Fresh temporary identifier.
+     */
     gen_temporary : (inout this) -> std::string = {
         temporary_count += 1;
         return "temp_(temporary_count)$";
     }
 
+    /**
+     * @brief Determine whether a type is active for AD.
+     * @param type Type name to check.
+     * @return True if the type is considered active.
+     */
     is_type_active: (inout this, type: std::string) -> bool = {
         decls := lookup_type_declaration(type);
         r := false;
@@ -4418,6 +4679,11 @@ autodiff_context: type = {
         return r;
     }
 
+    /**
+     * @brief Map a type to its forward-mode AD type and request differentiation if needed.
+     * @param type Original type name.
+     * @return Forward-mode AD type name.
+     */
     get_fwd_ad_type: (inout this, type: std::string) -> std::string = {
         type_d := type;
 
@@ -4436,6 +4702,11 @@ autodiff_context: type = {
         return string_util::replace_all(type_d, "double", fwd_ad_type);
     }
 
+    /**
+     * @brief Map a type to its reverse-mode AD type and request differentiation if needed.
+     * @param type Original type name.
+     * @return Reverse-mode AD type name.
+     */
     get_rws_ad_type: (inout this, type: std::string) -> std::string = {
         type_d := type;
 
@@ -4454,6 +4725,11 @@ autodiff_context: type = {
         return string_util::replace_all(type_d, "double", rws_ad_type);
     }
 
+    /**
+     * @brief Normalize parameter passing for reverse-mode adjoint parameters.
+     * @param p Original passing style.
+     * @return Passing style to use in reverse mode.
+     */
     get_reverse_passing_style: (this, p: passing_style) -> passing_style = {
         // TODO: inspect does not work here: error: error: no matching function for call to ‘is<cpp2::passing_style::in>(const cpp2::passing_style&)’
         // return inspect p -> passing_style  {
@@ -4482,6 +4758,11 @@ autodiff_context: type = {
         return  passing_style::inout;
     }
 
+    /**
+     * @brief Lookup a declaration by name using the stack of parent scopes.
+     * @param decl_name Name to resolve.
+     * @return List of matching declarations.
+     */
     lookup_declaration: (inout this, decl_name: std::string) -> (r : std::vector<meta::declaration> = ()) = {
         //  Note: Not using "for std::ranges::views::reverse(...)" because
         //  that does not work correctly in Clang 12 + older libstdc++
@@ -4509,6 +4790,11 @@ autodiff_context: type = {
         return;
     }
 
+    /**
+     * @brief Lookup a variable by name in nested scopes.
+     * @param name Variable name to resolve.
+     * @return Matching variable record (or empty record with errors reported).
+     */
     lookup_variable_declaration: (inout this, name: std::string) -> autodiff_declared_variable = {
         if name == "_" {
             return autodiff_declared_variable(name, "_", false, false);
@@ -4531,6 +4817,11 @@ autodiff_context: type = {
         return autodiff_declared_variable();
     }
 
+    /**
+     * @brief Lookup free functions in the current scope.
+     * @param decl_name Function name.
+     * @return Matching function declarations.
+     */
     lookup_function_declaration: (inout this, decl_name: std::string) -> (r : std::vector<meta::function_declaration> = ()) = {
         r_all := lookup_declaration(decl_name);
 
@@ -4541,6 +4832,12 @@ autodiff_context: type = {
         }
     }
 
+    /**
+     * @brief Lookup member functions on a concrete type declaration.
+     * @param obj_type Type declaration to search.
+     * @param decl_name Member function name.
+     * @return Matching member function declarations.
+     */
     lookup_member_function_declaration: (inout this, obj_type: meta::type_declaration, decl_name: std::string) -> (r : std::vector<meta::function_declaration> = ()) = {
         for obj_type.get_members() do (cur) {
             if cur.is_function() && cur.has_name() && decl_name  == cur.name() {
@@ -4551,6 +4848,11 @@ autodiff_context: type = {
         }
     }
 
+    /**
+     * @brief Lookup type declarations in the current scope.
+     * @param decl_name Type name.
+     * @return Matching type declarations.
+     */
     lookup_type_declaration: (inout this, decl_name: std::string) -> (r : std::vector<meta::type_declaration> = ()) = {
         r_all := lookup_declaration(decl_name);
 
@@ -4561,6 +4863,13 @@ autodiff_context: type = {
         }
     }
 
+    /**
+     * @brief Match and expand a special-case function (sin, cos, etc).
+     * @param func_name Function name to match.
+     * @param n_args Number of arguments.
+     * @param is_member True for member function calls.
+     * @return Tuple containing match flag and generated templates.
+     */
     lookup_special_function_handling: (this, func_name: std::string, n_args: int, is_member: bool) -> (m: bool, code_primal: std::string, code_fwd: std::string, code_rws: std::string) = {
         lookup : autodiff_special_func = (func_name, n_args, is_member);
 
@@ -4586,6 +4895,11 @@ autodiff_context: type = {
         }
     }
 
+    /**
+     * @brief Mark a declaration as already differentiated in the current context.
+     * @param t Declaration to mark.
+     * @return No return value.
+     */
     add_as_differentiated: (inout this, t: meta::declaration) = {
         top := declaration_stack.back()&;
 
@@ -4594,6 +4908,11 @@ autodiff_context: type = {
         top*.diff_done.push_back(t);
     }
 
+    /**
+     * @brief Request a declaration to be differentiated by its parent context.
+     * @param t Declaration to enqueue.
+     * @return No return value.
+     */
     add_for_differentiation: (inout this, t: meta::declaration) = {
         t_parent := t.get_parent();
 
@@ -4620,6 +4939,12 @@ autodiff_context: type = {
         }
     }
 
+    /**
+     * @brief Check whether a declaration is in a list.
+     * @param v Declaration to check.
+     * @param list Declarations to search.
+     * @return True if v is present in list.
+     */
     is_in_list: (v: meta::declaration, list: std::vector<meta::declaration>) -> bool = {
         for list do (cur) {
             if cur.is_same(v) {
@@ -4630,15 +4955,28 @@ autodiff_context: type = {
         return false;
     }
 
+    /**
+     * @brief Enter a function scope and reset temporary naming.
+     * @return No return value.
+     */
     enter_function: (inout this) = {
         temporary_count = 0;
         declaration_stack.back().declared_variables_stack.push_back(std::vector<autodiff_declared_variable>());
     }
 
+    /**
+     * @brief Leave the current function scope.
+     * @return No return value.
+     */
     leave_function: (inout this) = {
         declaration_stack.back().declared_variables_stack.pop_back();
     }
 
+    /**
+     * @brief Push a declaration context onto the stack.
+     * @param decl Declaration to push.
+     * @return No return value.
+     */
     push_stack: (inout this, decl: meta::type_or_namespace_declaration) = {
         full_name: std::string = "";
 
@@ -4652,6 +4990,10 @@ autodiff_context: type = {
         declaration_stack.push_back(autodiff_declaration_stack_item(full_name, decl));
     }
 
+    /**
+     * @brief Pop the current declaration context and process queued differentiations.
+     * @return No return value.
+     */
     pop_stack: (inout this) = {
         assert(!declaration_stack.empty());
 
@@ -4667,58 +5009,713 @@ autodiff_context: type = {
         declaration_stack.pop_back();
     }
 
+    /**
+     * @brief Pop all remaining contexts and finalize queued differentiations.
+     * @return No return value.
+     */
     finish: (inout this) = {
         while !declaration_stack.empty() {
             pop_stack();
         }
     }
 
-    //TODO: Remove when autodiff_diff_code is updated
+    /**
+     * @brief Temporary helper for legacy callers.
+     * @return Pointer to this context.
+     */
     get_self: (inout this) -> *autodiff_context = {
         return this&;
     }
 
 }
 
+/**
+ * @brief Context for reverse-mode IR construction and naming.
+ */
+reverse_autodiff_context: type = {
+    /// Owning autodiff context.
+    public ctx : *autodiff_context;
+    /// Function being transformed.
+    public mf  : meta::function_declaration;
+
+    /// Suffix used for value temporaries.
+    public value_suffix: std::string = "_val";
+    /// Suffix used for adjoint temporaries.
+    public adj_suffix  : std::string = "_adj";
+
+    /**
+     * @brief Initialize the reverse context.
+     * @param ctx_ Autodiff context to use.
+     * @param mf_ Function being transformed.
+     * @return No return value.
+     */
+    operator=:(out this, ctx_: *autodiff_context, mf_: meta::function_declaration) = {
+        ctx = ctx_;
+        mf  = mf_;
+    }
+
+    /**
+     * @brief Create a value name with the configured suffix.
+     * @param base Base identifier.
+     * @return Value name with suffix.
+     */
+    make_value_name: (this, base: std::string) -> std::string = {
+        if base == "_" {
+            return base;
+        }
+        return base + value_suffix;
+    }
+
+    /**
+     * @brief Create an adjoint name with the configured suffix.
+     * @param base Base identifier.
+     * @return Adjoint name with suffix.
+     */
+    make_adj_name: (this, base: std::string) -> std::string = {
+        if base == "_" {
+            return base;
+        }
+        return base + adj_suffix;
+    }
+}
+
+//-----------------------------------------------------------------------
+//
+//  Typed AD IR definitions for reverse-mode autodiff
+//
+//-----------------------------------------------------------------------
+
+/**
+ * @brief Operation kinds for AD expressions.
+ *
+ * These tags identify the operation type for expression nodes in the AD IR.
+ * Binary operators (+, -, *, /) are handled explicitly by the builder.
+ * Function calls (sin, cos, exp, log, etc.) use the call tag.
+ */
+ad_op_kind: @enum type = {
+    add;        // Binary addition
+    sub;        // Binary subtraction
+    mul;        // Binary multiplication
+    div;        // Binary division
+    neg;        // Unary negation
+    sin;        // Sine function
+    cos;        // Cosine function
+    exp;        // Exponential function
+    log;        // Natural logarithm
+    sqrt;       // Square root
+    call;       // Generic function call
+    literal;    // Numeric literal
+    identifier; // Variable reference
+}
+
+/**
+ * @brief Expression node kinds for AD IR.
+ *
+ * Distinguishes between different expression forms in the typed IR.
+ */
+ad_expr_kind: @enum type = {
+    literal;    // Numeric literal (e.g., 3.0)
+    identifier; // Variable reference (e.g., x)
+    unary;      // Unary operation (e.g., -x)
+    binary;     // Binary operation (e.g., x + y)
+    call;       // Function call (e.g., sin(x))
+}
+
+/**
+ * @brief Statement node kinds for AD IR.
+ *
+ * Distinguishes between different statement forms in the typed IR.
+ */
+ad_stmt_kind: @enum type = {
+    decl;       // Local variable declaration
+    assign;     // Assignment statement
+    expr;       // Expression statement
+    return_;    // Return statement
+    compound;   // Compound statement (block)
+}
+
+/**
+ * @brief Typed IR expression node.
+ *
+ * Represents an expression in the AD IR. The `kind` field determines
+ * how other fields are interpreted:
+ * - literal: `name` holds the literal value string
+ * - identifier: `name` holds the variable name
+ * - unary: `op` holds the operation, `args[0]` is the operand
+ * - binary: `op` holds the operation, `args[0]` and `args[1]` are operands
+ * - call: `op` is ad_op_kind::call (or specific like sin), `name` is function name, `args` are arguments
+ */
+ad_expr: type = {
+    public kind      : ad_expr_kind = ad_expr_kind::literal;
+    public type_name : std::string = "";
+    public name      : std::string = "";
+    public op        : ad_op_kind  = ad_op_kind::add;
+    public args      : std::vector<ad_expr> = ();
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+
+    /**
+     * @brief Create a literal expression.
+     * @param value Literal value as string.
+     * @param type_name_ Type of the literal.
+     * @return Literal expression node.
+     */
+    make_literal: (value: std::string, type_name_: std::string) -> ad_expr = {
+        e: ad_expr = ();
+        e.kind = ad_expr_kind::literal;
+        e.name = value;
+        e.type_name = type_name_;
+        e.op = ad_op_kind::literal;
+        return e;
+    }
+
+    /**
+     * @brief Create an identifier expression.
+     * @param name_ Variable name.
+     * @param type_name_ Type of the variable.
+     * @return Identifier expression node.
+     */
+    make_identifier: (name_: std::string, type_name_: std::string) -> ad_expr = {
+        e: ad_expr = ();
+        e.kind = ad_expr_kind::identifier;
+        e.name = name_;
+        e.type_name = type_name_;
+        e.op = ad_op_kind::identifier;
+        return e;
+    }
+
+    /**
+     * @brief Create a unary expression.
+     * @param op_ Operation kind (e.g., neg).
+     * @param operand Operand expression.
+     * @param type_name_ Result type.
+     * @return Unary expression node.
+     */
+    make_unary: (op_: ad_op_kind, operand: ad_expr, type_name_: std::string) -> ad_expr = {
+        e: ad_expr = ();
+        e.kind = ad_expr_kind::unary;
+        e.op = op_;
+        e.type_name = type_name_;
+        e.args.push_back(operand);
+        return e;
+    }
+
+    /**
+     * @brief Create a binary expression.
+     * @param op_ Operation kind (e.g., add, mul).
+     * @param lhs Left operand.
+     * @param rhs Right operand.
+     * @param type_name_ Result type.
+     * @return Binary expression node.
+     */
+    make_binary: (op_: ad_op_kind, lhs: ad_expr, rhs: ad_expr, type_name_: std::string) -> ad_expr = {
+        e: ad_expr = ();
+        e.kind = ad_expr_kind::binary;
+        e.op = op_;
+        e.type_name = type_name_;
+        e.args.push_back(lhs);
+        e.args.push_back(rhs);
+        return e;
+    }
+
+    /**
+     * @brief Create a function call expression.
+     * @param func_name Function name.
+     * @param op_ Operation kind (call or specific like sin).
+     * @param call_args Arguments to the function.
+     * @param type_name_ Result type.
+     * @return Call expression node.
+     */
+    make_call: (func_name: std::string, op_: ad_op_kind, call_args: std::vector<ad_expr>, type_name_: std::string) -> ad_expr = {
+        e: ad_expr = ();
+        e.kind = ad_expr_kind::call;
+        e.name = func_name;
+        e.op = op_;
+        e.type_name = type_name_;
+        e.args = call_args;
+        return e;
+    }
+}
+
+/**
+ * @brief Typed IR statement node.
+ *
+ * Represents a statement in the AD IR. The `kind` field determines
+ * how other fields are interpreted:
+ * - decl: `target` is variable name, `type_name` is its type, `expr` is initializer
+ * - assign: `target` is variable name, `expr` is the value
+ * - expr: `expr` is the expression to evaluate
+ * - return_: `expr` is the return value
+ * - compound: `stmts` contains nested statements
+ */
+ad_stmt: type = {
+    public kind      : ad_stmt_kind = ad_stmt_kind::expr;
+    public target    : std::string = "";
+    public type_name : std::string = "";
+    public expr      : ad_expr = ();
+    public stmts     : std::vector<ad_stmt> = ();
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+
+    /**
+     * @brief Create a declaration statement.
+     * @param name Variable name.
+     * @param type_name_ Variable type.
+     * @param init Initializer expression.
+     * @return Declaration statement node.
+     */
+    make_decl: (name: std::string, type_name_: std::string, init: ad_expr) -> ad_stmt = {
+        s: ad_stmt = ();
+        s.kind = ad_stmt_kind::decl;
+        s.target = name;
+        s.type_name = type_name_;
+        s.expr = init;
+        return s;
+    }
+
+    /**
+     * @brief Create an assignment statement.
+     * @param name Target variable name.
+     * @param value Value expression.
+     * @return Assignment statement node.
+     */
+    make_assign: (name: std::string, value: ad_expr) -> ad_stmt = {
+        s: ad_stmt = ();
+        s.kind = ad_stmt_kind::assign;
+        s.target = name;
+        s.expr = value;
+        return s;
+    }
+
+    /**
+     * @brief Create an expression statement.
+     * @param e Expression to evaluate.
+     * @return Expression statement node.
+     */
+    make_expr: (e: ad_expr) -> ad_stmt = {
+        s: ad_stmt = ();
+        s.kind = ad_stmt_kind::expr;
+        s.expr = e;
+        return s;
+    }
+
+    /**
+     * @brief Create a return statement.
+     * @param value Return value expression.
+     * @return Return statement node.
+     */
+    make_return: (value: ad_expr) -> ad_stmt = {
+        s: ad_stmt = ();
+        s.kind = ad_stmt_kind::return_;
+        s.expr = value;
+        return s;
+    }
+
+    /**
+     * @brief Create a compound statement.
+     * @param nested Nested statements.
+     * @return Compound statement node.
+     */
+    make_compound: (nested: std::vector<ad_stmt>) -> ad_stmt = {
+        s: ad_stmt = ();
+        s.kind = ad_stmt_kind::compound;
+        s.stmts = nested;
+        return s;
+    }
+}
+
+/**
+ * @brief Typed IR parameter declaration.
+ *
+ * Represents a function parameter or return value in the AD IR.
+ */
+ad_param: type = {
+    public name      : std::string = "";
+    public type_name : std::string = "";
+    public pass      : passing_style = passing_style::in;
+    public is_active : bool = false;
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+
+    /**
+     * @brief Create a parameter.
+     * @param name_ Parameter name.
+     * @param type_name_ Parameter type.
+     * @param pass_ Passing style.
+     * @param is_active_ Whether the parameter is active for AD.
+     * @return Parameter node.
+     */
+    make: (name_: std::string, type_name_: std::string, pass_: passing_style, is_active_: bool) -> ad_param = {
+        p: ad_param = ();
+        p.name = name_;
+        p.type_name = type_name_;
+        p.pass = pass_;
+        p.is_active = is_active_;
+        return p;
+    }
+}
+
+/**
+ * @brief Typed IR for a reverse-mode function.
+ *
+ * Contains the complete IR representation of a function being transformed
+ * for reverse-mode autodiff, including parameters, returns, and the
+ * forward/reverse pass statements.
+ */
+ad_function_ir: type = {
+    public name    : std::string = "";
+    public params  : std::vector<ad_param> = ();
+    public returns : std::vector<ad_param> = ();
+    public forward : std::vector<ad_stmt>  = ();
+    public reverse : std::vector<ad_stmt>  = ();
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+}
+
+//-----------------------------------------------------------------------
+//
+//  AD IR debug dump functions
+//
+//-----------------------------------------------------------------------
+
+/**
+ * @brief Convert ad_op_kind to string for debug output.
+ * @param op Operation kind.
+ * @return String representation.
+ */
+ad_op_kind_to_string: (op: ad_op_kind) -> std::string = {
+    if op == ad_op_kind::add        { return "add"; }
+    if op == ad_op_kind::sub        { return "sub"; }
+    if op == ad_op_kind::mul        { return "mul"; }
+    if op == ad_op_kind::div        { return "div"; }
+    if op == ad_op_kind::neg        { return "neg"; }
+    if op == ad_op_kind::sin        { return "sin"; }
+    if op == ad_op_kind::cos        { return "cos"; }
+    if op == ad_op_kind::exp        { return "exp"; }
+    if op == ad_op_kind::log        { return "log"; }
+    if op == ad_op_kind::sqrt       { return "sqrt"; }
+    if op == ad_op_kind::call       { return "call"; }
+    if op == ad_op_kind::literal    { return "literal"; }
+    if op == ad_op_kind::identifier { return "identifier"; }
+    return "unknown";
+}
+
+/**
+ * @brief Convert ad_expr_kind to string for debug output.
+ * @param kind Expression kind.
+ * @return String representation.
+ */
+ad_expr_kind_to_string: (kind: ad_expr_kind) -> std::string = {
+    if kind == ad_expr_kind::literal    { return "literal"; }
+    if kind == ad_expr_kind::identifier { return "identifier"; }
+    if kind == ad_expr_kind::unary      { return "unary"; }
+    if kind == ad_expr_kind::binary     { return "binary"; }
+    if kind == ad_expr_kind::call       { return "call"; }
+    return "unknown";
+}
+
+/**
+ * @brief Convert ad_stmt_kind to string for debug output.
+ * @param kind Statement kind.
+ * @return String representation.
+ */
+ad_stmt_kind_to_string: (kind: ad_stmt_kind) -> std::string = {
+    if kind == ad_stmt_kind::decl     { return "decl"; }
+    if kind == ad_stmt_kind::assign   { return "assign"; }
+    if kind == ad_stmt_kind::expr     { return "expr"; }
+    if kind == ad_stmt_kind::return_  { return "return"; }
+    if kind == ad_stmt_kind::compound { return "compound"; }
+    return "unknown";
+}
+
+/**
+ * @brief Print indentation for debug output.
+ * @param indent Indentation level.
+ */
+ad_ir_print_indent: (indent: i32) = {
+    i := 0;
+    while i < indent next i++ {
+        std::cout << "  ";
+    }
+}
+
+/**
+ * @brief Print a readable form of an IR expression.
+ * @param e Expression to dump.
+ * @param indent Indentation level.
+ */
+ad_ir_debug_dump_expr: (e: ad_expr, indent: i32 = 0) = {
+    ad_ir_print_indent(indent);
+    std::cout << "expr(" << ad_expr_kind_to_string(e.kind) << ")";
+
+    if e.kind == ad_expr_kind::literal {
+        std::cout << " value=" << e.name << " type=" << e.type_name << "\n";
+    }
+    else if e.kind == ad_expr_kind::identifier {
+        std::cout << " name=" << e.name << " type=" << e.type_name << "\n";
+    }
+    else if e.kind == ad_expr_kind::unary {
+        std::cout << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
+        for e.args do (arg) {
+            ad_ir_debug_dump_expr(arg, indent + 1);
+        }
+    }
+    else if e.kind == ad_expr_kind::binary {
+        std::cout << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
+        for e.args do (arg) {
+            ad_ir_debug_dump_expr(arg, indent + 1);
+        }
+    }
+    else if e.kind == ad_expr_kind::call {
+        std::cout << " func=" << e.name << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
+        for e.args do (arg) {
+            ad_ir_debug_dump_expr(arg, indent + 1);
+        }
+    }
+}
+
+/**
+ * @brief Print a readable form of an IR statement.
+ * @param s Statement to dump.
+ * @param indent Indentation level.
+ */
+ad_ir_debug_dump_stmt: (s: ad_stmt, indent: i32 = 0) = {
+    ad_ir_print_indent(indent);
+    std::cout << "stmt(" << ad_stmt_kind_to_string(s.kind) << ")";
+
+    if s.kind == ad_stmt_kind::decl {
+        std::cout << " target=" << s.target << " type=" << s.type_name << "\n";
+        ad_ir_debug_dump_expr(s.expr, indent + 1);
+    }
+    else if s.kind == ad_stmt_kind::assign {
+        std::cout << " target=" << s.target << "\n";
+        ad_ir_debug_dump_expr(s.expr, indent + 1);
+    }
+    else if s.kind == ad_stmt_kind::expr {
+        std::cout << "\n";
+        ad_ir_debug_dump_expr(s.expr, indent + 1);
+    }
+    else if s.kind == ad_stmt_kind::return_ {
+        std::cout << "\n";
+        ad_ir_debug_dump_expr(s.expr, indent + 1);
+    }
+    else if s.kind == ad_stmt_kind::compound {
+        std::cout << " (" << s.stmts.ssize() << " statements)\n";
+        for s.stmts do (nested) {
+            ad_ir_debug_dump_stmt(nested, indent + 1);
+        }
+    }
+}
+
+/**
+ * @brief Print a readable form of a function IR.
+ * @param ir Function IR to dump.
+ */
+ad_ir_debug_dump: (ir: ad_function_ir) = {
+    std::cout << "=== AD Function IR: " << ir.name << " ===\n";
+
+    std::cout << "Parameters:\n";
+    for ir.params do (p) {
+        std::cout << "  " << p.name << ": " << p.type_name
+                  << " (active=" << p.is_active << ")\n";
+    }
+
+    std::cout << "Returns:\n";
+    for ir.returns do (r) {
+        std::cout << "  " << r.name << ": " << r.type_name
+                  << " (active=" << r.is_active << ")\n";
+    }
+
+    std::cout << "Forward pass (" << ir.forward.ssize() << " statements):\n";
+    for ir.forward do (s) {
+        ad_ir_debug_dump_stmt(s, 1);
+    }
+
+    std::cout << "Reverse pass (" << ir.reverse.ssize() << " statements):\n";
+    for ir.reverse do (s) {
+        ad_ir_debug_dump_stmt(s, 1);
+    }
+
+    std::cout << "=== End AD Function IR ===\n";
+}
+
+/**
+ * @brief Reverse-mode IR entrypoint for a type declaration (debug-only for now).
+ * @param t Type declaration to inspect.
+ * @param ctx Autodiff context to associate.
+ * @return No return value.
+ */
+autodiff_reverse_ir: (t: meta::type_declaration, ctx: *autodiff_context) = {
+    std::cout << "AD reverse IR stage for type " << t.name() << "\n";
+    print(t);
+
+    for t.get_member_functions() do (mf) {
+        rc: reverse_autodiff_context = (ctx, mf);
+        std::cout << "AD reverse IR init for " << mf.get_signature() << "\n";
+        std::cout << "AD reverse IR suffixes: value=" << rc.value_suffix
+                  << " adj=" << rc.adj_suffix << "\n";
+
+        // Debug: Test IR creation for identifier 'x' and literal '3.0'
+        std::cout << "\n--- AD IR Test: identifier 'x' ---\n";
+        x_expr := ad_expr::make_identifier("x", "double");
+        ad_ir_debug_dump_expr(x_expr, 0);
+
+        std::cout << "\n--- AD IR Test: literal '3.0' ---\n";
+        lit_expr := ad_expr::make_literal("3.0", "double");
+        ad_ir_debug_dump_expr(lit_expr, 0);
+
+        // Debug: Test binary expression 'x + 3.0'
+        std::cout << "\n--- AD IR Test: binary 'x + 3.0' ---\n";
+        add_expr := ad_expr::make_binary(ad_op_kind::add, x_expr, lit_expr, "double");
+        ad_ir_debug_dump_expr(add_expr, 0);
+
+        // Debug: Test call expression 'sin(x)'
+        std::cout << "\n--- AD IR Test: call 'sin(x)' ---\n";
+        sin_args: std::vector<ad_expr> = ();
+        sin_args.push_back(x_expr);
+        sin_expr := ad_expr::make_call("sin", ad_op_kind::sin, sin_args, "double");
+        ad_ir_debug_dump_expr(sin_expr, 0);
+
+        // Debug: Test statement 'z := x + 3.0'
+        std::cout << "\n--- AD IR Test: decl 'z := x + 3.0' ---\n";
+        decl_stmt := ad_stmt::make_decl("z", "double", add_expr);
+        ad_ir_debug_dump_stmt(decl_stmt, 0);
+
+        // Debug: Test full function IR
+        std::cout << "\n--- AD IR Test: sample function IR ---\n";
+        test_ir: ad_function_ir = ();
+        test_ir.name = mf.name();
+
+        // Add sample parameters
+        x_param := ad_param::make("x", "double", passing_style::in, true);
+        test_ir.params.push_back(x_param);
+
+        // Add sample return
+        ret_param := ad_param::make("ret", "double", passing_style::out, true);
+        test_ir.returns.push_back(ret_param);
+
+        // Add sample forward statement
+        test_ir.forward.push_back(decl_stmt);
+
+        // Add sample reverse statement (x_adj += 1.0)
+        one_lit := ad_expr::make_literal("1.0", "double");
+        x_adj_expr := ad_expr::make_identifier("x_adj", "double");
+        assign_expr := ad_expr::make_binary(ad_op_kind::add, x_adj_expr, one_lit, "double");
+        adj_stmt := ad_stmt::make_assign("x_adj", assign_expr);
+        test_ir.reverse.push_back(adj_stmt);
+
+        ad_ir_debug_dump(test_ir);
+    }
+}
+
+/**
+ * @brief Accumulates generated code for forward and reverse passes.
+ *
+ * `rws_backprop` is built in reverse order by prepending snippets.
+ */
 autodiff_diff_code: type = {
+    /// Owning context with mode/order information.
     public ctx: *autodiff_context;
 
+    /// Forward-mode code.
     public fwd         : std::string = "";
+    /// Reverse-mode primal pass code.
     public rws_primal  : std::string = "";
+    /// Reverse-mode backprop pass code (prepended).
     public rws_backprop: std::string = "";
 
+    /**
+     * @brief Initialize with an autodiff context.
+     * @param ctx_ Context to associate with this buffer.
+     * @return No return value.
+     */
     operator=:(out this, ctx_: *autodiff_context) = {
         ctx = ctx_;
     }
+    /**
+     * @brief Copy another diff buffer.
+     * @param that Buffer to copy from.
+     * @return No return value.
+     */
     operator=:(out this, that) = {}
 
+    /**
+     * @brief Append forward code if forward mode is enabled.
+     * @param v Code snippet to append.
+     * @return No return value.
+     */
     add_forward         : (inout this, v: std::string) = { if ctx*.is_forward() { fwd          += v; }}
+    /**
+     * @brief Append reverse primal code if reverse mode is enabled.
+     * @param v Code snippet to append.
+     * @return No return value.
+     */
     add_reverse_primal  : (inout this, v: std::string) = { if ctx*.is_reverse() { rws_primal   += v; }}
+    /**
+     * @brief Prepend reverse backprop code if reverse mode is enabled.
+     * @param v Code snippet to prepend.
+     * @return No return value.
+     */
     add_reverse_backprop: (inout this, v: std::string) = { if ctx*.is_reverse() { rws_backprop = v + rws_backprop; }}
 
+    /**
+     * @brief Clear all generated buffers.
+     * @return No return value.
+     */
     reset: (inout this) = {
         fwd          = "";
         rws_primal   = "";
         rws_backprop = "";
     }
 
-    // Temporary: TODO: remove when everything has been adapted to primal, fwd, rws pushes.
+    /**
+     * @brief Temporary assignment into the forward buffer.
+     * @param v Forward code string.
+     * @return No return value.
+     */
     operator=:(inout this, v: std::string) = {
         ctx = ctx*.get_self();
         fwd = v;
     }
 
-    // Temporary: TODO: remove when everything has been adapted to primal, fwd, rws pushes.
+    /**
+     * @brief Temporary forward buffer append.
+     * @param v Forward code string to append.
+     * @return No return value.
+     */
     operator+=: (inout this, v: std::string) = {
         fwd += v;
     }
 
-    // Temporary: TODO: remove when everything has been adapted to primal, fwd, rws pushes.
+    /**
+     * @brief Temporary forward buffer append from another diff buffer.
+     * @param v Buffer to append from.
+     * @return No return value.
+     */
     operator+=: (inout this, v: autodiff_diff_code) = {
         fwd += v.fwd;
     }
 
-    // Temporary: TODO: remove when everything has been adapted to primal, fwd, rws pushes.
+    /**
+     * @brief Check if the forward buffer is empty.
+     * @return True if forward code buffer is empty.
+     */
     empty: (this) -> bool = {
         return fwd.empty();
     }
@@ -4729,16 +5726,31 @@ autodiff_diff_code: type = {
 //     return v.fwd;
 // }
 
+/**
+ * @brief Traverser that detects whether a declaration/expression is active.
+ */
 autodiff_activity_check: type = {
     this: simple_traverser = ();
 
+    /// AD context used for lookups.
     public ctx   : *autodiff_context;
+    /// True if an active term is found.
     public active: bool              = false;
 
+    /**
+     * @brief Initialize with an autodiff context.
+     * @param ctx_ Context used for activity queries.
+     * @return No return value.
+     */
     operator=: (out this, ctx_: *autodiff_context) = {
         ctx = ctx_;
     }
 
+    /**
+     * @brief Visit type members to determine activity of contained objects.
+     * @param t Type declaration to inspect.
+     * @return No return value.
+     */
     traverse: (override inout this, t: meta::type_declaration) = {
         for t.get_members()
         do  (m)
@@ -4751,6 +5763,11 @@ autodiff_activity_check: type = {
         }
     }
 
+    /**
+     * @brief Visit object declarations and infer activity from type or initializer.
+     * @param o Object declaration to inspect.
+     * @return No return value.
+     */
     traverse: (override inout this, o: meta::object_declaration) = {
 
         type := o.type();
@@ -4769,6 +5786,11 @@ autodiff_activity_check: type = {
         }
     }
 
+    /**
+     * @brief Visit primary expressions and track active identifiers/literals.
+     * @param primary Primary expression to inspect.
+     * @return No return value.
+     */
     traverse: (override inout this, primary: meta::primary_expression) =
     {
         if primary.is_identifier() {
@@ -4793,6 +5815,11 @@ autodiff_activity_check: type = {
         }
     }
 
+    /**
+     * @brief Visit postfix expressions and check function call arguments.
+     * @param postfix Postfix expression to inspect.
+     * @return No return value.
+     */
     traverse: (override inout this, postfix: meta::postfix_expression) =
     {
         terms := postfix.get_terms();
@@ -4827,17 +5854,31 @@ autodiff_activity_check: type = {
     }
 }
 
+/**
+ * @brief Base class for AD handlers with shared context and diff buffer.
+ */
 autodiff_handler_base: type = {
+    /// Current autodiff context.
     public ctx: *autodiff_context;
 
+    /// Accumulated output code for this handler.
     public diff : autodiff_diff_code;
 
+    /**
+     * @brief Initialize with context and a fresh diff buffer.
+     * @param ctx_ Context to associate.
+     * @return No return value.
+     */
     operator=: (out this, ctx_: *autodiff_context) = {
         ctx = ctx_;
         diff = (ctx);
     }
 
-    // Temporary: TODO: remove when everything has been adapted to primal, fwd, rws pushes.
+    /**
+     * @brief Append another handler's diff buffers.
+     * @param o Handler to append from.
+     * @return No return value.
+     */
     append: (inout this, in_ref o: autodiff_handler_base) = {
         diff.fwd          += o.diff.fwd;
         diff.rws_primal   += o.diff.rws_primal;
@@ -4845,20 +5886,38 @@ autodiff_handler_base: type = {
     }
 }
 
+/**
+ * @brief Builds primal/forward/reverse expressions for a single expression.
+ */
 autodiff_expression_handler: type = {
     this: simple_traverser = ();
     this: autodiff_handler_base;
 
+    /// Alias to base traverser type.
     base: type == simple_traverser;
 
+    /// Latest primal expression string.
     public primal_expr: std::string = "";
+    /// Latest forward-mode expression string.
     public fwd_expr   : std::string = "";
+    /// Latest reverse-mode backprop code snippet.
     public rws_expr   : std::string = "";
 
+    /**
+     * @brief Initialize with context.
+     * @param ctx_ Autodiff context to use.
+     * @return No return value.
+     */
     operator=: (out this, ctx_: *autodiff_context) = {
         autodiff_handler_base = (ctx_);
     }
 
+    /**
+     * @brief Append suffix unless using wildcard `_`.
+     * @param lhs Base name.
+     * @param suffix Suffix to append.
+     * @return Name with suffix unless lhs is `_`.
+     */
     add_suffix_if_not_wildcard: (this, lhs: std::string, suffix: std::string) -> std::string = {
         if "_" == lhs {
             return lhs;
@@ -4868,6 +5927,14 @@ autodiff_expression_handler: type = {
         }
     }
 
+    /**
+     * @brief Replace `_r_`, `_rd_`, `_rb_` placeholders in backprop templates.
+     * @param rhs_b Backprop template code.
+     * @param lhs Primal variable name.
+     * @param lhs_d Forward variable name.
+     * @param lhs_b Reverse adjoint name.
+     * @return Backprop code with placeholders substituted.
+     */
     prepare_backprop: (this, rhs_b: std::string, lhs: std::string, lhs_d: std::string, lhs_b: std::string) -> std::string = {
         r := rhs_b;
         r  = string_util::replace_all(r, "_r_", lhs);
@@ -4876,8 +5943,24 @@ autodiff_expression_handler: type = {
 
         return r;
     }
+    /**
+     * @brief Replace placeholders using suffix-based names.
+     * @param rhs_b Backprop template code.
+     * @param lhs Primal variable name.
+     * @return Backprop code with placeholders substituted.
+     */
     prepare_backprop: (this, rhs_b: std::string, lhs: std::string) -> std::string = prepare_backprop(rhs_b, lhs, lhs + ctx*.fwd_suffix, lhs + ctx*.rws_suffix);
 
+    /**
+     * @brief Emit assignment for primal, forward, and reverse paths.
+     * @param lhs Primal LHS name.
+     * @param lhs_d Forward LHS name.
+     * @param lhs_b Reverse adjoint LHS name.
+     * @param rhs Primal RHS expression.
+     * @param rhs_d Forward RHS expression.
+     * @param rhs_b Reverse backprop template.
+     * @return No return value.
+     */
     gen_assignment: (inout this, lhs: std::string, lhs_d: std::string, lhs_b: std::string, rhs: std::string, rhs_d: std::string, rhs_b: std::string) = {
         diff.add_forward("(lhs_d)$ = (rhs_d)$;\n");
         diff.add_forward("(lhs)$   = (rhs)$;\n");
@@ -4889,12 +5972,37 @@ autodiff_expression_handler: type = {
         diff.add_reverse_backprop("(lhs_b)$ = 0.0;\n");
         diff.add_reverse_backprop(prepare_backprop(rhs_b, lhs, lhs_d, lhs_b));
     }
+    /**
+     * @brief Emit assignment for the current expression strings.
+     * @param lhs Primal LHS name.
+     * @param lhs_d Forward LHS name.
+     * @param lhs_b Reverse adjoint LHS name.
+     * @return No return value.
+     */
     gen_assignment: (inout this, lhs: std::string, lhs_d: std::string, lhs_b: std::string)
         = gen_assignment(lhs, lhs_d, lhs_b, primal_expr, fwd_expr, rws_expr);
+    /**
+     * @brief Emit assignment using suffix defaults.
+     * @param lhs Primal LHS name.
+     * @return No return value.
+     */
     gen_assignment: (inout this, lhs: std::string)
         = gen_assignment(lhs, add_suffix_if_not_wildcard(lhs, ctx*.fwd_suffix), add_suffix_if_not_wildcard(lhs, ctx*.rws_suffix), primal_expr, fwd_expr, rws_expr);
 
 
+    /**
+     * @brief Emit declaration for primal, forward, and reverse paths.
+     * @param lhs Primal LHS name.
+     * @param lhs_d Forward LHS name.
+     * @param lhs_b Reverse adjoint LHS name.
+     * @param rhs Primal RHS expression.
+     * @param rhs_d Forward RHS expression.
+     * @param rhs_b Reverse backprop template.
+     * @param type Primal type name.
+     * @param type_d Forward type name.
+     * @param type_b Reverse type name.
+     * @return No return value.
+     */
     gen_declaration: (inout this, lhs: std::string, lhs_d: std::string, lhs_b: std::string, rhs: std::string, rhs_d: std::string, rhs_b: std::string, type: std::string, type_d: std::string, type_b: std::string) = {
         diff.add_forward("(lhs_d)$: (type_d)$ = (rhs_d)$;\n");
         diff.add_forward("(lhs)$  : (type)$ = (rhs)$;\n");
@@ -4907,22 +6015,57 @@ autodiff_expression_handler: type = {
         diff.add_reverse_backprop("(lhs_b)$ = 0.0;\n");
         diff.add_reverse_backprop(prepare_backprop(rhs_b, lhs, lhs_d, lhs_b));
     }
+    /**
+     * @brief Emit declaration using context-derived AD types.
+     * @param lhs Primal LHS name.
+     * @param lhs_d Forward LHS name.
+     * @param lhs_b Reverse adjoint LHS name.
+     * @param rhs Primal RHS expression.
+     * @param rhs_d Forward RHS expression.
+     * @param rhs_b Reverse backprop template.
+     * @param type Primal type name.
+     * @return No return value.
+     */
     gen_declaration: (inout this, lhs: std::string, lhs_d: std::string, lhs_b: std::string, rhs: std::string, rhs_d: std::string, rhs_b: std::string, type: std::string)
         = gen_declaration(lhs, lhs_d, lhs_b, rhs, rhs_d, rhs_b, type, ctx*.get_fwd_ad_type(type) , ctx*.get_rws_ad_type(type));
+    /**
+     * @brief Emit declaration using current expression strings.
+     * @param lhs Primal LHS name.
+     * @param lhs_d Forward LHS name.
+     * @param lhs_b Reverse adjoint LHS name.
+     * @param type Primal type name.
+     * @return No return value.
+     */
     gen_declaration: (inout this, lhs: std::string, lhs_d: std::string, lhs_b: std::string, type: std::string)
         = gen_declaration(lhs, lhs_d, lhs_b, primal_expr, fwd_expr, rws_expr, type);
+    /**
+     * @brief Emit declaration using suffix defaults.
+     * @param lhs Primal LHS name.
+     * @param type Primal type name.
+     * @return No return value.
+     */
     gen_declaration: (inout this, lhs: std::string, type: std::string)
         = gen_declaration(lhs, lhs + ctx*.fwd_suffix, lhs + ctx*.rws_suffix, type);
 
 
 
+    /// Bundle of primal/forward/reverse names for an expression.
     primal_fwd_rws_name: @struct<noforward> type = {
+        /// Primal value name or expression.
         primal: std::string = "";
+        /// Forward value name or expression.
         fwd   : std::string = "";
+        /// Reverse adjoint name or expression.
         rws   : std::string = "";
+        /// True if expression is active.
         active: bool        = false;
     }
 
+    /**
+     * @brief Evaluate a list of expression arguments.
+     * @param list Expression list to evaluate.
+     * @return List of primal/forward/reverse names for each argument.
+     */
     handle_expression_list: (inout this, list: meta::expression_list) -> std::vector<primal_fwd_rws_name> = {
         args : std::vector<primal_fwd_rws_name> = ();
         for list.get_expressions() do (expr) {
@@ -4932,6 +6075,11 @@ autodiff_expression_handler: type = {
         return args;
     }
 
+    /**
+     * @brief Evaluate a single expression term and map to primal/fwd/rws names.
+     * @param term Expression term to evaluate.
+     * @return Name bundle describing the term.
+     */
     handle_expression_term :(inout this, term) -> primal_fwd_rws_name = {
         if term.is_identifier() {
             primal := term.to_string();
@@ -4993,6 +6141,12 @@ autodiff_expression_handler: type = {
         }
     }
 
+    /**
+     * @brief Handle function or member-function calls, producing primal/fwd/rws code.
+     * @param postfix Postfix expression describing the call.
+     * @param has_return True if the call has a return value.
+     * @return No return value.
+     */
     handle_function_call: (inout this, postfix: meta::postfix_expression, has_return: bool) = {
         terms := postfix.get_terms();
 
@@ -5173,6 +6327,15 @@ autodiff_expression_handler: type = {
         // TODO: Add function to list of functions/objects for differentiation for the no return case.
     }
 
+    /**
+     * @brief Try special-case handling for known functions (sin, cos, etc).
+     * @param object Object name for member calls (empty for free functions).
+     * @param object_d Object forward name.
+     * @param object_b Object reverse name.
+     * @param function_name Function name to match.
+     * @param args Argument bundles.
+     * @return True if a special-case handler matched.
+     */
     handle_special_function: (inout this, object: std::string, object_d: std::string, object_b: std::string, function_name: std::string, args: std::vector<primal_fwd_rws_name>) -> bool = {
 
         r := ctx*.lookup_special_function_handling(function_name, unchecked_narrow<int>(args.ssize()), !object.empty());
@@ -5218,50 +6381,110 @@ autodiff_expression_handler: type = {
         return true;
     }
 
+    /**
+     * @brief Dispatch expression traversal.
+     * @param expr Expression node to traverse.
+     * @return No return value.
+     */
     traverse: (override inout this, expr: meta::expression) = {
         base::traverse(expr);
     }
 
+    /**
+     * @brief Report unsupported assignment expressions.
+     * @param binexpr Assignment expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::assignment_expression) = {
         binexpr.error( "AD: Assign expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported logical-or expressions.
+     * @param binexpr Logical-or expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::logical_or_expression) = {
         binexpr.error( "AD: Logical or expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported logical-and expressions.
+     * @param binexpr Logical-and expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::logical_and_expression) = {
         binexpr.error( "AD: Logical and expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported bitwise-or expressions.
+     * @param binexpr Bitwise-or expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::bit_or_expression) = {
         binexpr.error( "AD: Bit or expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported bitwise-xor expressions.
+     * @param binexpr Bitwise-xor expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::bit_xor_expression) = {
         binexpr.error( "AD: Bit xor expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported bitwise-and expressions.
+     * @param binexpr Bitwise-and expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::bit_and_expression) = {
         binexpr.error( "AD: Bit and expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported equality expressions.
+     * @param binexpr Equality expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::equality_expression) = {
         binexpr.error( "AD: Equality or expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported relational expressions.
+     * @param binexpr Relational expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::relational_expression) = {
         binexpr.error( "AD: Relational expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported compare expressions.
+     * @param binexpr Compare expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::compare_expression) = {
         binexpr.error( "AD: Compare or expressions are not yet handled." );
     }
 
+    /**
+     * @brief Report unsupported shift expressions.
+     * @param binexpr Shift expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::shift_expression) = {
         binexpr.error( "AD: Shift or expressions are not yet handled." );
     }
 
+    /**
+     * @brief Handle additive expressions and emit sum/adjoint accumulation.
+     * @param binexpr Additive expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::additive_expression) = {
         terms := binexpr.get_terms();
 
@@ -5304,6 +6527,11 @@ autodiff_expression_handler: type = {
         rws_expr    = rws;
     }
 
+    /**
+     * @brief Handle multiplicative expressions and emit product/quotient derivatives.
+     * @param binexpr Multiplicative expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::multiplicative_expression) = {
         terms := binexpr.get_terms();
 
@@ -5391,10 +6619,20 @@ autodiff_expression_handler: type = {
         }
     }
 
+    /**
+     * @brief Report unsupported is/as expressions.
+     * @param isas is/as expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, isas: meta::is_as_expression) = {
         isas.error( "AD: Is as expressions are not yet handled." );
     }
 
+    /**
+     * @brief Handle prefix operations as unary transforms.
+     * @param prefix Prefix expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, prefix: meta::prefix_expression) =
     {
         ops := prefix.get_ops();
@@ -5411,6 +6649,11 @@ autodiff_expression_handler: type = {
         fwd_expr    = ops[0] + ad.fwd_expr;
     }
 
+    /**
+     * @brief Handle postfix expressions for calls or member access.
+     * @param postfix Postfix expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, postfix: meta::postfix_expression) =
     {
         terms := postfix.get_terms();
@@ -5451,6 +6694,11 @@ autodiff_expression_handler: type = {
         }
     }
 
+    /**
+     * @brief Handle primary expressions (identifiers, literals, empty tuple).
+     * @param primary Primary expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, primary: meta::primary_expression) =
     {
         if primary.is_identifier() {
@@ -5488,24 +6736,43 @@ autodiff_expression_handler: type = {
     }
 }
 
+/**
+ * @brief Builds differentiated code for statements inside a function body.
+ */
 autodiff_stmt_handler: type = {
     this: simple_traverser      = ();
     this: autodiff_handler_base;
 
+    /// Alias to base traverser type.
     base: type == simple_traverser;
 
+    /// Function being differentiated.
     mf: meta::function_declaration;
 
+    /// Cached statement parameters (used for loops).
     last_params: std::vector<meta::parameter_declaration> = ();
+    /// Variables overwritten in this block (used for save/restore).
     overwritten: std::vector<std::string> = ();
 
+    /// When true, emit push/pop around overwrites (used in reverse mode).
     overwrite_push_pop: bool = false;
 
+    /**
+     * @brief Initialize with context and function.
+     * @param ctx_ Autodiff context.
+     * @param mf_ Function being differentiated.
+     * @return No return value.
+     */
     operator=: (out this, ctx_: *autodiff_context, mf_: meta::function_declaration) = {
         autodiff_handler_base = (ctx_);
         mf = mf_;
     }
 
+    /**
+     * @brief Emit parameter declarations for loop/statement parameter scopes.
+     * @param params Parameter declarations for the current statement scope.
+     * @return Diff buffer containing parameter declarations.
+     */
     handle_stmt_parameters: (inout this, params: std::vector<parameter_declaration>) -> autodiff_diff_code = {
         r : autodiff_diff_code = (ctx);
         if params.empty() {
@@ -5548,16 +6815,31 @@ autodiff_stmt_handler: type = {
         return r;
     }
 
+    /**
+     * @brief Dispatch declaration traversal.
+     * @param decl Declaration node to traverse.
+     * @return No return value.
+     */
     traverse: (override inout this, decl: meta::declaration) = {
         base::traverse(decl);
     }
 
 
+    /**
+     * @brief Report unsupported function declarations in statement context.
+     * @param f Function declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, f: meta::function_declaration) = {
         f.error("AD: Do not know how to handle function_declaration: (f.to_string())$");
     }
 
 
+    /**
+     * @brief Handle local variable declarations and initialize AD variables.
+     * @param o Object declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, o: meta::object_declaration) = {
         lhs  : std::string = o.name();
         type :             = o.type();
@@ -5620,16 +6902,31 @@ autodiff_stmt_handler: type = {
     }
 
 
+    /**
+     * @brief Report unsupported type declarations in statement context.
+     * @param t Type declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, t: meta::type_declaration) = {
         t.error("AD: Do not know how to handle type_declaration: (t.to_string())$");
     }
 
 
+    /**
+     * @brief Report unsupported parameter declarations in statement context.
+     * @param t Parameter declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, t: meta::parameter_declaration) = {
         t.error("AD: Do not know how to handle parameter_declaration: (t.to_string())$");
     }
 
 
+    /**
+     * @brief Cache statement parameters and traverse sub-statements.
+     * @param stmt Statement node.
+     * @return No return value.
+     */
     traverse: (override inout this, stmt: meta::statement) = {
         // TODO: Remove this hack when statements like compound_statement can access their root statement.
         last_params = stmt.get_parameters();
@@ -5637,6 +6934,11 @@ autodiff_stmt_handler: type = {
     }
 
 
+    /**
+     * @brief Handle compound statements with save/restore for overwritten variables.
+     * @param stmt Compound statement node.
+     * @return No return value.
+     */
     traverse: (override inout this, stmt: meta::compound_statement) = {
         ad         : autodiff_stmt_handler = (ctx, mf);
         ad_push_pop: autodiff_stmt_handler = (ctx, mf);
@@ -5672,6 +6974,11 @@ autodiff_stmt_handler: type = {
     }
 
 
+    /**
+     * @brief Handle return statements and assign into AD return storage.
+     * @param stmt Return statement node.
+     * @return No return value.
+     */
     traverse: (override inout this, stmt: meta::return_statement) = {
         if stmt.has_expression() {
             // Return with expression.
@@ -5688,6 +6995,11 @@ autodiff_stmt_handler: type = {
         }
     }
 
+    /**
+     * @brief Reverse the sign of `+=` and `-=` for reverse-mode loop rewrites.
+     * @param expr Increment/decrement expression to reverse.
+     * @return Rewritten expression string.
+     */
     reverse_next: (this, expr: std::string) -> std::string = {
         if expr.contains("+=") {
             return string_util::replace_all(expr, "+=", "-=");
@@ -5703,6 +7015,11 @@ autodiff_stmt_handler: type = {
     }
 
 
+    /**
+     * @brief Handle `while`, `do`, and `for` loops, including reverse-mode rewrites.
+     * @param stmt Iteration statement node.
+     * @return No return value.
+     */
     traverse: (override inout this, stmt: meta::iteration_statement) = {
         diff_params := handle_stmt_parameters(last_params);
 
@@ -5801,6 +7118,11 @@ autodiff_stmt_handler: type = {
     }
 
 
+    /**
+     * @brief Handle `if`/`else` statements (condition assumed passive).
+     * @param stmt Selection statement node.
+     * @return No return value.
+     */
     traverse: (override inout this, stmt: meta::selection_statement) = {
         // TODO: Currently assuming that nothing bad happens in the condition
         diff += "if (stmt.get_expression().to_string())$";
@@ -5812,10 +7134,20 @@ autodiff_stmt_handler: type = {
         }
     }
 
+    /**
+     * @brief Dispatch expression traversal.
+     * @param expr Expression node to traverse.
+     * @return No return value.
+     */
     traverse : (override inout this, expr: meta::expression) = {
         base::traverse(expr);
     }
 
+    /**
+     * @brief Handle assignments, including reverse-mode overwrite tracking.
+     * @param binexpr Assignment expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::assignment_expression) = {
         ada: autodiff_activity_check = (ctx);
         ada.pre_traverse(binexpr.get_lhs_postfix_expression());
@@ -5867,59 +7199,129 @@ autodiff_stmt_handler: type = {
         }
     }
 
+    /**
+     * @brief Report unsupported logical-or as a standalone statement.
+     * @param binexpr Logical-or expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::logical_or_expression) = {
         binexpr.error( "AD: Logical or expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported logical-and as a standalone statement.
+     * @param binexpr Logical-and expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::logical_and_expression) = {
         binexpr.error( "AD: Logical and expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported bitwise-or as a standalone statement.
+     * @param binexpr Bitwise-or expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::bit_or_expression) = {
         binexpr.error( "AD: Bit or expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported bitwise-xor as a standalone statement.
+     * @param binexpr Bitwise-xor expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::bit_xor_expression) = {
         binexpr.error( "AD: Bit xor expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported bitwise-and as a standalone statement.
+     * @param binexpr Bitwise-and expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::bit_and_expression) = {
         binexpr.error( "AD: Bit and expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported equality as a standalone statement.
+     * @param binexpr Equality expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::equality_expression) = {
         binexpr.error( "AD: Equality or expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported relational expressions as a standalone statement.
+     * @param binexpr Relational expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::relational_expression) = {
         binexpr.error( "AD: Relational expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported compare expressions as a standalone statement.
+     * @param binexpr Compare expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::compare_expression) = {
         binexpr.error( "AD: Compare or expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported shift expressions as a standalone statement.
+     * @param binexpr Shift expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::shift_expression) = {
         binexpr.error( "AD: Shift or expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported additive expressions as standalone statements.
+     * @param binexpr Additive expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::additive_expression) = {
         binexpr.error( "AD: Additive expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported multiplicative expressions as standalone statements.
+     * @param binexpr Multiplicative expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, binexpr: meta::multiplicative_expression) = {
         binexpr.error( "AD: Multiplicative expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported is/as expressions as standalone statements.
+     * @param isas is/as expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, isas: meta::is_as_expression) = {
         isas.error( "AD: Is as expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Report unsupported prefix expressions as standalone statements.
+     * @param prefix Prefix expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, prefix: meta::prefix_expression) =
     {
         prefix.error( "AD: Prefix expressions are not yet handled as standalone statements." );
     }
 
+    /**
+     * @brief Handle postfix expressions only for function calls.
+     * @param postfix Postfix expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, postfix: meta::postfix_expression) =
     {
         terms := postfix.get_terms();
@@ -5952,33 +7354,61 @@ autodiff_stmt_handler: type = {
         append(ad);
     }
 
+    /**
+     * @brief Report unsupported primary expressions as standalone statements.
+     * @param primary Primary expression node.
+     * @return No return value.
+     */
     traverse: (override inout this, primary: meta::primary_expression) =
     {
         primary.error( "AD: Primary expressions are not yet handled as standalone statements." );
     }
 }
 
+/**
+ * @brief Traverses declarations and emits differentiated types and functions.
+ */
 autodiff_declaration_handler: type = {
     this: simple_traverser      = ();
     this: autodiff_handler_base;
 
+    /// Alias to base traverser type.
     base: type == simple_traverser;
 
+    /// Current declaration context.
     decl: meta::type_or_namespace_declaration;
 
+    /// True when generating members of a derived AD type.
     is_type_context: bool        = false;
+    /// Accumulated members for an AD type definition.
     diff_ad_type   : std::string = "";
 
+    /**
+     * @brief Initialize with context and declaration.
+     * @param ctx_ Autodiff context.
+     * @param decl_ Declaration context to operate on.
+     * @return No return value.
+     */
     operator=: (out this, ctx_: *autodiff_context, decl_: meta::type_or_namespace_declaration) = {
         autodiff_handler_base = (ctx_);
         decl = decl_;
     }
 
+    /**
+     * @brief Dispatch declaration traversal.
+     * @param decl_ Declaration node to traverse.
+     * @return No return value.
+     */
     traverse: (override inout this, decl_: meta::declaration) = {
         base::traverse(decl_);
     }
 
 
+    /**
+     * @brief Generate forward and/or reverse differentiated function members.
+     * @param f Function declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, f: meta::function_declaration) = {
         ctx*.enter_function();
 
@@ -6137,6 +7567,11 @@ autodiff_declaration_handler: type = {
     }
 
 
+    /**
+     * @brief Generate AD member fields for object declarations.
+     * @param o Object declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, o: meta::object_declaration) = {
         ad_name : std::string = "(o.name())$(ctx*.fwd_suffix)$";
         fwd_ad_type : std::string = ctx*.get_fwd_ad_type(o.type());
@@ -6165,6 +7600,11 @@ autodiff_declaration_handler: type = {
     }
 
 
+    /**
+     * @brief Generate AD type wrappers for nested types.
+     * @param t Type declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, t: meta::type_declaration) = {
         ctx*.push_stack(t);
         ad: autodiff_declaration_handler = (ctx, t);
@@ -6189,17 +7629,39 @@ autodiff_declaration_handler: type = {
     }
 
 
+    /**
+     * @brief Report unsupported parameter declarations in declaration context.
+     * @param t Parameter declaration node.
+     * @return No return value.
+     */
     traverse: (override inout this, t: meta::parameter_declaration) = {
         t.error("AD: Do not know how to handle parameter_declaration: (t.to_string())$");
     }
 
 
+    /**
+     * @brief Report unsupported statements in declaration context.
+     * @param stmt Statement node.
+     * @return No return value.
+     */
     traverse: (override inout this, stmt: meta::statement) = {
         stmt.error("AD: Do not know how to handle statement in declaration context: (stmt.to_string())$");
     }
 }
 
 
+/**
+ * @brief Entry point for `autodiff` metafunction on a type declaration.
+ *
+ * Arguments:
+ * - "suffix=<str>" overrides forward suffix (default `_d`).
+ * - "rws_suffix=<str>" overrides reverse suffix (default `_b`).
+ * - "order=<n>" sets Taylor order (default 1).
+ * - "reverse" enables reverse mode and adjoints.
+ *
+ * @param t Type declaration to differentiate (modified in place).
+ * @return No return value.
+ */
 autodiff: (inout t: meta::type_declaration) =
 {
 
@@ -6250,6 +7712,10 @@ autodiff: (inout t: meta::type_declaration) =
     ad_ctx: autodiff_context = (order, reverse);
     ad_ctx.fwd_suffix = suffix;
     ad_ctx.rws_suffix = rws_suffix;
+
+    if reverse {
+        autodiff_reverse_ir(t, ad_ctx&);
+    }
 
     if t.parent_is_nonglobal_namespace() {
         p := t.get_parent().as_nonglobal_namespace();
@@ -6310,7 +7776,7 @@ error_func: type == std::function< (x: std::string) -> void >;
 
 //  Possible modifiers for a regular expression.
 //
-expression_flags: @flag_enum<u8> type = 
+expression_flags: @flag_enum<u8> type =
 {
     case_insensitive;             // mod: i
     multiple_lines;               // mod: m
@@ -6326,7 +7792,7 @@ expression_flags: @flag_enum<u8> type =
 
 // Basic class for a regex token.
 //
-regex_token: @polymorphic_base type = 
+regex_token: @polymorphic_base type =
 {
     public string_rep: std::string;
 
@@ -6353,7 +7819,7 @@ token_vec: type == std::vector<token_ptr>;
 
 //  Adds a check in code generation.
 //
-regex_token_check: @polymorphic_base type = 
+regex_token_check: @polymorphic_base type =
 {
     this: regex_token;
 
@@ -6374,7 +7840,7 @@ regex_token_check: @polymorphic_base type =
 
 //  Adds code in code generation.
 //
-regex_token_code: @polymorphic_base type = 
+regex_token_code: @polymorphic_base type =
 {
     this: regex_token;
 
@@ -6395,7 +7861,7 @@ regex_token_code: @polymorphic_base type =
 
 //  Token that does not influence the matching. E.g. comment.
 //
-regex_token_empty: @polymorphic_base type = 
+regex_token_empty: @polymorphic_base type =
 {
     this: regex_token;
 
@@ -6413,7 +7879,7 @@ regex_token_empty: @polymorphic_base type =
 
 //  Represents a list of regex tokens as one token.
 //
-regex_token_list: @polymorphic_base type = 
+regex_token_list: @polymorphic_base type =
 {
     this: regex_token;
 
@@ -6465,8 +7931,8 @@ regex_token_list: @polymorphic_base type =
 
 //  State of the current capturing group. See '(<pattern>)'
 //
-parse_context_group_state: @struct<noforward> type = 
-{    
+parse_context_group_state: @struct<noforward> type =
+{
     cur_match_list:        token_vec = ();         // Current list of matchers.
     alternate_match_lists: token_vec = ();         // List of alternate matcher lists. E.g. ab|cd|xy.
     modifiers :            expression_flags = ();  // Current modifiers for the group/regular expression.
@@ -6506,7 +7972,7 @@ parse_context_group_state: @struct<noforward> type =
     //  True if current matcher list is empty.
     empty: (this) -> bool = cur_match_list..empty();
 
-    
+
     //  Apply optimizations to the matcher list.
     post_process_list: (inout list: token_vec) = {
         // Merge all characters
@@ -6526,7 +7992,7 @@ parse_context_group_state: @struct<noforward> type =
 
 //  State for the branch reset. Takes care of the group numbering. See '(|<pattern>)'.
 //
-parse_context_branch_reset_state: @struct<noforward> type = 
+parse_context_branch_reset_state: @struct<noforward> type =
 {
     is_active : bool = false; // If we have a branch reset group.
     cur_group : int  = 1;     // Next group identifier. 0 == global capture group.
@@ -6566,10 +8032,10 @@ parse_context_branch_reset_state: @struct<noforward> type =
 
 
 //  Context during parsing of the regular expressions.
-// 
+//
 //  Keeps track of the distributed group identifiers, current parsed group and branch resets.
 //
-parse_context: type = 
+parse_context: type =
 {
     regex: std::string_view;   // Regular expression string.
     pos:   size_t = 0;         // Current parsing position.
@@ -6580,7 +8046,7 @@ parse_context: type =
     cur_group_state:        parse_context_group_state = ();
     cur_branch_reset_state: parse_context_branch_reset_state = ();
 
-    
+
     public named_groups:  std::map<std::string, int> = ();
 
     error_out: error_func; // TODO: Declaring std::function<void(std::string)> fails for cpp2.
@@ -6596,7 +8062,7 @@ parse_context: type =
     //
 
     //  Returned group state needs to be stored and provided in `end_group`.
-    start_group: (inout this) -> parse_context_group_state = 
+    start_group: (inout this) -> parse_context_group_state =
     {
         old_state: parse_context_group_state = ();
         old_state..swap(cur_group_state);
@@ -6624,7 +8090,7 @@ parse_context: type =
     //  Branch reset management functions
     //
 
-    branch_reset_new_state: (inout this) -> parse_context_branch_reset_state = 
+    branch_reset_new_state: (inout this) -> parse_context_branch_reset_state =
     {
         old_state: parse_context_branch_reset_state = ();
         std::swap(old_state, cur_branch_reset_state);
@@ -6633,14 +8099,14 @@ parse_context: type =
         return old_state;
     }
 
-    branch_reset_restore_state: (inout this, old_state: parse_context_branch_reset_state) = 
+    branch_reset_restore_state: (inout this, old_state: parse_context_branch_reset_state) =
     {
         max_group := cur_branch_reset_state.max_group;
         cur_branch_reset_state = old_state;
         cur_branch_reset_state..set_next(max_group);
     }
 
-    next_alternative: (inout this) = 
+    next_alternative: (inout this) =
     {
         cur_group_state..next_alternative();
         cur_branch_reset_state..next_alternative();
@@ -6656,7 +8122,7 @@ parse_context: type =
         return !cur_group_state..empty();
     }
 
-    pop_token: (inout this) -> token_ptr = 
+    pop_token: (inout this) -> token_ptr =
     {
         r : token_ptr = nullptr;
         if has_token() {
@@ -6681,14 +8147,14 @@ parse_context: type =
         return cur_branch_reset_state..next();
     }
 
-    set_named_group: (inout this, name: std::string, id: int) = 
+    set_named_group: (inout this, name: std::string, id: int) =
     {
         if !named_groups..contains(name) { // Redefinition of group name is not an error. The left most one is retained.
             named_groups[name] = id;
         }
     }
 
-    get_named_group: (this, name: std::string) -> int = 
+    get_named_group: (this, name: std::string) -> int =
     {
         iter := named_groups..find(name);
         if iter == named_groups..end() {
@@ -6698,13 +8164,13 @@ parse_context: type =
             return iter*.second;
         }
     }
-    
+
     //  Position management functions
     //
     current: (this) -> char = { return regex[pos]; }
 
     //  Get the next token in the regex, skipping spaces according to the parameters. See `x` and `xx` modifiers.
-    private get_next_position: (in this, in_class: bool, no_skip: bool) -> size_t = 
+    private get_next_position: (in this, in_class: bool, no_skip: bool) -> size_t =
     {
         perl_syntax := false;
         if !no_skip {
@@ -6744,7 +8210,7 @@ parse_context: type =
     }
 
     //  Return true if next token is available.
-    private next_impl: (inout this, in_class: bool, no_skip: bool) -> bool = 
+    private next_impl: (inout this, in_class: bool, no_skip: bool) -> bool =
     {
         pos = get_next_position(in_class, no_skip);
         if pos != regex..size() {
@@ -6770,7 +8236,7 @@ parse_context: type =
 
     has_next: (this) -> bool = { return pos < regex..size(); }
 
-    private grab_until_impl: (inout this, in e: std::string, out r: std::string, any: bool) -> bool = 
+    private grab_until_impl: (inout this, in e: std::string, out r: std::string, any: bool) -> bool =
     {
         end:= pos; // NOLINT(clang-analyzer-deadcode.DeadStores)
         if any {
@@ -6795,7 +8261,7 @@ parse_context: type =
     grab_until: (inout this, in e: char, out r: std::string)               = grab_until_impl(std::string(1, e), out r, false);
     grab_until_one_of: (inout this, in e: std::string, out r: std::string) = grab_until_impl(e, out r, true);
 
-    grab_n: (inout this, in n: int, out r: std::string) -> bool = 
+    grab_n: (inout this, in n: int, out r: std::string) -> bool =
     {
         if pos + n as size_t <= regex..size() {
             r = regex..substr(pos, n as size_t);
@@ -6808,7 +8274,7 @@ parse_context: type =
         }
     }
 
-    grab_number: (inout this) -> std::string = 
+    grab_number: (inout this) -> std::string =
     {
         start := pos;
         start_search := pos;
@@ -6845,7 +8311,7 @@ parse_context: type =
 
     //  Parsing functions
     //
-    parser_group_modifiers: (inout this, change_str: std::string, inout parser_modifiers: expression_flags) -> bool = 
+    parser_group_modifiers: (inout this, change_str: std::string, inout parser_modifiers: expression_flags) -> bool =
     {
         is_negative := false;
         is_reset    := false;
@@ -6860,7 +8326,7 @@ parse_context: type =
         };
 
         iter := change_str..begin();
-        while iter != change_str..end() next (iter++) 
+        while iter != change_str..end() next (iter++)
         {
             cur := iter*;
             if cur == '^' {
@@ -6938,7 +8404,7 @@ parse_context: type =
         return true;
     }
 
-    parse: (inout this, modifiers: std::string) -> bool = 
+    parse: (inout this, modifiers: std::string) -> bool =
     {
 
         flags : expression_flags = ();
@@ -6988,7 +8454,7 @@ generation_function_context: @struct<noforward> type = {
 
 
 //  Context for generating the state machine.
-generation_context: type = 
+generation_context: type =
 {
     gen_stack: std::vector<generation_function_context> = (1); // Element 0 contains all the code.
 
@@ -7016,7 +8482,7 @@ generation_context: type =
     }
 
     //  Add a stateful check. The check needs to return a `match_return`.
-    add_statefull: (inout this, next_func: std::string, check: std::string) = 
+    add_statefull: (inout this, next_func: std::string, check: std::string) =
     {
         end_func_statefull(check);
 
@@ -7024,7 +8490,7 @@ generation_context: type =
         start_func_named(name);
     }
 
-    protected start_func_named: (inout this, name: std::string) = 
+    protected start_func_named: (inout this, name: std::string) =
     {
         cur := new_context();
 
@@ -7035,14 +8501,14 @@ generation_context: type =
         cur*..add_tabs(3);
     }
 
-    protected start_func: (inout this) -> std::string = 
+    protected start_func: (inout this) -> std::string =
     {
         name := gen_func_name();
         start_func_named(name);
         return name + "()";
     }
 
-    protected end_func_statefull: (inout this, s: std::string) = 
+    protected end_func_statefull: (inout this, s: std::string) =
     {
         cur := get_current();
         cur*..remove_tabs(3);
@@ -7063,7 +8529,7 @@ generation_context: type =
     }
 
     //  Generate the function for a token.
-    generate_func: (inout this, token: token_ptr) -> std::string = 
+    generate_func: (inout this, token: token_ptr) -> std::string =
     {
         name := start_func();
         token*..generate_code(this);
@@ -7073,7 +8539,7 @@ generation_context: type =
     }
 
     //  Generate the reset for a list of group identifiers.
-    generate_reset: (inout this, groups: std::set<int>) -> std::string = 
+    generate_reset: (inout this, groups: std::set<int>) -> std::string =
     {
         if groups..empty() {
             return "cpp2::regex::no_reset()";
@@ -7151,7 +8617,7 @@ generation_context: type =
         return entry_func;
     }
 
-    create_named_group_lookup: (this, named_groups: std::map<std::string, int>) -> std::string = 
+    create_named_group_lookup: (this, named_groups: std::map<std::string, int>) -> std::string =
     {
         res: std::string = "get_named_group_index: (name) -> int = {\n";
 
@@ -7187,7 +8653,7 @@ generation_context: type =
 //
 //  Non greedy implementation. First alternative that matches is chosen.
 //
-alternative_token: @polymorphic_base type = 
+alternative_token: @polymorphic_base type =
 {
     this: regex_token_empty = ("");  // No code gen here. alternative_token_gen is created in the parse_context
 
@@ -7202,7 +8668,7 @@ alternative_token: @polymorphic_base type =
     }
 }
 
-alternative_token_gen: @polymorphic_base type = 
+alternative_token_gen: @polymorphic_base type =
 {
     this: regex_token;
 
@@ -7213,7 +8679,7 @@ alternative_token_gen: @polymorphic_base type =
         alternatives = a;
     }
 
-    generate_code: (override this, inout ctx: generation_context) = 
+    generate_code: (override this, inout ctx: generation_context) =
     {
         functions: std::string = "";
 
@@ -7230,14 +8696,14 @@ alternative_token_gen: @polymorphic_base type =
         ctx..add_statefull(next_name, "cpp2::regex::alternative_token_matcher<char>::match((ctx..match_parameters())$, other, (next_name)$ (functions)$)");
     }
 
-    add_groups: (override this, inout groups: std::set<int>) = 
+    add_groups: (override this, inout groups: std::set<int>) =
     {
         for alternatives do (cur) {
             cur*..add_groups(groups);
         }
     }
 
-    gen_string: (a: token_vec) -> std::string = 
+    gen_string: (a: token_vec) -> std::string =
     {
         r: std::string = "";
         sep: std::string = "";
@@ -7267,7 +8733,7 @@ alternative_token_gen: @polymorphic_base type =
 
 //  Regex syntax: .
 //
-any_token: @polymorphic_base type = 
+any_token: @polymorphic_base type =
 {
     this: regex_token_check = (".");
 
@@ -7314,7 +8780,7 @@ atomic_group_token: @polymorphic_base type =
 
 //  Regex syntax: a
 //
-char_token: @polymorphic_base type = 
+char_token: @polymorphic_base type =
 {
     this: regex_token;
 
@@ -7337,7 +8803,7 @@ char_token: @polymorphic_base type =
         return shared.new<char_token>(ctx..current(), ctx..get_modifiers()..has(expression_flags::case_insensitive));
     }
 
-    generate_code: (override this, inout ctx: generation_context) = 
+    generate_code: (override this, inout ctx: generation_context) =
     {
         if ignore_case {
             upper: std::string = token;
@@ -7360,7 +8826,7 @@ char_token: @polymorphic_base type =
         }
     }
 
-    gen_case_insensitive: (this, lower: std::string, upper: std::string, inout ctx: generation_context) = 
+    gen_case_insensitive: (this, lower: std::string, upper: std::string, inout ctx: generation_context) =
     {
         name: std::string = "str_(ctx..gen_temp())$";
         lower_name: std::string = "lower_(name)$";
@@ -7381,7 +8847,7 @@ char_token: @polymorphic_base type =
         ctx..add("else { break; }");
     }
 
-    gen_case_sensitive: (this, inout ctx: generation_context) = 
+    gen_case_sensitive: (this, inout ctx: generation_context) =
     {
         name: std::string = "str_(ctx..gen_temp())$";
         size := token..size();
@@ -7399,7 +8865,7 @@ char_token: @polymorphic_base type =
         ctx..add("else { break; }");
     }
 
-    add_escapes: (this, copy str: std::string) -> std::string = 
+    add_escapes: (this, copy str: std::string) -> std::string =
     {
         str = string_util::replace_all(str, "\\", "\\\\");
         str = string_util::replace_all(str, "\a", "\\a");
@@ -7429,7 +8895,7 @@ char_token: @polymorphic_base type =
 
 //  Regex syntax: [<character classes>]  Example: [abcx-y[:digits:]]
 //
-class_token: @polymorphic_base type = 
+class_token: @polymorphic_base type =
 {
     this            : regex_token = ();
 
@@ -7437,7 +8903,7 @@ class_token: @polymorphic_base type =
     case_insensitive: bool;
     class_str       : std::string;
 
-    operator=: (out this, negate_: bool, case_insensitive_: bool, class_str_: std::string, str: std::string) = 
+    operator=: (out this, negate_: bool, case_insensitive_: bool, class_str_: std::string, str: std::string) =
     {
         regex_token = str;
         negate = negate_;
@@ -7446,7 +8912,7 @@ class_token: @polymorphic_base type =
     }
 
     //  TODO: Rework class generation: Generate check functions for classes.
-    parse: (inout ctx: parse_context) -> token_ptr = 
+    parse: (inout ctx: parse_context) -> token_ptr =
     {
         if ctx..current() != '[' { return nullptr; }
 
@@ -7461,15 +8927,15 @@ class_token: @polymorphic_base type =
         is_negate := false;
         first     := true;
         range     := false;
-        while ctx..next_in_class() && (ctx..current() != ']' || first) 
+        while ctx..next_in_class() && (ctx..current() != ']' || first)
         {
-            if ctx..current() == '^' 
+            if ctx..current() == '^'
             {
                 is_negate = true;
                 continue; // Skip rest of the loop. Also the first update.
             }
 
-            if ctx..current() == '[' && ctx..peek_in_class() == ':' 
+            if ctx..current() == '[' && ctx..peek_in_class() == ':'
             {
                 //  We have a character class.
                 _ = ctx..next_n(2);  // Skip [:
@@ -7484,13 +8950,13 @@ class_token: @polymorphic_base type =
 
                 _ = ctx..next(); // Skip ':' pointing to the ending ']'.
             }
-            else if ctx..current() == '\\' 
+            else if ctx..current() == '\\'
             {
-                if ctx..next_no_skip()  && (ctx..current() != ']') 
+                if ctx..next_no_skip()  && (ctx..current() != ']')
                 {
-                    if  ' ' == ctx..current() 
-                        && ctx..get_modifiers()..has(expression_flags::perl_code_syntax) 
-                        && ctx..get_modifiers()..has(expression_flags::perl_code_syntax_in_classes) 
+                    if  ' ' == ctx..current()
+                        && ctx..get_modifiers()..has(expression_flags::perl_code_syntax)
+                        && ctx..get_modifiers()..has(expression_flags::perl_code_syntax_in_classes)
                     {
                         classes..push_back(std::string(1, ctx..current()));
                     }
@@ -7515,7 +8981,7 @@ class_token: @polymorphic_base type =
                     return ctx..error("Escape without a following character.");
                 }
             }
-            else if ctx..current() == '-' 
+            else if ctx..current() == '-'
             {
                 if first { // Literal if first entry.
                     classes..push_back("(ctx..current())$");
@@ -7523,7 +8989,7 @@ class_token: @polymorphic_base type =
                     range = true;
                 }
             }
-            else 
+            else
             {
                 if range { // Modify last element to be a range.
                     classes..back() += "-(ctx..current())$";
@@ -7547,7 +9013,7 @@ class_token: @polymorphic_base type =
         }
 
         // Second step: Wrap the item on the class stack with corresponding class implementation.
-        for classes do (inout cur) 
+        for classes do (inout cur)
         {
             if cur..starts_with("[:") {
                 name := cur..substr(2, cur..size() - 4);
@@ -7564,9 +9030,9 @@ class_token: @polymorphic_base type =
         inner      := string_util::join(classes);
         string_rep := ctx..get_range(start_pos, end_pos);
         return shared.new<class_token>(
-            is_negate, 
-            ctx..get_modifiers()..has(expression_flags::case_insensitive), 
-            inner, 
+            is_negate,
+            ctx..get_modifiers()..has(expression_flags::case_insensitive),
+            inner,
             string_rep
             );
     }
@@ -7580,12 +9046,12 @@ class_token: @polymorphic_base type =
             );
     }
 
-    generate_code: (override this, inout ctx: generation_context) = 
+    generate_code: (override this, inout ctx: generation_context) =
     {
         ctx..add_check("class_token_matcher<char, (negate)$, (case_insensitive)$, (class_str)$>::match((ctx..match_parameters())$)");
     }
 
-    private create_matcher: (name: std::string, template_arguments: std::string) -> std::string = 
+    private create_matcher: (name: std::string, template_arguments: std::string) -> std::string =
     {
         sep := ", ";
         if template_arguments..empty() { sep = ""; }
@@ -7597,7 +9063,7 @@ class_token: @polymorphic_base type =
 
 //  Regex syntax: \a or \n or \[
 //
-escape_token_parse: (inout ctx: parse_context) -> token_ptr = 
+escape_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if ctx..current() != '\\' { return nullptr; }
 
@@ -7608,7 +9074,7 @@ escape_token_parse: (inout ctx: parse_context) -> token_ptr =
 
     _ = ctx..next(); // Skip escape
 
-    if std::string::npos != std::string("afenrt\\")..find(ctx..current()) 
+    if std::string::npos != std::string("afenrt\\")..find(ctx..current())
     {
         // Escape of string special char
         t : char = '\0';
@@ -7624,8 +9090,8 @@ escape_token_parse: (inout ctx: parse_context) -> token_ptr =
         r: = shared.new<char_token>(t, false);
         r*..set_string("\\(ctx..current())$");
         return r;
-    } 
-    else 
+    }
+    else
     {
         // Escape of regex special char
         r := shared.new<char_token>(ctx..current(), false);
@@ -7638,7 +9104,7 @@ escape_token_parse: (inout ctx: parse_context) -> token_ptr =
 
 //  Regex syntax: \K Example: ab\Kcd
 //
-global_group_reset_token_parse: (inout ctx: parse_context) -> token_ptr = 
+global_group_reset_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if !(ctx..current() == '\\' && ctx..peek() == 'K') { return nullptr; }
 
@@ -7653,7 +9119,7 @@ global_group_reset_token_parse: (inout ctx: parse_context) -> token_ptr =
 //                \k<name_or_number>
 //                \k'name_or_number'
 //
-group_ref_token: @polymorphic_base type = 
+group_ref_token: @polymorphic_base type =
 {
     this            : regex_token = ();
 
@@ -7669,19 +9135,19 @@ group_ref_token: @polymorphic_base type =
         reverse_eval     = reverse_;
     }
 
-    parse: (inout ctx: parse_context) -> token_ptr = 
+    parse: (inout ctx: parse_context) -> token_ptr =
     {
         if ctx..current() != '\\' { return nullptr; }
 
         str : std::string = "\\";
         group : std::string = "";
 
-        if '0' <= ctx..peek() <= '9' 
+        if '0' <= ctx..peek() <= '9'
         {
             _ = ctx..next(); // Skip escape
             group = ctx..grab_number();
 
-            if group..size() >= 3 as size_t 
+            if group..size() >= 3 as size_t
             {
                 // Octal syntax (\000) not a group ref matcher.
                 number := 0;
@@ -7698,7 +9164,7 @@ group_ref_token: @polymorphic_base type =
             str += group;
             // Regular group ref
         }
-        else if 'g' == ctx..peek() 
+        else if 'g' == ctx..peek()
         {
             _ = ctx..next(); // Skip escape
             if !ctx..next() { return ctx..error("Group escape without a following char."); } // Skip g
@@ -7716,7 +9182,7 @@ group_ref_token: @polymorphic_base type =
                 str += group;
             }
         }
-        else if 'k' == ctx..peek() 
+        else if 'k' == ctx..peek()
         {
             _ = ctx..next(); // Skip escape
             if !ctx..next() { return ctx..error("Group escape without a following char."); } // Skip k
@@ -7737,7 +9203,7 @@ group_ref_token: @polymorphic_base type =
 
             str += group + term_char;
         }
-        else 
+        else
         {
             // No group ref matcher
             return nullptr;
@@ -7746,7 +9212,7 @@ group_ref_token: @polymorphic_base type =
         // Parse the group
         group = string_util::trim_copy(group);
         group_id : int = 0;
-        if string_util::string_to_int(group, group_id) 
+        if string_util::string_to_int(group, group_id)
         {
             if group_id < 0 {
                 group_id = ctx..get_cur_group() + group_id;
@@ -7760,7 +9226,7 @@ group_ref_token: @polymorphic_base type =
                 return ctx..error("Group reference is used before the group is declared.");
             }
         }
-        else 
+        else
         {
             // Named group
             group_id = ctx..get_named_group(group);
@@ -7790,7 +9256,7 @@ group_ref_token: @polymorphic_base type =
 //                (?!<tokens>)             (?!abc)
 //                (*<name>:<tokens)        (*pla:abc)
 //
-group_token: @polymorphic_base type = 
+group_token: @polymorphic_base type =
 {
     this: regex_token = ();
 
@@ -7830,7 +9296,7 @@ group_token: @polymorphic_base type =
         return r;
     }
 
-    parse: (inout ctx: parse_context) -> token_ptr = 
+    parse: (inout ctx: parse_context) -> token_ptr =
     {
         if ctx..current() != '(' { return nullptr; }
 
@@ -7844,7 +9310,7 @@ group_token: @polymorphic_base type =
         //  Skip the '('
         if !ctx..next() { return ctx..error("Group without closing bracket."); }
 
-        if ctx..current() == '?' 
+        if ctx..current() == '?'
         {
             //  Special group
             if !ctx..next_no_skip() { return ctx..error("Missing character after group opening.");  }
@@ -7870,7 +9336,7 @@ group_token: @polymorphic_base type =
                 if !ctx..grab_until(end_char, out group_name) { return ctx..error("Missing ending bracket for named group.");  }
                 if !ctx..next() { return ctx..error("Group without closing bracket."); }
             }
-            else if ctx..current() == '#' 
+            else if ctx..current() == '#'
             {
                 //  Comment
                 comment_str : std::string = "";
@@ -7890,7 +9356,7 @@ group_token: @polymorphic_base type =
                     return shared.new<regex_token_empty>("(?#(comment_str)$)");
                 }
             }
-            else if ctx..current() == '|' 
+            else if ctx..current() == '|'
             {
                 //  Branch reset group
 
@@ -7905,7 +9371,7 @@ group_token: @polymorphic_base type =
                 list: token_vec = (shared.new<regex_token_empty>("(?|"), inner_, shared.new<regex_token_empty>(")"));
                 return shared.new<regex_token_list>(list);
             }
-            else if ctx..current() == '=' || ctx..current() == '!' 
+            else if ctx..current() == '=' || ctx..current() == '!'
             {
                 // Lookahead
                 return parse_lookahead_lookbehind(ctx, "?(ctx..current())$", true, ctx..current() == '=');
@@ -7915,7 +9381,7 @@ group_token: @polymorphic_base type =
                 // Atomic pattern
                 return parse_atomic_pattern(ctx, "?(ctx..current())$");
             }
-            else 
+            else
             {
                 //  Simple modifier
                 has_id = false;
@@ -7932,7 +9398,7 @@ group_token: @polymorphic_base type =
                 }
             }
         }
-        else if ctx..current() == '*' 
+        else if ctx..current() == '*'
         {
             //  Named pattern
             _ = ctx..next(); // Skip *.
@@ -7959,7 +9425,7 @@ group_token: @polymorphic_base type =
             }
         }
 
-        if has_pattern 
+        if has_pattern
         {
             //  Regular group
 
@@ -7980,7 +9446,7 @@ group_token: @polymorphic_base type =
 
             return r;
         }
-        else 
+        else
         {
             //  Only a modifier
             ctx..set_modifiers(modifiers_change_to);
@@ -7997,7 +9463,7 @@ group_token: @polymorphic_base type =
         return r;
     }
 
-    gen_string: (name: std::string, name_brackets: bool, has_modifier: bool, modifiers: std::string, inner_: token_ptr) -> std::string = 
+    gen_string: (name: std::string, name_brackets: bool, has_modifier: bool, modifiers: std::string, inner_: token_ptr) -> std::string =
     {
         start : std::string = "(";
         if 0 != name..size() {
@@ -8015,7 +9481,7 @@ group_token: @polymorphic_base type =
         return start + inner_*..to_string() + ")";
     }
 
-    generate_code: (override this, inout ctx: generation_context) = 
+    generate_code: (override this, inout ctx: generation_context) =
     {
         if -1 != number {
             if reverse_eval {
@@ -8046,7 +9512,7 @@ group_token: @polymorphic_base type =
         }
     }
 
-    add_groups: (override this, inout groups: std::set<int>) = 
+    add_groups: (override this, inout groups: std::set<int>) =
     {
         inner*..add_groups(groups);
         if -1 != number {
@@ -8058,7 +9524,7 @@ group_token: @polymorphic_base type =
 
 //  Regex syntax: \x<number> or \x{<number>}  Example: \x{62}
 //
-hexadecimal_token_parse: (inout ctx: parse_context) -> token_ptr = 
+hexadecimal_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if !(ctx..current() == '\\' && ctx..peek() == 'x') { return nullptr; }
 
@@ -8099,7 +9565,7 @@ hexadecimal_token_parse: (inout ctx: parse_context) -> token_ptr =
 
 //  Regex syntax: $  Example: aa$
 //
-line_end_token_parse: (inout ctx: parse_context) -> token_ptr = 
+line_end_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if ctx..current() == '$' || (ctx..current() == '\\' && ctx..peek() == '$') {
         if (ctx..current() == '\\') { _ = ctx..next(); } // Skip escape
@@ -8119,7 +9585,7 @@ line_end_token_parse: (inout ctx: parse_context) -> token_ptr =
 
 //  Regex syntax: ^  Example: ^aa
 //
-line_start_token_parse: (inout ctx: parse_context) -> token_ptr = 
+line_start_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if ctx..current() != '^' && !(ctx..current() == '\\' && ctx..peek() == 'A') { return nullptr; }
 
@@ -8176,7 +9642,7 @@ lookahead_lookbehind_token: @polymorphic_base type =
 
 // Named character classes
 //
-named_class_token_parse: (inout ctx: parse_context) -> token_ptr = 
+named_class_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if ctx..current() != '\\' { return nullptr; }
 
@@ -8204,7 +9670,7 @@ named_class_token_parse: (inout ctx: parse_context) -> token_ptr =
 
 //  Regex syntax: \o{<number>}  Example: \o{142}
 //
-octal_token_parse: (inout ctx: parse_context) -> token_ptr = 
+octal_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if !(ctx..current() == '\\' && ctx..peek() == 'o') { return nullptr; }
 
@@ -8232,7 +9698,7 @@ octal_token_parse: (inout ctx: parse_context) -> token_ptr =
 
 //  Regex syntax: <matcher>{min, max}  Example: a{2,4}
 //
-range_token: @polymorphic_base type = 
+range_token: @polymorphic_base type =
 {
     this                 : regex_token = ("");
 
@@ -8243,10 +9709,10 @@ range_token: @polymorphic_base type =
 
     operator=: (out this) = {}
 
-    parse: (inout ctx: parse_context) -> token_ptr = 
+    parse: (inout ctx: parse_context) -> token_ptr =
     {
         r := shared.new<range_token>();
-        if ctx..current() == '{' 
+        if ctx..current() == '{'
         {
             if !ctx..has_token() { return ctx..error("'{' without previous element."); }
 
@@ -8264,14 +9730,14 @@ range_token: @polymorphic_base type =
             max_count_str: std::string = "-1";
 
             sep: size_t = inner..find(',');
-            if sep == std::string::npos 
+            if sep == std::string::npos
             {
                 min_count_str = inner;
                 max_count_str = inner;
                 if !string_util::string_to_int(inner, r*.min_count) { return ctx..error("Could not convert range to number."); }
                 r*.max_count = r*.min_count;
             }
-            else 
+            else
             {
                 inner_first: std::string = string_util::trim_copy(inner..substr(0, sep));
                 inner_last: std::string = string_util::trim_copy(inner..substr(sep + 1));
@@ -8316,7 +9782,7 @@ range_token: @polymorphic_base type =
         return nullptr;
     }
 
-    parse_modifier: (inout this, inout ctx: parse_context) = 
+    parse_modifier: (inout this, inout ctx: parse_context) =
     {
         if ctx..peek() == '?' {
             kind = range_flags::not_greedy;
@@ -8328,7 +9794,7 @@ range_token: @polymorphic_base type =
         }
     }
 
-    gen_mod_string: (this) -> std::string = 
+    gen_mod_string: (this) -> std::string =
     {
         if kind == range_flags::not_greedy {
             return "?";
@@ -8341,7 +9807,7 @@ range_token: @polymorphic_base type =
         }
     }
 
-    gen_range_string: (this) -> std::string = 
+    gen_range_string: (this) -> std::string =
     {
         r : std::string = "";
         if min_count == max_count {
@@ -8370,7 +9836,7 @@ range_token: @polymorphic_base type =
         return r;
     }
 
-    generate_code: (override this, inout ctx: generation_context) = 
+    generate_code: (override this, inout ctx: generation_context) =
     {
         inner_name := ctx..generate_func(inner_token);
         groups: std::set<int> = ();
@@ -8389,11 +9855,11 @@ range_token: @polymorphic_base type =
 
 //  Regex syntax: *, +, or ?  Example: aa*
 //
-special_range_token: @polymorphic_base type = 
+special_range_token: @polymorphic_base type =
 {
     this : range_token = ();
 
-    parse: (inout ctx: parse_context) -> token_ptr = 
+    parse: (inout ctx: parse_context) -> token_ptr =
     {
         r := shared.new<special_range_token>();
         symbol: char = '\0';
@@ -8449,7 +9915,7 @@ start_match_parse: (inout ctx: parse_context) -> token_ptr =
 //
 //  Matches the start end end of word boundaries.
 //
-word_boundary_token_parse: (inout ctx: parse_context) -> token_ptr = 
+word_boundary_token_parse: (inout ctx: parse_context) -> token_ptr =
 {
     if ctx..current() != '\\' { return nullptr; }
 
@@ -8475,7 +9941,7 @@ word_boundary_token_parse: (inout ctx: parse_context) -> token_ptr =
 //
 
 //  Parser and generator for regular expressions.
-regex_generator: <Error_out> type = 
+regex_generator: <Error_out> type =
 {
     regex:           std::string_view;
     modifier:        std::string = "";
@@ -8490,7 +9956,7 @@ regex_generator: <Error_out> type =
         error_out = e;
     }
 
-    parse:(inout this) -> std::string = 
+    parse:(inout this) -> std::string =
     {
         // Extract modifiers and adapt regex.
         extract_modifiers();
@@ -8525,7 +9991,7 @@ regex_generator: <Error_out> type =
         return source;
     }
 
-    private extract_modifiers: (inout this) = 
+    private extract_modifiers: (inout this) =
     {
         if regex..find_first_of("'/") == 0 {
             mod_token: char = regex[0];
@@ -8541,7 +10007,7 @@ regex_generator: <Error_out> type =
     }
 }
 
-generate_regex: <Err> (regex: std::string_view, err: Err) -> std::string = 
+generate_regex: <Err> (regex: std::string_view, err: Err) -> std::string =
 {
     parser: regex_generator<Err> = (regex, err);
     r := parser..parse();
@@ -8625,7 +10091,7 @@ apply_metafunctions: (
         for  rtype.get_members()
         do   (m)
         {
-            m.require( 
+            m.require(
                 !m.name().starts_with("_") || m.name().ssize() == 1,
                 "a type that applies a metafunction cannot have a body that declares "
                 "a name that starts with '_' - those names are reserved for the "
@@ -8735,7 +10201,7 @@ apply_metafunctions: (
         }
         else {
             error( "unrecognized metafunction name: " + name );
-            error( 
+            error(
                 "the current supported names are listed at "
                 "https://hsutter.github.io/cppfront/cpp2/metafunctions/#built-in-metafunctions"
             );
