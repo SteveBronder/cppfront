@@ -1,0 +1,18 @@
+// Simple program to print the reflection AST during compilation.
+//
+// Compile with:
+//   ./source/cppfront experimental/autodiff-ast-dump.cpp2
+//
+// To print after autodiff has run, use:
+//   ad: @autodiff<"reverse"> @sample_traverser type = { ... }
+
+ad: @sample_traverser type = {
+    f: (x: double, y: double) -> double = {
+        z := x * y;
+        return z + sin(x);
+    }
+}
+
+main: () = {
+    // No runtime behavior; compile-time AST print only.
+}

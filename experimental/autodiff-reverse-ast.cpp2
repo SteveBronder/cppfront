@@ -1,0 +1,10 @@
+// compile: ./source/cppfront ./experimental/autodiff-reverse-ast.cpp2
+
+ad: @autodiff<"reverse"> type = {
+    f: (x: double, y: double) -> double = {
+        z := x * y;
+        return z + sin(x);
+    }
+}
+
+main: () = { }
