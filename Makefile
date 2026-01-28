@@ -92,7 +92,7 @@ bootstrap: $(CPPFRONT)
 # Run the AD test (transpile only - check for errors)
 test: $(CPPFRONT)
 	@echo "=== Testing test_ad_stages.cpp2 ==="
-	$(CPPFRONT) $(EXPERIMENTAL_DIR)/test_ad_stages.cpp2
+	$(CPPFRONT) $(EXPERIMENTAL_DIR)/test_ad_stages.cpp2 -o $(EXPERIMENTAL_DIR)/test_ad_stages.cpp
 
 # Parse a .cpp2 file to .cpp (set FILE=path/to/file.cpp2)
 # Output goes to same directory as input file

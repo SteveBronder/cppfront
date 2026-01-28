@@ -4547,6 +4547,8 @@ autodiff_context: type = {
     private order  : int         = 1;
     /// True for reverse mode; forward mode otherwise.
     public  reverse: bool        = false;
+    /// True to enable debug output during AD processing.
+    public  debug: bool          = false;
 
     /// Forward-mode AD scalar type for the configured order.
     public fwd_ad_type: std::string = "double";
@@ -8548,15 +8550,7 @@ parse_rule_expr: (expr: meta::expression, ctx: ad_substitution_context) -> ad_pa
  * @return Result with ok=true and parsed statement if successful.
  */
 parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_parse_stmt_result = {
-    stmt_str := stmt.to_string() as std::string;
-
-    // Trim whitespace
-    while !stmt_str.empty() && std::isspace(stmt_str.front() as int) != 0 {
-        _ = stmt_str.erase(stmt_str.begin());
-    }
-    while !stmt_str.empty() && std::isspace(stmt_str.back() as int) != 0 {
-        stmt_str.pop_back();
-    }
+    stmt_str := string_util::trim_copy(stmt.to_string());
 
     std::cout << "AD: parse_rule_stmt: '" << stmt_str << "'\n";
 
@@ -8627,20 +8621,13 @@ parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_par
         // Format: target += value
         plus_eq_pos := expr_str2.find("+=");
         if plus_eq_pos != std::string::npos {
-            target_str := expr_str2.substr(0, plus_eq_pos);
-            value_str := expr_str2.substr(plus_eq_pos + 2);
-
-            // Trim whitespace
-            while !target_str.empty() && std::isspace(target_str.back() as int) != 0 {
-                target_str.pop_back();
-            }
-            while !value_str.empty() && std::isspace(value_str.front() as int) != 0 {
-                _ = value_str.erase(value_str.begin());
-            }
+            target_str := string_util::trim_copy(expr_str2.substr(0, plus_eq_pos));
+            value_str := string_util::trim_copy(expr_str2.substr(plus_eq_pos + 2));
             // Remove trailing semicolon if present
-            while !value_str.empty() && (value_str.back() == ';' || std::isspace(value_str.back() as int) != 0) {
+            while !value_str.empty() && value_str.back() == ';' {
                 value_str.pop_back();
             }
+            value_str = string_util::trim_copy(value_str);
 
             std::cout << "AD: Assignment-add: target='" << target_str << "' value='" << value_str << "'\n";
 
@@ -8703,19 +8690,13 @@ parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_par
             if eq_pos > 0uz && (expr_str2[eq_pos - 1] == '-' || expr_str2[eq_pos - 1] == '*' || expr_str2[eq_pos - 1] == '/') {
                 // Skip compound assignment
             } else {
-                target_str := expr_str2.substr(0, eq_pos);
-                value_str := expr_str2.substr(eq_pos + 1);
-
-                // Trim whitespace
-                while !target_str.empty() && std::isspace(target_str.back() as int) != 0 {
-                    target_str.pop_back();
-                }
-                while !value_str.empty() && std::isspace(value_str.front() as int) != 0 {
-                    _ = value_str.erase(value_str.begin());
-                }
-                while !value_str.empty() && (value_str.back() == ';' || std::isspace(value_str.back() as int) != 0) {
+                target_str := string_util::trim_copy(expr_str2.substr(0, eq_pos));
+                value_str := string_util::trim_copy(expr_str2.substr(eq_pos + 1));
+                // Remove trailing semicolon if present
+                while !value_str.empty() && value_str.back() == ';' {
                     value_str.pop_back();
                 }
+                value_str = string_util::trim_copy(value_str);
 
                 // Substitute target if needed
                 new_target := target_str;
@@ -9208,37 +9189,8 @@ ad_ir_builder: type = {
             if expr.args.ssize() >= 2 {
                 lhs := emit_expr(expr.args[0]);
                 rhs := emit_expr(expr.args[1]);
-                op_str := "";
-                // Arithmetic
-                if expr.op == ad_op_kind::add { op_str = " + "; }
-                else if expr.op == ad_op_kind::sub { op_str = " - "; }
-                else if expr.op == ad_op_kind::mul { op_str = " * "; }
-                else if expr.op == ad_op_kind::div { op_str = " / "; }
-                else if expr.op == ad_op_kind::mod { op_str = " % "; }
-                // Comparison
-                else if expr.op == ad_op_kind::eq { op_str = " == "; }
-                else if expr.op == ad_op_kind::ne { op_str = " != "; }
-                else if expr.op == ad_op_kind::lt { op_str = " < "; }
-                else if expr.op == ad_op_kind::gt { op_str = " > "; }
-                else if expr.op == ad_op_kind::le { op_str = " <= "; }
-                else if expr.op == ad_op_kind::ge { op_str = " >= "; }
-                else if expr.op == ad_op_kind::spaceship { op_str = " <=> "; }
-                // Logical
-                else if expr.op == ad_op_kind::land { op_str = " && "; }
-                else if expr.op == ad_op_kind::lor { op_str = " || "; }
-                // Bitwise
-                else if expr.op == ad_op_kind::band { op_str = " & "; }
-                else if expr.op == ad_op_kind::bor { op_str = " | "; }
-                else if expr.op == ad_op_kind::bxor { op_str = " ^ "; }
-                else if expr.op == ad_op_kind::shl { op_str = " << "; }
-                else if expr.op == ad_op_kind::shr { op_str = " >> "; }
-                // Assignment ops used in binary context
-                else if expr.op == ad_op_kind::assign { op_str = " = "; }
-                else if expr.op == ad_op_kind::assign_add { op_str = " += "; }
-                else if expr.op == ad_op_kind::assign_sub { op_str = " -= "; }
-                else if expr.op == ad_op_kind::assign_mul { op_str = " *= "; }
-                else if expr.op == ad_op_kind::assign_div { op_str = " /= "; }
-                else { op_str = " ?? "; }
+                op_str := ad_op_kind_to_binary_str(expr.op);
+                if op_str.empty() { op_str = " ?? "; }
                 return "(" + lhs + op_str + rhs + ")";
             }
             return "(binary)";
@@ -10541,6 +10493,50 @@ ad_rule_application_result: type = {
 //-----------------------------------------------------------------------
 
 /**
+ * @brief Map ad_op_kind to its binary operator string representation.
+ * @param op Operation kind.
+ * @return Operator string with spaces (e.g., " + "), or empty if not a binary op.
+ */
+ad_op_kind_to_binary_str: (op: ad_op_kind) -> std::string = {
+    // Arithmetic
+    if op == ad_op_kind::add { return " + "; }
+    if op == ad_op_kind::sub { return " - "; }
+    if op == ad_op_kind::mul { return " * "; }
+    if op == ad_op_kind::div { return " / "; }
+    if op == ad_op_kind::mod { return " % "; }
+    // Comparison
+    if op == ad_op_kind::eq { return " == "; }
+    if op == ad_op_kind::ne { return " != "; }
+    if op == ad_op_kind::lt { return " < "; }
+    if op == ad_op_kind::gt { return " > "; }
+    if op == ad_op_kind::le { return " <= "; }
+    if op == ad_op_kind::ge { return " >= "; }
+    if op == ad_op_kind::spaceship { return " <=> "; }
+    // Logical
+    if op == ad_op_kind::land { return " && "; }
+    if op == ad_op_kind::lor { return " || "; }
+    // Bitwise
+    if op == ad_op_kind::band { return " & "; }
+    if op == ad_op_kind::bor { return " | "; }
+    if op == ad_op_kind::bxor { return " ^ "; }
+    if op == ad_op_kind::shl { return " << "; }
+    if op == ad_op_kind::shr { return " >> "; }
+    // Assignment
+    if op == ad_op_kind::assign { return " = "; }
+    if op == ad_op_kind::assign_add { return " += "; }
+    if op == ad_op_kind::assign_sub { return " -= "; }
+    if op == ad_op_kind::assign_mul { return " *= "; }
+    if op == ad_op_kind::assign_div { return " /= "; }
+    if op == ad_op_kind::assign_mod { return " %= "; }
+    if op == ad_op_kind::assign_band { return " &= "; }
+    if op == ad_op_kind::assign_bor { return " |= "; }
+    if op == ad_op_kind::assign_bxor { return " ^= "; }
+    if op == ad_op_kind::assign_shl { return " <<= "; }
+    if op == ad_op_kind::assign_shr { return " >>= "; }
+    return "";
+}
+
+/**
  * @brief Emitter for converting AD IR to Cpp2 source code.
  */
 ad_ir_emitter: type = {
@@ -10587,37 +10583,8 @@ ad_ir_emitter: type = {
             if expr.args.ssize() >= 2 {
                 lhs := emit_expr(expr.args[0]);
                 rhs := emit_expr(expr.args[1]);
-                op_str := "";
-                // Arithmetic
-                if expr.op == ad_op_kind::add { op_str = " + "; }
-                else if expr.op == ad_op_kind::sub { op_str = " - "; }
-                else if expr.op == ad_op_kind::mul { op_str = " * "; }
-                else if expr.op == ad_op_kind::div { op_str = " / "; }
-                else if expr.op == ad_op_kind::mod { op_str = " % "; }
-                // Comparison
-                else if expr.op == ad_op_kind::eq { op_str = " == "; }
-                else if expr.op == ad_op_kind::ne { op_str = " != "; }
-                else if expr.op == ad_op_kind::lt { op_str = " < "; }
-                else if expr.op == ad_op_kind::gt { op_str = " > "; }
-                else if expr.op == ad_op_kind::le { op_str = " <= "; }
-                else if expr.op == ad_op_kind::ge { op_str = " >= "; }
-                else if expr.op == ad_op_kind::spaceship { op_str = " <=> "; }
-                // Logical
-                else if expr.op == ad_op_kind::land { op_str = " && "; }
-                else if expr.op == ad_op_kind::lor { op_str = " || "; }
-                // Bitwise
-                else if expr.op == ad_op_kind::band { op_str = " & "; }
-                else if expr.op == ad_op_kind::bor { op_str = " | "; }
-                else if expr.op == ad_op_kind::bxor { op_str = " ^ "; }
-                else if expr.op == ad_op_kind::shl { op_str = " << "; }
-                else if expr.op == ad_op_kind::shr { op_str = " >> "; }
-                // Assignment ops used in binary context
-                else if expr.op == ad_op_kind::assign { op_str = " = "; }
-                else if expr.op == ad_op_kind::assign_add { op_str = " += "; }
-                else if expr.op == ad_op_kind::assign_sub { op_str = " -= "; }
-                else if expr.op == ad_op_kind::assign_mul { op_str = " *= "; }
-                else if expr.op == ad_op_kind::assign_div { op_str = " /= "; }
-                else { op_str = " ?? "; }
+                op_str := ad_op_kind_to_binary_str(expr.op);
+                if op_str.empty() { op_str = " ?? "; }
                 return "(" + lhs + op_str + rhs + ")";
             }
             return "(binary)";
@@ -10756,18 +10723,8 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::compound_assign {
             // Compound assignment: name op= expr;
-            op_str := "";
-            if stmt.op == ad_op_kind::assign_add { op_str = " += "; }
-            else if stmt.op == ad_op_kind::assign_sub { op_str = " -= "; }
-            else if stmt.op == ad_op_kind::assign_mul { op_str = " *= "; }
-            else if stmt.op == ad_op_kind::assign_div { op_str = " /= "; }
-            else if stmt.op == ad_op_kind::assign_mod { op_str = " %= "; }
-            else if stmt.op == ad_op_kind::assign_band { op_str = " &= "; }
-            else if stmt.op == ad_op_kind::assign_bor { op_str = " |= "; }
-            else if stmt.op == ad_op_kind::assign_bxor { op_str = " ^= "; }
-            else if stmt.op == ad_op_kind::assign_shl { op_str = " <<= "; }
-            else if stmt.op == ad_op_kind::assign_shr { op_str = " >>= "; }
-            else { op_str = " ??= "; }
+            op_str := ad_op_kind_to_binary_str(stmt.op);
+            if op_str.empty() { op_str = " ??= "; }
             return ind + stmt.target + op_str + emit_expr(stmt.expr) + ";\n";
         }
         else if stmt.kind == ad_stmt_kind::assign_add {
@@ -12019,9 +11976,9 @@ autodiff_expression_handler: type = {
             code_fwd = string_util::replace_all(code_fwd, "_o_", object);
             code_fwd = string_util::replace_all(code_fwd, "_od_", object_d);
 
-            code_rws = string_util::replace_all(code_fwd, "_o_", object);
+            code_rws = string_util::replace_all(code_rws, "_o_", object);
             code_rws = string_util::replace_all(code_rws, "_od_", object_d);
-            code_rws = string_util::replace_all(code_fwd, "_ob_", object_b);
+            code_rws = string_util::replace_all(code_rws, "_ob_", object_b);
         }
 
         (copy i := 1)
