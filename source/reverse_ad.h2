@@ -18,11 +18,21 @@ cpp2: namespace = {
 meta: namespace = {
 
 /**
+ * @brief Empty base class to suppress assignment operator generation.
+ *
+ * When a Cpp2 type has a base class, cppfront generates only a constructor
+ * (with member initializer list) rather than both constructor and assignment
+ * operator. This is needed because function_declaration has deleted copy
+ * assignment but move assignment is fine.
+ */
+reverse_autodiff_base: type = { }
+
+/**
  * @brief Context for reverse-mode IR construction and naming.
  */
 reverse_autodiff_context: type = {
-    /// Owning autodiff context.
-    public ctx : *autodiff_context;
+    this: reverse_autodiff_base = ();
+
     /// Function being transformed.
     public mf  : meta::function_declaration;
 
@@ -33,12 +43,10 @@ reverse_autodiff_context: type = {
 
     /**
      * @brief Initialize the reverse context.
-     * @param ctx_ Autodiff context to use.
      * @param mf_ Function being transformed.
      * @return No return value.
      */
-    operator=:(out this, ctx_: *autodiff_context, mf_: meta::function_declaration) = {
-        ctx = ctx_;
+    operator=:(out this, mf_: meta::function_declaration) = {
         mf  = mf_;
     }
 
@@ -6073,7 +6081,7 @@ ad_ir_builder_debug_dump: (builder: ad_ir_builder) = {
  * @see ad_ir_builder           IR construction from reflection AST
  * @see ad_ir_emitter           Code generation from IR
  */
-autodiff_reverse_ir: (inout t: meta::type_declaration, ctx: *autodiff_context) = {
+autodiff_reverse_ir: (inout t: meta::type_declaration) = {
     std::cout << "\n";
     std::cout << "╔══════════════════════════════════════════════════════════════════╗\n";
     std::cout << "║  AD REVERSE IR STAGE: " << t.name() << "\n";
@@ -6114,7 +6122,7 @@ autodiff_reverse_ir: (inout t: meta::type_declaration, ctx: *autodiff_context) =
 
         std::cout << "\n┌─── Subtask 5: Expression Builder for " << mf.name() << " ───┐\n";
 
-        rc: reverse_autodiff_context = (ctx, mf);
+        rc: reverse_autodiff_context = (mf);
         std::cout << "Function: " << mf.get_signature() << "\n";
         std::cout << "Suffixes: value=" << rc.value_suffix << " adj=" << rc.adj_suffix << "\n";
 
@@ -6275,15 +6283,23 @@ autodiff_impl: (inout t: meta::type_declaration) =
 
     if reverse {
         std::cout << "AD: Warning - reverse mode differentiation is very experimental\n";
+
+        // Higher-order reverse mode not yet supported
+        if order != 1 {
+            t.error("@autodiff: Higher-order reverse mode (order > 1 with reverse) is not yet supported");
+            return;
+        }
+
+        // Call reverse mode IR builder (completely independent path)
+        autodiff_reverse_ir(t);
+        t.add_runtime_support_include("cpp2ad_stack.h");
+        return;  // Skip old forward mode code entirely
     }
 
-    ad_ctx: autodiff_context = (order, reverse);
+    // Forward mode path continues below
+    ad_ctx: autodiff_context = (order, false);
     ad_ctx.fwd_suffix = suffix;
     ad_ctx.rws_suffix = rws_suffix;
-
-    if reverse {
-        autodiff_reverse_ir(t, ad_ctx&);
-    }
 
     // Skip old string-based code generation for types starting with "test_"
     // This allows IR-only debugging during development
@@ -6324,12 +6340,8 @@ autodiff_impl: (inout t: meta::type_declaration) =
     if 1 != order {
         t.add_runtime_support_include( "cpp2taylor.h" );
     }
-    if reverse {
-        t.add_runtime_support_include( "cpp2ad_stack.h" );
-    }
 
     ad_ctx.finish();
-
     _ = ad_ctx;
 }
 

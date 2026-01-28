@@ -1,6 +1,7 @@
 #line 6 "experimental/test_ad_stages.cpp2"
 #include <iostream>
 
+#include "cpp2ad_stack.h"
 
 //=== Cpp2 type declarations ====================================================
 
