@@ -4183,169 +4183,18 @@ sample_traverser: (idexpr: meta::id_expression, indent: i32) =
 //  autodiff
 //
 
-/**
- * @brief Automatic differentiation support for Cpp2 metaprogramming.
- *
- * This section implements the `@autodiff` metafunction. It traverses a type
- * declaration, discovers active variables, and emits differentiated members.
- * This is a proof-of-concept implementation; reverse mode is only partially
- * implemented and not yet well tested (see docs).
- *
- * Options are parsed from text template arguments:
- * - "reverse" enables reverse-mode adjoints (default suffix `_b`).
- * - "order=<n>" enables higher-order derivatives via `cpp2::taylor`.
- * - "suffix=<s>" overrides the forward suffix (default `_d`).
- * - "rws_suffix=<s>" overrides the reverse suffix.
- *
- * Pipeline overview:
- * - `autodiff(...)` parses the options, builds an `autodiff_context`, sets suffixes,
- *   and pushes the namespace/type stack so lookups can resolve declarations.
- * - `autodiff_declaration_handler` walks declarations and emits new members:
- *   `f_d` for forward mode and `f_b` for reverse mode. Signatures are expanded
- *   with `_d` and `_b` parameters and with return storage for the primal value.
- * - `autodiff_stmt_handler` walks statements and emits the primal block plus
- *   a reverse block. It uses `cpp2::ad_stack` to save/restore overwritten locals.
- * - `autodiff_expression_handler` converts each expression into three strings:
- *   `primal_expr`, `fwd_expr`, and `rws_expr` (backprop template). It uses
- *   placeholders like `_r_`, `_rd_`, `_rb_` and creates temporaries for
- *   active subexpressions via `gen_temporary()`.
- * - `autodiff_diff_code` buffers the output; reverse backprop snippets are
- *   prepended so they execute in reverse order after the primal pass.
- * - Function calls are handled by `handle_function_call()`: it either expands a
- *   `special_func` template (sin/cos/exp/sqrt/push_back) or emits calls to
- *   `f_d`/`f_b`. When a call is emitted, `add_for_differentiation()` queues the
- *   callee so `pop_stack()` can generate its derivative later.
- *
- * Reverse-mode AST traversal and manipulation:
- * - `apply_metafunctions` builds a `meta::type_declaration` and calls `autodiff`.
- *   In reverse mode, `autodiff_context.reverse` is set and `rws_suffix` is applied.
- * - `autodiff_declaration_handler` is a `simple_traverser`; its `pre_traverse`
- *   drives a depth-first walk of the reflection AST. Each node visit calls the
- *   handler's `traverse` override, then recurses into children via `pre_traverse`.
- * - When a `meta::function_declaration` is visited, the handler constructs a new
- *   reverse-mode signature (adds `_b` parameters and return adjoint storage) and
- *   then uses `autodiff_stmt_handler::pre_traverse` on the function body.
- * - The statement handler uses `autodiff_activity_check` (also a `simple_traverser`)
- *   to decide which variables are active, and `autodiff_expression_handler` to
- *   translate each RHS expression into primal code and a backprop template.
- * - The handler emits new code into `autodiff_diff_code` buffers, and mutates the
- *   reflection AST by calling `decl.add_member(...)` on the enclosing type to add
- *   the generated `f_b` function (and includes `cpp2ad_stack.h` for save/restore).
- * - Reverse-mode accumulation is created by prepending backprop snippets so they
- *   execute in exact reverse order of the primal statements, mirroring a tape.
- *   Overwrites inside a compound statement are guarded with `ad_stack::push/pop`.
- *
- * Reverse-mode pipeline diagram:
- * @code
- * @autodiff<"reverse"> tag
- *   |
- *   v
- * apply_metafunctions
- *   |
- *   v
- * autodiff(type_declaration)
- *   |
- *   v
- * autodiff_declaration_handler::pre_traverse
- *   |
- *   +--> function_declaration:
- *   |      - build f_b signature (add _b params, return adjoint)
- *   |      - autodiff_stmt_handler::pre_traverse(body)
- *   |             |
- *   |             +--> statement/expr nodes:
- *   |                   - autodiff_activity_check (is active?)
- *   |                   - autodiff_expression_handler (primal + backprop)
- *   |                   - append to diff buffers
- *   |      - emit f_b into type via decl.add_member(...)
- *   |
- *   +--> type/object members (if any)
- *   |
- *   v
- * autodiff_context.finish()  // process queued callee diffs
- * @endcode
- *
- * Reverse-mode example:
- * @code
- * f: (x: double, y: double) -> double = {
- *     z := x * y;
- *     return z + sin(x);
- * }
- * @endcode
- *
- * Tag the enclosing type with `@autodiff<"reverse">`. The reflection pipeline
- * parses `f` into `meta::function_declaration` and its statements/expressions
- * (via `simple_traverser::pre_traverse`) and emits a reverse function:
- * @code
- * f_b: (in x: double, inout x_b: double,
- *       in y: double, inout y_b: double,
- *       inout r_b: double) -> (r: double) = { ... }
- * @endcode
- *
- * Callers seed the return adjoint and zero the input adjoints:
- * @code
- * x_b := 0.0; y_b := 0.0; r_b := 1.0;
- * r := ad::f_b(x, x_b, y, y_b, r_b);
- * // x_b == df/dx, y_b == df/dy
- * @endcode
- *
- * How the reverse body is generated:
- * - For `z := x * y`, `autodiff_activity_check` marks `x` and `y` active
- *   (type `double`), so `z` becomes active. The multiplicative handler sets
- *   `primal_expr` to `x * y` and `rws_expr` to:
- *     `x_b += y * _rb_;`
- *     `y_b += x * _rb_;`
- *   `gen_declaration("z")` emits:
- *     `z_b : double = 0.0;`
- *     `z   : double = x * y;`
- *   and backprop that substitutes `_rb_` with `z_b` and appends `z_b = 0.0`
- *   (the prepend order means `z_b` is cleared after it is used).
- * - For `return z + sin(x)`, `sin` is handled by `special_funcs`, so its
- *   reverse template becomes `x_b += cos(x) * _rb_;`. The additive handler
- *   also adds `z_b += _rb_;`. `gen_assignment("r")` connects the incoming
- *   `r_b` to both `z_b` and `x_b`, then clears `r_b`.
- * - `autodiff_diff_code::add_reverse_backprop` prepends statements so the
- *   backprop block executes in reverse order of the primal block, yielding
- *   the correct adjoint accumulation for `x_b` and `y_b`.
- *
- * Note: There is no explicit graph object. The "graph" is implicit in the
- * AST traversal, generated temporaries, and the backprop templates that link
- * each temporary's adjoint to its inputs.
- */
-/// Special-case function templates used for AD code generation.
 autodiff_special_func: type = {
-    /// Function name to match.
     public name      : std::string;
-    /// Arity for the special-case entry.
     public n_args    : int;
-    /// True when matching a member function call.
     public is_member : bool;
 
-    /// Primal code template.
     public code_primal             : std::string;
-    /// Forward-mode code template.
     public code_fwd                : std::string;
-    /// Reverse-mode backprop code template.
     public code_rws                : std::string;
-    /// Higher-order primal template.
     public code_primal_higher_order: std::string;
-    /// Higher-order forward template.
     public code_fwd_higher_order   : std::string;
-    /// Higher-order reverse template.
     public code_rws_higher_order   : std::string;
 
-    /**
-     * @brief Construct a special-case entry and derive higher-order defaults.
-     * @param name_ Function name to match.
-     * @param n_args_ Number of arguments expected.
-     * @param is_member_ True when matching a member function call.
-     * @param code_primal_ Primal template code.
-     * @param code_fwd_ Forward-mode template code.
-     * @param code_rws_ Reverse-mode backprop template code.
-     * @param code_primal_higher_order_ Primal template for higher order.
-     * @param code_fwd_higher_order_ Forward template for higher order.
-     * @param code_rws_higher_order_ Reverse template for higher order.
-     * @return No return value.
-     */
     operator=: (out this, name_: std::string, n_args_: int, is_member_: bool, code_primal_: std::string = "", code_fwd_: std::string = "",
                           code_rws_: std::string = "", code_primal_higher_order_: std::string = "", code_fwd_higher_order_: std::string = "",
                           code_rws_higher_order_: std::string = "") = {
@@ -4371,48 +4220,21 @@ autodiff_special_func: type = {
         }
     }
 
-    /**
-     * @brief Copy another special function entry.
-     * @param that Entry to copy from.
-     * @return No return value.
-     */
     operator=: (out this, that) = {} // Default copy.
 
-    /**
-     * @brief Test if this entry matches another by name, arity, and member flag.
-     * @param o Candidate entry to compare.
-     * @return True when name, argument count, and member flag match.
-     */
     is_match: (this, o: autodiff_special_func) -> bool = {
         return name == o.name && n_args == o.n_args && is_member == o.is_member;
     }
 }
 
-/// Records a declared variable and its AD activity.
 autodiff_declared_variable: @copy_constructible type = {
-    /// Variable name.
     public name     : std::string = "";
-    /// Declared type name (string form).
     public decl     : std::string = ""; // TODO: Maybe use variant here.
-    /// True if this variable participates in AD.
     public is_active: bool        = false;
-    /// True if this is a member variable of `this`.
     public is_member: bool        = false;
 
-    /**
-     * @brief Default initialize the variable record.
-     * @return No return value.
-     */
     operator=:(out this) = {}
 
-    /**
-     * @brief Construct a declared variable record.
-     * @param name_ Variable name.
-     * @param decl_ Declared type string.
-     * @param is_active_ True if the variable participates in AD.
-     * @param is_member_ True if the variable is a member of `this`.
-     * @return No return value.
-     */
     operator=:(out this, name_: std::string, decl_: std::string, is_active_: bool, is_member_: bool) = {
         name      = name_;
         decl      = decl_;
@@ -4420,45 +4242,23 @@ autodiff_declared_variable: @copy_constructible type = {
         is_member = is_member_;
     }
 
-    /**
-     * @brief Copy another variable record.
-     * @param that Record to copy from.
-     * @return No return value.
-     */
     operator=:(out this, that) = {}
 }
 
-/// Stack entry for a type or namespace during AD traversal.
 autodiff_declaration_stack_item: @copy_constructible type = {
-    /// Fully qualified name of the declaration.
     public full_name:   std::string;  // namespace + type name
-    /// The declaration itself.
     public decl: meta::type_or_namespace_declaration;
 
-    /// Declarations requested for differentiation.
     public diff_request: std::vector<meta::declaration> = ();
-    /// Declarations already differentiated.
     public diff_done:    std::vector<meta::declaration> = ();
 
-    /// Nested variable scopes for the current declaration.
     public declared_variables_stack: std::vector<std::vector<autodiff_declared_variable>> = (1);
 
-    /**
-     * @brief Construct a stack item for a declaration context.
-     * @param full_name_ Fully qualified name for the declaration.
-     * @param decl_ Declaration being tracked.
-     * @return No return value.
-     */
     operator=: (out this, full_name_: std::string, decl_: meta::type_or_namespace_declaration) = {
         full_name = full_name_;
         decl      = decl_;
     }
 
-    /**
-     * @brief Find declarations in the current type or namespace by name.
-     * @param decl_name Name to look up.
-     * @return List of matching declarations (overloads are preserved).
-     */
     lookup_declaration: (this, decl_name: std::string) -> (r: std::vector<meta::declaration> = ()) = {
         for decl.get_members() do (cur) {
             if cur.has_name() && decl_name  == cur.name() {
@@ -4469,11 +4269,6 @@ autodiff_declaration_stack_item: @copy_constructible type = {
         }
     }
 
-    /**
-     * @brief Find a variable declaration in the current scope chain.
-     * @param decl_name Variable name to look up.
-     * @return Tuple with `found` flag and the matching variable record.
-     */
     lookup_variable_declaration: (this, decl_name: std::string) -> (found: bool = false, r: autodiff_declared_variable = ()) = {
         //  Note: Not using "for std::ranges::views::reverse(...)" because
         //  that does not work correctly in Clang 12 + older libstdc++
@@ -4494,16 +4289,9 @@ autodiff_declaration_stack_item: @copy_constructible type = {
 
 }
 
-/**
- * @brief Shared state for one autodiff run (order, mode, suffixes, lookup caches).
- */
 autodiff_context: type = {
-    /// Counter for generating unique temporary names.
     private temporary_count : int = 0;
 
-    /// Code in special functions is replaced using placeholder tokens:
-    /// _o_ object, _od_ object derivative, _ob_ object adjoint,
-    /// _aN_ argument, _adN_ derivative argument, _abN_ adjoint, _rb_ incoming adjoint.
     public special_funcs : std::vector<autodiff_special_func> = (
         autodiff_special_func("sin", 1, /* is_member = */ false,
             "sin(_a1_)",
@@ -4544,38 +4332,19 @@ autodiff_context: type = {
             "TODO")
     );
 
-    /// Suffix for forward-mode values.
     public  fwd_suffix : std::string = "_d";
-    /// Suffix for reverse-mode adjoints.
     public  rws_suffix : std::string = "_b";
-    /// AD order (1 for standard dual/adjoint).
     private order  : int         = 1;
-    /// True for reverse mode; forward mode otherwise.
     public  reverse: bool        = false;
-    /// True to enable debug output during AD processing.
     public  debug: bool          = false;
 
-    /// Forward-mode AD scalar type for the configured order.
     public fwd_ad_type: std::string = "double";
-    /// Reverse-mode AD scalar type for the configured order.
     public rws_ad_type: std::string = "double";
 
-    /// Cache of declaration lookups by fully qualified name.
     public declaration_map  : std::map<std::string, std::vector<meta::declaration>> = ();
-    /// Stack of namespace/type contexts.
     public declaration_stack: std::vector<autodiff_declaration_stack_item> = ();
 
-    /**
-     * @brief Default initialize the autodiff context.
-     * @return No return value.
-     */
     operator=:(out this) = {}
-    /**
-     * @brief Initialize order and mode and configure AD types.
-     * @param order_ Differentiation order (1 for standard).
-     * @param reverse_ True to enable reverse mode.
-     * @return No return value.
-     */
     operator=:(out this, order_: int, reverse_: bool) = {
         order = order_;
         reverse = reverse_;
@@ -4592,32 +4361,14 @@ autodiff_context: type = {
 
     }
 
-    /**
-     * @brief Record a local or member variable and whether it is active.
-     * @param name Variable name.
-     * @param type Declared type string.
-     * @param is_active True if the variable participates in AD.
-     * @param is_member True if the variable is a member of `this`.
-     * @return No return value.
-     */
     add_variable_declaration: (inout this, name: std::string, type: std::string, is_active: bool, is_member: bool = false) = {
         declaration_stack.back().declared_variables_stack.back().push_back(autodiff_declared_variable(name, type, is_active, is_member));
     }
 
-    /**
-     * @brief Query whether a variable name is marked active.
-     * @param name Variable name to look up.
-     * @return True if the variable is marked active.
-     */
     is_variable_active: (inout this, name: std::string) -> bool = {
         return lookup_variable_declaration(name).is_active;
     }
 
-    /**
-     * @brief Build the declaration stack for nested namespaces/types.
-     * @param t Type or namespace declaration to push.
-     * @return No return value.
-     */
     create_namespace_stack: (inout this, t: meta::type_or_namespace_declaration) = {
         if t.parent_is_nonglobal_namespace() {
             create_namespace_stack(t.get_parent().as_nonglobal_namespace());
@@ -4635,36 +4386,15 @@ autodiff_context: type = {
         _ = declaration_stack.push_back(autodiff_declaration_stack_item(full_name, t));
     }
 
-    /**
-     * @brief Check if forward code should be emitted.
-     * @return True when forward-mode code is enabled.
-     */
     is_forward: (this) = !reverse || (reverse && order != 1);
-    /**
-     * @brief Check if reverse code should be emitted.
-     * @return True when reverse-mode code is enabled.
-     */
     is_reverse: (this) = reverse;
-    /**
-     * @brief Check if higher-order Taylor types are used.
-     * @return True when order is not 1.
-     */
     is_taylor : (this) = order != 1;
 
-    /**
-     * @brief Generate a unique temporary name for intermediate expressions.
-     * @return Fresh temporary identifier.
-     */
     gen_temporary : (inout this) -> std::string = {
         temporary_count += 1;
         return "temp_(temporary_count)$";
     }
 
-    /**
-     * @brief Determine whether a type is active for AD.
-     * @param type Type name to check.
-     * @return True if the type is considered active.
-     */
     is_type_active: (inout this, type: std::string) -> bool = {
         decls := lookup_type_declaration(type);
         r := false;
@@ -4686,11 +4416,6 @@ autodiff_context: type = {
         return r;
     }
 
-    /**
-     * @brief Map a type to its forward-mode AD type and request differentiation if needed.
-     * @param type Original type name.
-     * @return Forward-mode AD type name.
-     */
     get_fwd_ad_type: (inout this, type: std::string) -> std::string = {
         type_d := type;
 
@@ -4709,11 +4434,6 @@ autodiff_context: type = {
         return string_util::replace_all(type_d, "double", fwd_ad_type);
     }
 
-    /**
-     * @brief Map a type to its reverse-mode AD type and request differentiation if needed.
-     * @param type Original type name.
-     * @return Reverse-mode AD type name.
-     */
     get_rws_ad_type: (inout this, type: std::string) -> std::string = {
         type_d := type;
 
@@ -4732,11 +4452,6 @@ autodiff_context: type = {
         return string_util::replace_all(type_d, "double", rws_ad_type);
     }
 
-    /**
-     * @brief Normalize parameter passing for reverse-mode adjoint parameters.
-     * @param p Original passing style.
-     * @return Passing style to use in reverse mode.
-     */
     get_reverse_passing_style: (this, p: passing_style) -> passing_style = {
         // TODO: inspect does not work here: error: error: no matching function for call to ‘is<cpp2::passing_style::in>(const cpp2::passing_style&)’
         // return inspect p -> passing_style  {
@@ -4765,11 +4480,6 @@ autodiff_context: type = {
         return  passing_style::inout;
     }
 
-    /**
-     * @brief Lookup a declaration by name using the stack of parent scopes.
-     * @param decl_name Name to resolve.
-     * @return List of matching declarations.
-     */
     lookup_declaration: (inout this, decl_name: std::string) -> (r : std::vector<meta::declaration> = ()) = {
         //  Note: Not using "for std::ranges::views::reverse(...)" because
         //  that does not work correctly in Clang 12 + older libstdc++
@@ -4797,11 +4507,6 @@ autodiff_context: type = {
         return;
     }
 
-    /**
-     * @brief Lookup a variable by name in nested scopes.
-     * @param name Variable name to resolve.
-     * @return Matching variable record (or empty record with errors reported).
-     */
     lookup_variable_declaration: (inout this, name: std::string) -> autodiff_declared_variable = {
         if name == "_" {
             return autodiff_declared_variable(name, "_", false, false);
@@ -4824,11 +4529,6 @@ autodiff_context: type = {
         return autodiff_declared_variable();
     }
 
-    /**
-     * @brief Lookup free functions in the current scope.
-     * @param decl_name Function name.
-     * @return Matching function declarations.
-     */
     lookup_function_declaration: (inout this, decl_name: std::string) -> (r : std::vector<meta::function_declaration> = ()) = {
         r_all := lookup_declaration(decl_name);
 
@@ -4839,12 +4539,6 @@ autodiff_context: type = {
         }
     }
 
-    /**
-     * @brief Lookup member functions on a concrete type declaration.
-     * @param obj_type Type declaration to search.
-     * @param decl_name Member function name.
-     * @return Matching member function declarations.
-     */
     lookup_member_function_declaration: (inout this, obj_type: meta::type_declaration, decl_name: std::string) -> (r : std::vector<meta::function_declaration> = ()) = {
         for obj_type.get_members() do (cur) {
             if cur.is_function() && cur.has_name() && decl_name  == cur.name() {
@@ -4855,11 +4549,6 @@ autodiff_context: type = {
         }
     }
 
-    /**
-     * @brief Lookup type declarations in the current scope.
-     * @param decl_name Type name.
-     * @return Matching type declarations.
-     */
     lookup_type_declaration: (inout this, decl_name: std::string) -> (r : std::vector<meta::type_declaration> = ()) = {
         r_all := lookup_declaration(decl_name);
 
@@ -4870,13 +4559,6 @@ autodiff_context: type = {
         }
     }
 
-    /**
-     * @brief Match and expand a special-case function (sin, cos, etc).
-     * @param func_name Function name to match.
-     * @param n_args Number of arguments.
-     * @param is_member True for member function calls.
-     * @return Tuple containing match flag and generated templates.
-     */
     lookup_special_function_handling: (this, func_name: std::string, n_args: int, is_member: bool) -> (m: bool, code_primal: std::string, code_fwd: std::string, code_rws: std::string) = {
         lookup : autodiff_special_func = (func_name, n_args, is_member);
 
@@ -4902,11 +4584,6 @@ autodiff_context: type = {
         }
     }
 
-    /**
-     * @brief Mark a declaration as already differentiated in the current context.
-     * @param t Declaration to mark.
-     * @return No return value.
-     */
     add_as_differentiated: (inout this, t: meta::declaration) = {
         top := declaration_stack.back()&;
 
@@ -4915,11 +4592,6 @@ autodiff_context: type = {
         top*.diff_done.push_back(t);
     }
 
-    /**
-     * @brief Request a declaration to be differentiated by its parent context.
-     * @param t Declaration to enqueue.
-     * @return No return value.
-     */
     add_for_differentiation: (inout this, t: meta::declaration) = {
         t_parent := t.get_parent();
 
@@ -4946,12 +4618,6 @@ autodiff_context: type = {
         }
     }
 
-    /**
-     * @brief Check whether a declaration is in a list.
-     * @param v Declaration to check.
-     * @param list Declarations to search.
-     * @return True if v is present in list.
-     */
     is_in_list: (v: meta::declaration, list: std::vector<meta::declaration>) -> bool = {
         for list do (cur) {
             if cur.is_same(v) {
@@ -4962,28 +4628,15 @@ autodiff_context: type = {
         return false;
     }
 
-    /**
-     * @brief Enter a function scope and reset temporary naming.
-     * @return No return value.
-     */
     enter_function: (inout this) = {
         temporary_count = 0;
         declaration_stack.back().declared_variables_stack.push_back(std::vector<autodiff_declared_variable>());
     }
 
-    /**
-     * @brief Leave the current function scope.
-     * @return No return value.
-     */
     leave_function: (inout this) = {
         declaration_stack.back().declared_variables_stack.pop_back();
     }
 
-    /**
-     * @brief Push a declaration context onto the stack.
-     * @param decl Declaration to push.
-     * @return No return value.
-     */
     push_stack: (inout this, decl: meta::type_or_namespace_declaration) = {
         full_name: std::string = "";
 
@@ -4997,10 +4650,6 @@ autodiff_context: type = {
         declaration_stack.push_back(autodiff_declaration_stack_item(full_name, decl));
     }
 
-    /**
-     * @brief Pop the current declaration context and process queued differentiations.
-     * @return No return value.
-     */
     pop_stack: (inout this) = {
         assert(!declaration_stack.empty());
 
@@ -5016,20 +4665,12 @@ autodiff_context: type = {
         declaration_stack.pop_back();
     }
 
-    /**
-     * @brief Pop all remaining contexts and finalize queued differentiations.
-     * @return No return value.
-     */
     finish: (inout this) = {
         while !declaration_stack.empty() {
             pop_stack();
         }
     }
 
-    /**
-     * @brief Temporary helper for legacy callers.
-     * @return Pointer to this context.
-     */
     get_self: (inout this) -> *autodiff_context = {
         return this&;
     }
