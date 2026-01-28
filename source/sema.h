@@ -14,6 +14,7 @@
 #define CPP2_SEMA_H
 
 #include "reflect.h"
+#include "reverse_ad.h"
 
 
 namespace cpp2 {

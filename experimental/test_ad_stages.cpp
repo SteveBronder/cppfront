@@ -1,4 +1,4 @@
-#line 6 "./experimental/test_ad_stages.cpp2"
+#line 6 "experimental/test_ad_stages.cpp2"
 #include <iostream>
 
 
@@ -7,29 +7,29 @@
 
 #include "cpp2util.h"
 
-#line 1 "./experimental/test_ad_stages.cpp2"
+#line 1 "experimental/test_ad_stages.cpp2"
 
-#line 7 "./experimental/test_ad_stages.cpp2"
+#line 7 "experimental/test_ad_stages.cpp2"
 namespace test_ns {
 
-#line 10 "./experimental/test_ad_stages.cpp2"
+#line 10 "experimental/test_ad_stages.cpp2"
 class test_ad_stages;
     
 
-#line 45 "./experimental/test_ad_stages.cpp2"
+#line 45 "experimental/test_ad_stages.cpp2"
 }
 
 
 //=== Cpp2 type definitions and function declarations ===========================
 
-#line 1 "./experimental/test_ad_stages.cpp2"
+#line 1 "experimental/test_ad_stages.cpp2"
 // Test file for AD IR stages 3, 4, 5 debug output
 // This file tests:
 // - Subtask 3: ad_rule registry and discovery
 // - Subtask 4: Operator token mapping
 // - Subtask 5: Base expression builder
 
-#line 7 "./experimental/test_ad_stages.cpp2"
+#line 7 "experimental/test_ad_stages.cpp2"
 namespace test_ns {
 
 // Test type with reverse-mode autodiff and a custom ad_rule
@@ -47,34 +47,34 @@ class test_ad_stages {
         public: auto operator=(ad_rule_log const&) -> void = delete;
 
 
-#line 21 "./experimental/test_ad_stages.cpp2"
+#line 21 "experimental/test_ad_stages.cpp2"
     };
 
 using add_xy_ret = double;
-#line 23 "./experimental/test_ad_stages.cpp2"
+#line 23 "experimental/test_ad_stages.cpp2"
     // Simple addition function
-#line 24 "./experimental/test_ad_stages.cpp2"
+#line 24 "experimental/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto add_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> add_xy_ret;
 using mul_xy_ret = double;
 
 
-#line 28 "./experimental/test_ad_stages.cpp2"
+#line 28 "experimental/test_ad_stages.cpp2"
     // Multiplication function
-#line 29 "./experimental/test_ad_stages.cpp2"
+#line 29 "experimental/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto mul_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> mul_xy_ret;
 using combined_ret = double;
 
 
-#line 33 "./experimental/test_ad_stages.cpp2"
+#line 33 "experimental/test_ad_stages.cpp2"
     // Combined operations
-#line 34 "./experimental/test_ad_stages.cpp2"
+#line 34 "experimental/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto combined(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> combined_ret;
 using simple_log_ret = double;
 
 
-#line 39 "./experimental/test_ad_stages.cpp2"
+#line 39 "experimental/test_ad_stages.cpp2"
     // Simple log function (not scaled) to test user rule lookup
-#line 40 "./experimental/test_ad_stages.cpp2"
+#line 40 "experimental/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto simple_log(cpp2::impl::in<double> x) -> simple_log_ret;
 using add_xy_d_ret = double;
 
@@ -120,7 +120,7 @@ public: [[nodiscard]] static auto simple_log_d(
     public: auto operator=(test_ad_stages const&) -> void = delete;
 
 
-#line 43 "./experimental/test_ad_stages.cpp2"
+#line 43 "experimental/test_ad_stages.cpp2"
 };
 
 } // namespace test_ns
@@ -129,44 +129,44 @@ auto main() -> int;
 
 //=== Cpp2 function definitions =================================================
 
-#line 1 "./experimental/test_ad_stages.cpp2"
+#line 1 "experimental/test_ad_stages.cpp2"
 
-#line 7 "./experimental/test_ad_stages.cpp2"
+#line 7 "experimental/test_ad_stages.cpp2"
 namespace test_ns {
 
-#line 17 "./experimental/test_ad_stages.cpp2"
+#line 17 "experimental/test_ad_stages.cpp2"
         [[nodiscard]] auto test_ad_stages::ad_rule_log::forward(cpp2::impl::in<double> x) -> double{return log(x); }
-#line 18 "./experimental/test_ad_stages.cpp2"
+#line 18 "experimental/test_ad_stages.cpp2"
         auto test_ad_stages::ad_rule_log::reverse(cpp2::impl::in<double> res_val, cpp2::impl::in<double> res_adj, cpp2::impl::in<double> x_val, double& x_adj) -> void{
             x_adj += res_adj / CPP2_ASSERT_NOT_ZERO(CPP2_TYPEOF(res_adj),x_val);
         }
 
-#line 24 "./experimental/test_ad_stages.cpp2"
+#line 24 "experimental/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::add_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> add_xy_ret{
             cpp2::impl::deferred_init<double> r;
-#line 25 "./experimental/test_ad_stages.cpp2"
+#line 25 "experimental/test_ad_stages.cpp2"
         r.construct(x + y);
     return std::move(r.value()); }
 
-#line 29 "./experimental/test_ad_stages.cpp2"
+#line 29 "experimental/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::mul_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> mul_xy_ret{
             cpp2::impl::deferred_init<double> r;
-#line 30 "./experimental/test_ad_stages.cpp2"
+#line 30 "experimental/test_ad_stages.cpp2"
         r.construct(x * y);
     return std::move(r.value()); }
 
-#line 34 "./experimental/test_ad_stages.cpp2"
+#line 34 "experimental/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::combined(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> combined_ret{
             cpp2::impl::deferred_init<double> r;
-#line 35 "./experimental/test_ad_stages.cpp2"
+#line 35 "experimental/test_ad_stages.cpp2"
         auto z {x * log(y)}; 
         r.construct(cpp2::move(z) + x);
     return std::move(r.value()); }
 
-#line 40 "./experimental/test_ad_stages.cpp2"
+#line 40 "experimental/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::simple_log(cpp2::impl::in<double> x) -> simple_log_ret{
             cpp2::impl::deferred_init<double> r;
-#line 41 "./experimental/test_ad_stages.cpp2"
+#line 41 "experimental/test_ad_stages.cpp2"
         r.construct(log(x));
     return std::move(r.value()); }
 
@@ -263,10 +263,10 @@ namespace test_ns {
     return r; 
     }
 
-#line 45 "./experimental/test_ad_stages.cpp2"
+#line 45 "experimental/test_ad_stages.cpp2"
 }
 
-#line 47 "./experimental/test_ad_stages.cpp2"
+#line 47 "experimental/test_ad_stages.cpp2"
 auto main() -> int{
   auto x {3.0}; 
   auto y {4.0}; 

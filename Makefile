@@ -25,11 +25,11 @@ CPPFRONT := $(BUILD_DIR)/cppfront
 
 # Source files that cppfront.cpp includes
 CPPFRONT_SRC := $(SRC_DIR)/cppfront.cpp
-CPPFRONT_DEPS := $(SRC_DIR)/reflect.h $(SRC_DIR)/parse.h $(SRC_DIR)/sema.h $(SRC_DIR)/to_cpp1.h
+CPPFRONT_DEPS := $(SRC_DIR)/reflect.h $(SRC_DIR)/reverse_ad.h $(SRC_DIR)/parse.h $(SRC_DIR)/sema.h $(SRC_DIR)/to_cpp1.h
 
 # H2 -> H file mappings
-H2_FILES := $(SRC_DIR)/reflect.h2
-H_FILES := $(SRC_DIR)/reflect.h
+H2_FILES := $(SRC_DIR)/reflect.h2 $(SRC_DIR)/reverse_ad.h2
+H_FILES := $(SRC_DIR)/reflect.h $(SRC_DIR)/reverse_ad.h
 
 .PHONY: all clean test debug help parse compile run run-exec bootstrap refresh
 
@@ -75,16 +75,20 @@ debug: $(CPPFRONT_SRC) $(CPPFRONT_DEPS) | $(BUILD_DIR)
 
 # Regenerate .h files from .h2 files
 # Requires cppfront to already exist
+# Build order: reflect.h2 first (provides meta:: types), then reverse_ad.h2
 refresh: $(CPPFRONT)
 	@echo "Regenerating .h files from .h2..."
-	$(CPPFRONT) $(H2_FILES) -o $(H_FILES)
+	$(CPPFRONT) $(SRC_DIR)/reflect.h2 -o $(SRC_DIR)/reflect.h
+	$(CPPFRONT) $(SRC_DIR)/reverse_ad.h2 -o $(SRC_DIR)/reverse_ad.h
 	@echo "Done. Run 'make build' to rebuild cppfront with new .h files."
 
 # Bootstrap: regenerate .h from .h2, then rebuild cppfront
 # This is the main development command after editing .h2 files
+# Build order: reflect.h2 first (provides meta:: types), then reverse_ad.h2
 bootstrap: $(CPPFRONT)
 	@echo "=== Bootstrap: regenerating .h from .h2 ==="
-	$(CPPFRONT) $(H2_FILES) -o $(H_FILES)
+	$(CPPFRONT) $(SRC_DIR)/reflect.h2 -o $(SRC_DIR)/reflect.h
+	$(CPPFRONT) $(SRC_DIR)/reverse_ad.h2 -o $(SRC_DIR)/reverse_ad.h
 	@echo "=== Rebuilding cppfront with new .h files ==="
 	$(CXX) $(CXXFLAGS) $(CPPFRONT_SRC) -o $(CPPFRONT)
 	@echo "=== Bootstrap complete ==="
