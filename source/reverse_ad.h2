@@ -430,30 +430,6 @@ ad_type_to_string: (t: ad_type) -> std::string = {
     return "unknown_type";
 }
 
-/**
- * @brief Convert ad_type_kind to string for debug output.
- * @param kind Type kind.
- * @return String representation.
- */
-ad_type_kind_to_string: (kind: ad_type_kind) -> std::string = {
-    if kind == ad_type_kind::auto_      { return "auto"; }
-    if kind == ad_type_kind::void_      { return "void"; }
-    if kind == ad_type_kind::int_       { return "int"; }
-    if kind == ad_type_kind::size_t_    { return "size_t"; }
-    if kind == ad_type_kind::double_    { return "double"; }
-    if kind == ad_type_kind::float_     { return "float"; }
-    if kind == ad_type_kind::bool_      { return "bool"; }
-    if kind == ad_type_kind::char_      { return "char"; }
-    if kind == ad_type_kind::named      { return "named"; }
-    if kind == ad_type_kind::const_     { return "const"; }
-    if kind == ad_type_kind::ref        { return "ref"; }
-    if kind == ad_type_kind::rvalue_ref { return "rvalue_ref"; }
-    if kind == ad_type_kind::pointer    { return "pointer"; }
-    if kind == ad_type_kind::array      { return "array"; }
-    if kind == ad_type_kind::template_  { return "template"; }
-    return "unknown";
-}
-
 //-----------------------------------------------------------------------
 //  Operation kinds for AD expressions
 //-----------------------------------------------------------------------
@@ -3975,102 +3951,6 @@ debug_operator_mapping: (op: std::string_view, ok: bool, kind: ad_op_kind) = {
 
 //-----------------------------------------------------------------------
 //
-//  AD IR Error handling
-//
-//-----------------------------------------------------------------------
-
-/**
- * @brief Error information for AD IR processing.
- */
-ad_ir_error: type = {
-    public message  : std::string = "";
-    public location : std::string = "";
-    public context  : std::string = "";
-
-    operator=: (out this) = {}
-    operator=: (out this, that) = {}
-
-    make: (msg: std::string, loc: std::string = "", ctx: std::string = "") -> ad_ir_error = {
-        e: ad_ir_error = ();
-        e.message = msg;
-        e.location = loc;
-        e.context = ctx;
-        return e;
-    }
-}
-
-/**
- * @brief Print an AD IR error with formatting.
- */
-ad_ir_error_print: (err: ad_ir_error) = {
-    std::cout << "\n";
-    std::cout << "╔═══ AD IR ERROR ═══════════════════════════════════════════════════╗\n";
-    std::cout << "║ " << err.message << "\n";
-    if !err.location.empty() {
-        std::cout << "║ Location: " << err.location << "\n";
-    }
-    if !err.context.empty() {
-        std::cout << "║ Context: " << err.context << "\n";
-    }
-    std::cout << "╚════════════════════════════════════════════════════════════════════╝\n";
-}
-
-/**
- * @brief Collection of errors during AD IR processing.
- */
-ad_ir_error_list: type = {
-    public errors: std::vector<ad_ir_error> = ();
-
-    operator=: (out this) = {}
-    operator=: (out this, that) = {}
-
-    /**
-     * @brief Add an error to the list.
-     */
-    add_error: (inout this, msg: std::string, loc: std::string = "", ctx: std::string = "") = {
-        errors.push_back(ad_ir_error::make(msg, loc, ctx));
-    }
-
-    /**
-     * @brief Check if any errors occurred.
-     */
-    has_errors: (this) -> bool = {
-        return !errors.empty();
-    }
-
-    /**
-     * @brief Get number of errors.
-     */
-    count: (this) -> int = {
-        return errors.ssize();
-    }
-
-    /**
-     * @brief Print all errors.
-     */
-    print_all: (this) = {
-        if errors.empty() {
-            return;
-        }
-        std::cout << "\n";
-        std::cout << "══════════════════════════════════════════════════════════════════════\n";
-        std::cout << "  AD IR encountered " << errors.ssize() << " error(s):\n";
-        std::cout << "══════════════════════════════════════════════════════════════════════\n";
-        for errors do (err) {
-            ad_ir_error_print(err);
-        }
-    }
-
-    /**
-     * @brief Clear all errors.
-     */
-    clear: (inout this) = {
-        errors.clear();
-    }
-}
-
-//-----------------------------------------------------------------------
-//
 //  Subtask 5: Base expression builder
 //
 //-----------------------------------------------------------------------
@@ -4086,7 +3966,6 @@ ad_ir_builder: type = {
     public registry   : *ad_rule_registry;
     public temp_counter: int = 0;
     public temp_names : std::vector<std::string> = ();
-    public errors     : ad_ir_error_list = ();
 
     /// Default constructor
     operator=: (out this) = {
@@ -4101,38 +3980,17 @@ ad_ir_builder: type = {
     }
 
     /**
-     * @brief Report an error during IR building.
+     * @brief Report an error during IR building and fail immediately.
      * @param msg Error message.
      * @param loc Location string (optional).
      * @param context Additional context (optional).
      */
     report_error: (inout this, msg: std::string, loc: std::string = "", context: std::string = "") = {
-        errors.add_error(msg, loc, context);
-        std::cout << "AD IR Builder Error: " << msg;
-        if !loc.empty() { std::cout << " at " << loc; }
-        if !context.empty() { std::cout << " (" << context << ")"; }
-        std::cout << "\n";
-    }
-
-    /**
-     * @brief Check if any errors occurred.
-     */
-    has_errors: (this) -> bool = {
-        return errors.has_errors();
-    }
-
-    /**
-     * @brief Get error count.
-     */
-    error_count: (this) -> int = {
-        return errors.count();
-    }
-
-    /**
-     * @brief Print all accumulated errors.
-     */
-    print_errors: (this) = {
-        errors.print_all();
+        std::cerr << "AD IR Builder Error: " << msg;
+        if !loc.empty() { std::cerr << " at " << loc; }
+        if !context.empty() { std::cerr << " (" << context << ")"; }
+        std::cerr << "\n";
+        assert(false && "AD IR Builder encountered a fatal error");
     }
 
     /**
@@ -4326,42 +4184,6 @@ ad_ir_builder: type = {
     }
 
     /**
-     * @brief Build an identifier IR node.
-     * @param name Variable name.
-     * @param type_name Type of the variable (or empty for unknown).
-     * @return Identifier expression node.
-     */
-    build_identifier_expr: (this, name: std::string, type_name: std::string = "double") -> ad_expr = {
-        return ad_expr::make_identifier(name, type_name);
-    }
-
-    /**
-     * @brief Build a literal IR node.
-     * @param value Literal value as string.
-     * @param type_name Type of the literal (default "double").
-     * @return Literal expression node.
-     */
-    build_literal_expr: (this, value: std::string, type_name: std::string = "double") -> ad_expr = {
-        return ad_expr::make_literal(value, type_name);
-    }
-
-    /**
-     * @brief Build a member-access IR node (obj.field).
-     *
-     * Represented as a call expression with the object as first argument.
-     *
-     * @param object Object expression.
-     * @param field Field name.
-     * @param type_name Result type.
-     * @return Member access expression node.
-     */
-    build_member_access_expr: (this, object: ad_expr, field: std::string, type_name: std::string = "double") -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(object);
-        return ad_expr::make_call(field, ad_op_kind::call, args, type_name);
-    }
-
-    /**
      * @brief Build IR from a primary expression.
      *
      * Handles identifiers, literals, and parenthesized expressions.
@@ -4373,12 +4195,12 @@ ad_ir_builder: type = {
         if primary.is_identifier() {
             name := primary.as_identifier();
             std::cout << "AD IR Builder: primary identifier '" << name << "'\n";
-            return build_identifier_expr(name as std::string);
+            return ad_expr::make_identifier(name as std::string, "double");
         }
         else if primary.is_literal() {
             value := primary.as_literal();
             std::cout << "AD IR Builder: primary literal '" << value << "'\n";
-            return build_literal_expr(value as std::string);
+            return ad_expr::make_literal(value as std::string, "double");
         }
         else if primary.is_expression_list() {
             // Parenthesized expression - recursively parse
@@ -4458,7 +4280,7 @@ ad_ir_builder: type = {
                 // Member access: obj.member
                 field := term.get_id_expression().to_string();
                 std::cout << "AD IR Builder: member access '." << field << "'\n";
-                result = build_member_access_expr(result, field as std::string);
+                result = ad_expr::make_member(result, field as std::string, false, "double");
             }
         }
 
@@ -4650,11 +4472,11 @@ ad_ir_builder: type = {
 
         // Check for simple identifier
         if expr.is_identifier() {
-            return build_identifier_expr(str as std::string);
+            return ad_expr::make_identifier(str as std::string, "double");
         }
         // Check for literal
         if expr.is_literal() {
-            return build_literal_expr(str as std::string, "double");
+            return ad_expr::make_literal(str as std::string, "double");
         }
 
         // For complex expressions, parse from the assignment structure
@@ -6081,159 +5903,83 @@ ad_ir_builder_debug_dump: (builder: ad_ir_builder) = {
  * @see ad_ir_builder           IR construction from reflection AST
  * @see ad_ir_emitter           Code generation from IR
  */
-autodiff_reverse_ir: (inout t: meta::type_declaration) = {
-    std::cout << "\n";
-    std::cout << "╔══════════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║  AD REVERSE IR STAGE: " << t.name() << "\n";
-    std::cout << "╚══════════════════════════════════════════════════════════════════╝\n";
+autodiff_reverse_ir: (inout t: meta::type_declaration, debug: bool) = {
+    if debug {
+        std::cout << "\n";
+        std::cout << "╔══════════════════════════════════════════════════════════════════╗\n";
+        std::cout << "║  AD REVERSE IR STAGE: " << t.name() << "\n";
+        std::cout << "╚══════════════════════════════════════════════════════════════════╝\n";
 
-    // Global error list for this processing run
-    global_errors: ad_ir_error_list = ();
-
-    // Print the original AST
-    std::cout << "\n┌─── Original AST ───┐\n";
-    print(t);
-    std::cout << "└────────────────────┘\n";
+        // Print the original AST
+        std::cout << "\n┌─── Original AST ───┐\n";
+        print(t);
+        std::cout << "└────────────────────┘\n";
+    }
 
     //-------------------------------------------------------------------
-    // SUBTASK 3: Discover ad_rules in the type
+    // Discover ad_rules in the type
     //-------------------------------------------------------------------
-    std::cout << "\n┌─── Subtask 3: Rule Discovery ───┐\n";
     rule_registry: ad_rule_registry = ();
     discover_ad_rules(t, rule_registry);
-    ad_rule_registry_debug_dump(rule_registry);
-    std::cout << "└──────────────────────────────────┘\n";
+    if debug {
+        std::cout << "\n┌─── Rule Discovery ───┐\n";
+        ad_rule_registry_debug_dump(rule_registry);
+        std::cout << "└──────────────────────────────────┘\n";
+    }
 
     //-------------------------------------------------------------------
-    // SUBTASK 4: Test expression builder on each function
+    // Build IR for each function
     //-------------------------------------------------------------------
-    (copy processing_failed := false)
     for t.get_member_functions() do (mf) {
         // Skip rule types (they have special structure)
         if mf.name().starts_with("ad_rule") {
             continue;
         }
 
-        // Skip if we've already encountered errors
-        if processing_failed {
-            std::cout << "\n[SKIPPED] " << mf.name() << " (previous errors)\n";
-            continue;
-        }
-
-        std::cout << "\n┌─── Subtask 5: Expression Builder for " << mf.name() << " ───┐\n";
-
         rc: reverse_autodiff_context = (mf);
-        std::cout << "Function: " << mf.get_signature() << "\n";
-        std::cout << "Suffixes: value=" << rc.value_suffix << " adj=" << rc.adj_suffix << "\n";
+        if debug {
+            std::cout << "\n┌─── Building IR for " << mf.name() << " ───┐\n";
+            std::cout << "Function: " << mf.get_signature() << "\n";
+            std::cout << "Suffixes: value=" << rc.value_suffix << " adj=" << rc.adj_suffix << "\n";
+        }
 
         // Create builder with context and registry
         builder: ad_ir_builder = (rc&, rule_registry&);
 
-        // Test manual IR construction
-        std::cout << "\n--- Manual IR Construction Tests ---\n";
-
-        std::cout << "\nTest: build_identifier_expr('x')\n";
-        x_ir := builder.build_identifier_expr("x", "double");
-        ad_ir_debug_dump_expr(x_ir, 1);
-
-        std::cout << "\nTest: build_literal_expr('3.14')\n";
-        lit_ir := builder.build_literal_expr("3.14", "double");
-        ad_ir_debug_dump_expr(lit_ir, 1);
-
-        std::cout << "\nTest: build_member_access_expr(x, 'adj')\n";
-        member_ir := builder.build_member_access_expr(x_ir, "adj", "double");
-        ad_ir_debug_dump_expr(member_ir, 1);
-
-        std::cout << "\nTest: derive_op_name for mul(x, y)\n";
-        y_ir := builder.build_identifier_expr("y", "double");
-        mul_args: std::vector<ad_expr> = ();
-        mul_args.push_back(x_ir);
-        mul_args.push_back(y_ir);
-        op_name := builder.derive_op_name(ad_op_kind::mul, mul_args);
-        std::cout << "  Derived name: " << op_name << "\n";
-
-        std::cout << "\nTest: gen_temp_name('tmp')\n";
-        tmp1 := builder.gen_temp_name("tmp");
-        tmp2 := builder.gen_temp_name("tmp");
-        std::cout << "  Generated: " << tmp1 << ", " << tmp2 << "\n";
-
-        // Dump builder state
-        ad_ir_builder_debug_dump(builder);
-
         // Build the complete function IR using the builder
-        std::cout << "\n--- Building Function IR (using build_function_ir) ---\n";
+        if debug {
+            std::cout << "\n--- Building Function IR ---\n";
+        }
         func_ir := builder.build_function_ir(mf);
+        _ = builder;  // Explicitly discard modified builder
 
         // Dump the function IR
-        ad_ir_debug_dump(func_ir);
-
-        //-------------------------------------------------------------------
-        // Task 11 & 12: Test emitter
-        //-------------------------------------------------------------------
-        std::cout << "\n--- IR Emitter Test ---\n";
-        emitter: ad_ir_emitter = (rc&);
-
-        // Emit forward pass
-        std::cout << "Forward pass emission:\n";
-        fwd_code := emitter.emit_forward(func_ir);
-        std::cout << fwd_code;
-
-        // Emit reverse pass
-        std::cout << "\nReverse pass emission:\n";
-        rev_code := emitter.emit_reverse(func_ir);
-        std::cout << rev_code;
+        if debug {
+            ad_ir_debug_dump(func_ir);
+        }
 
         // Emit complete function
-        std::cout << "\nComplete function emission:\n";
+        emitter: ad_ir_emitter = (rc&);
         func_code := emitter.emit_function(func_ir);
-        std::cout << func_code;
+
+        if debug {
+            std::cout << "\nGenerated function:\n";
+            std::cout << func_code;
+        }
 
         // Add the backward function to the type
         if !func_code.empty() {
             t.add_member(func_code);
-            std::cout << "  -> Added backward function to type\n";
-        }
-
-        // Test rule lookup
-        std::cout << "\n--- Rule Lookup Tests ---\n";
-        has_softplus := rule_registry.has_rule("softplus", 1, false);
-        std::cout << "  has_rule('softplus', 1, false): " << has_softplus << "\n";
-        if has_softplus {
-            std::cout << "    rule_type: " << rule_registry.get_rule_type("softplus", 1, false) << "\n";
-        }
-
-        has_sin := rule_registry.has_rule("sin", 1, false);
-        std::cout << "  has_rule('sin', 1, false): " << has_sin << "\n";
-
-        // Check for errors from the builder
-        if builder.has_errors() {
-            std::cout << "\n";
-            std::cout << "╔══════════════════════════════════════════════════════════════════╗\n";
-            std::cout << "║  AD IR BUILDER ERRORS in " << mf.name() << "\n";
-            std::cout << "╚══════════════════════════════════════════════════════════════════╝\n";
-            builder.print_errors();
-            // Merge errors into global list
-            for builder.errors.errors do (err) {
-                global_errors.add_error(err.message, err.location, err.context);
+            if debug {
+                std::cout << "  -> Added backward function to type\n";
+                std::cout << "└──────────────────────────────────────────────────┘\n";
             }
-            processing_failed = true;
         }
-
-        std::cout << "└──────────────────────────────────────────────────┘\n";
     }
 
-    // Print final status
-    if global_errors.has_errors() {
+    if debug {
         std::cout << "\n╔══════════════════════════════════════════════════════════════════╗\n";
-        std::cout << "║  AD REVERSE IR STAGE FAILED - " << global_errors.count() << " error(s)\n";
-        std::cout << "╚══════════════════════════════════════════════════════════════════╝\n";
-        std::cout << "\nError Summary:\n";
-        global_errors.print_all();
-        std::cout << "\n";
-    }
-    else {
-        std::cout << "\n╔══════════════════════════════════════════════════════════════════╗\n";
-        std::cout << "║  AD REVERSE IR STAGE COMPLETE - No errors\n";
+        std::cout << "║  AD REVERSE IR STAGE COMPLETE\n";
         std::cout << "╚══════════════════════════════════════════════════════════════════╝\n\n";
     }
 }
@@ -6245,6 +5991,7 @@ autodiff_impl: (inout t: meta::type_declaration) =
     rws_suffix_token  : std::string_view == "rws_suffix=";
     order_token       : std::string_view == "order=";
     reverse_token     : std::string_view == "reverse";
+    debug_token       : std::string_view == "debug";
 
     args := t.get_arguments();
 
@@ -6252,6 +5999,7 @@ autodiff_impl: (inout t: meta::type_declaration) =
     rws_suffix: std::string = "_b";
     order     : int         = 1;
     reverse   : bool        = false;
+    debug     : bool        = false;
     for args do (arg_str) {
         if arg_str.starts_with("\"") && arg_str.ends_with("\"") {
             arg := arg_str.substr(1, arg_str.ssize() - 2);
@@ -6275,6 +6023,10 @@ autodiff_impl: (inout t: meta::type_declaration) =
                 reverse = true;
                 continue;
             }
+            else if arg == debug_token {
+                debug = true;
+                continue;
+            }
         }
 
         t.error("AD: Unknown argument: (arg_str)$");
@@ -6291,7 +6043,7 @@ autodiff_impl: (inout t: meta::type_declaration) =
         }
 
         // Call reverse mode IR builder (completely independent path)
-        autodiff_reverse_ir(t);
+        autodiff_reverse_ir(t, debug);
         t.add_runtime_support_include("cpp2ad_stack.h");
         return;  // Skip old forward mode code entirely
     }

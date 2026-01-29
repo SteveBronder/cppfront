@@ -76,7 +76,12 @@ debug: $(CPPFRONT_SRC) $(CPPFRONT_DEPS) | $(BUILD_DIR)
 # Regenerate .h files from .h2 files
 # Requires cppfront to already exist
 # Build order: reflect.h2 first (provides meta:: types), then reverse_ad.h2
-refresh: $(CPPFRONT)
+# NOTE: Does NOT depend on $(CPPFRONT) rule to avoid rebuild with stale .h files
+refresh: | $(BUILD_DIR)
+	@if [ ! -f $(CPPFRONT) ]; then \
+		echo "Error: $(CPPFRONT) not found. Run 'make build' first with clean .h files."; \
+		exit 1; \
+	fi
 	@echo "Regenerating .h files from .h2..."
 	$(CPPFRONT) $(SRC_DIR)/reflect.h2 -o $(SRC_DIR)/reflect.h
 	$(CPPFRONT) $(SRC_DIR)/reverse_ad.h2 -o $(SRC_DIR)/reverse_ad.h
@@ -85,7 +90,12 @@ refresh: $(CPPFRONT)
 # Bootstrap: regenerate .h from .h2, then rebuild cppfront
 # This is the main development command after editing .h2 files
 # Build order: reflect.h2 first (provides meta:: types), then reverse_ad.h2
-bootstrap: $(CPPFRONT)
+# NOTE: Does NOT depend on $(CPPFRONT) rule to avoid rebuild with stale .h files
+bootstrap: | $(BUILD_DIR)
+	@if [ ! -f $(CPPFRONT) ]; then \
+		echo "Error: $(CPPFRONT) not found. Run 'make build' first with clean .h files."; \
+		exit 1; \
+	fi
 	@echo "=== Bootstrap: regenerating .h from .h2 ==="
 	$(CPPFRONT) $(SRC_DIR)/reflect.h2 -o $(SRC_DIR)/reflect.h
 	$(CPPFRONT) $(SRC_DIR)/reverse_ad.h2 -o $(SRC_DIR)/reverse_ad.h
