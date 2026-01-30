@@ -136,7 +136,7 @@ compile: | $(BUILD_DIR)
 		exit 1; \
 	fi
 	@echo "Compiling $(FILE)..."
-	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) -I. $(FILE) -o $(BUILD_DIR)/$$(basename $(FILE) .cpp)
+	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) -Iinclude -I. $(FILE) -o $(BUILD_DIR)/$$(basename $(FILE) .cpp)
 	@echo "Built: $(BUILD_DIR)/$$(basename $(FILE) .cpp)"
 
 # Parse and compile a .cpp2 file (set FILE=path/to/file.cpp2)
@@ -153,7 +153,7 @@ run: $(CPPFRONT) | $(BUILD_DIR)
 	echo "Transpiling $(FILE) -> $$CPP_FILE"; \
 	$(CPPFRONT) $(FILE) -o $$CPP_FILE; \
 	echo "Compiling $$CPP_FILE..."; \
-	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) -I. $$CPP_FILE -o $(BUILD_DIR)/$$(basename $$CPP_FILE .cpp); \
+	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) -Iinclude -I. $$CPP_FILE -o $(BUILD_DIR)/$$(basename $$CPP_FILE .cpp); \
 	echo "Built: $(BUILD_DIR)/$$(basename $$CPP_FILE .cpp)"
 
 # Parse, compile, and execute a .cpp2 file

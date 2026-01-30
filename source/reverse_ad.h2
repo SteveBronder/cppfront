@@ -77,6 +77,451 @@ reverse_autodiff_context: type = {
 
 //-----------------------------------------------------------------------
 //
+//  Dual-Type IR Infrastructure
+//
+//  Wraps meta reflection types with AD-specific metadata, enabling
+//  transformation without rebuilding AST structure.
+//
+//-----------------------------------------------------------------------
+
+/**
+ * @brief Derive a value name from an original identifier.
+ * @param original Base identifier name.
+ * @return Value name with _val suffix.
+ */
+make_value_name: (original: std::string) -> std::string = {
+    if original == "_" {
+        return original;
+    }
+    return original + "_val";
+}
+
+/**
+ * @brief Derive an adjoint name from an original identifier.
+ * @param original Base identifier name.
+ * @return Adjoint name with _adj suffix.
+ */
+make_adjoint_name: (original: std::string) -> std::string = {
+    if original == "_" {
+        return original;
+    }
+    return original + "_adj";
+}
+
+/**
+ * @brief Generic dual-type wrapper pairing a meta type with user-provided metadata.
+ *
+ * The dual-type approach wraps meta reflection types (meta::expression, meta::statement)
+ * with AD-specific metadata, avoiding the need to rebuild AST structure.
+ *
+ * @tparam MetaType The wrapped meta reflection type.
+ * @tparam Metadata User-provided metadata type.
+ */
+ad_dual: <MetaType, Metadata> type = {
+    public meta : MetaType;
+    public data : Metadata;
+
+    /// Constructor with explicit meta and data
+    operator=: (out this, m: MetaType, d: Metadata) = {
+        meta = m;
+        data = d;
+    }
+
+    /**
+     * @brief Wrap a meta type with default-constructed metadata.
+     * @param m Meta type to wrap.
+     * @return Dual-type wrapper.
+     */
+    wrap: (m: MetaType) -> ad_dual<MetaType, Metadata> = {
+        return ad_dual<MetaType, Metadata>(m, Metadata());
+    }
+
+    /**
+     * @brief Delegate to_string to the underlying meta type.
+     * @return String representation from meta type.
+     */
+    to_string: (this) -> std::string = {
+        return meta.to_string();
+    }
+}
+
+/**
+ * @brief Metadata for expressions during AD transformation.
+ *
+ * Tracks whether an expression affects gradients (is_active).
+ */
+ad_expr_metadata: type = {
+    public is_active : bool = false;  // Does this expression affect gradients?
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+}
+
+/**
+ * @brief Metadata for statements during AD transformation.
+ *
+ * Tracks whether a statement is an accumulation (+=) operation.
+ */
+ad_stmt_metadata: type = {
+    public is_accumulation : bool = false;  // Is this a += statement?
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+}
+
+/**
+ * @brief String-based substitution context for dual-type rule application.
+ *
+ * Maps parameter names to their string replacements. Used during
+ * rule body substitution where we transform to_string() output.
+ */
+ad_string_substitution_context: type = {
+    public substitutions : std::map<std::string, std::string> = ();
+
+    /// Default constructor
+    operator=: (out this) = {}
+
+    /// Copy constructor
+    operator=: (out this, that) = {}
+
+    /**
+     * @brief Add a substitution mapping.
+     * @param name Parameter name to substitute.
+     * @param replacement String to substitute in place of the parameter.
+     */
+    add: (inout this, name: std::string, replacement: std::string) = {
+        substitutions[name] = replacement;
+    }
+
+    /**
+     * @brief Apply all substitutions to a text string.
+     *
+     * Replaces all occurrences of parameter names with their replacements.
+     * Uses word-boundary matching to avoid partial replacements.
+     *
+     * @param text Text to transform.
+     * @return Text with all substitutions applied.
+     */
+    apply: (this, text: std::string) -> std::string = {
+        result: std::string = text;
+        for substitutions do (sub) {
+            name := sub.first;
+            replacement := sub.second;
+            // Simple word-boundary replacement
+            pos: size_t = 0;
+            while true {
+                pos = result.find(name, pos);
+                if pos == std::string::npos {
+                    break;
+                }
+                // Check word boundaries
+                before_ok := pos == 0 || !std::isalnum(result[pos - 1]) && result[pos - 1] != '_';
+                end_pos := pos + name.size();
+                after_ok := end_pos >= result.size() || !std::isalnum(result[end_pos]) && result[end_pos] != '_';
+                if before_ok && after_ok {
+                    result = result.substr(0, pos) + replacement + result.substr(end_pos);
+                    pos += replacement.size();
+                } else {
+                    pos++;
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @brief Check if a substitution exists for a name.
+     * @param name Parameter name to check.
+     * @return true if a substitution exists.
+     */
+    has: (this, name: std::string) -> bool = {
+        return substitutions.find(name) != substitutions.end();
+    }
+
+    /**
+     * @brief Get the replacement for a name.
+     * @param name Parameter name to look up.
+     * @return Replacement string, or empty string if not found.
+     */
+    get: (this, name: std::string) -> std::string = {
+        it := substitutions.find(name);
+        if it != substitutions.end() {
+            return it*.second;
+        }
+        return "";
+    }
+}
+
+//-----------------------------------------------------------------------
+//
+//  Built-in AD Rules Namespace
+//
+//  Standard ad_rule_* types for operators and common math functions.
+//  These are automatically discovered by the autodiff metafunction.
+//
+//-----------------------------------------------------------------------
+
+ad: namespace = {
+
+// =============================================================================
+// Basic Arithmetic Operators
+// =============================================================================
+
+// Rule for addition: d/dx (x + y) = 1, d/dy (x + y) = 1
+ad_rule_add: type = {
+    name: std::string = "+";
+    n_args: int = 2;
+    is_member: bool = false;
+
+    forward: (x: double, y: double) -> double = x + y;
+
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += res_adj;
+        y_adj += res_adj;
+    }
+}
+
+// Rule for subtraction: d/dx (x - y) = 1, d/dy (x - y) = -1
+ad_rule_sub: type = {
+    name: std::string = "-";
+    n_args: int = 2;
+    is_member: bool = false;
+
+    forward: (x: double, y: double) -> double = x - y;
+
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += res_adj;
+        y_adj -= res_adj;
+    }
+}
+
+// Rule for multiplication: d/dx (x * y) = y, d/dy (x * y) = x
+ad_rule_mul: type = {
+    name: std::string = "*";
+    n_args: int = 2;
+    is_member: bool = false;
+
+    forward: (x: double, y: double) -> double = x * y;
+
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += y_val * res_adj;
+        y_adj += x_val * res_adj;
+    }
+}
+
+// Rule for division: d/dx (x / y) = 1/y, d/dy (x / y) = -x/y^2
+ad_rule_div: type = {
+    name: std::string = "/";
+    n_args: int = 2;
+    is_member: bool = false;
+
+    forward: (x: double, y: double) -> double = x / y;
+
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += res_adj / y_val;
+        y_adj -= x_val / (y_val * y_val) * res_adj;
+    }
+}
+
+// Rule for unary negation: d/dx (-x) = -1
+ad_rule_neg: type = {
+    name: std::string = "unary-";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = -x;
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj -= res_adj;
+    }
+}
+
+// =============================================================================
+// Exponential and Logarithmic Functions
+// =============================================================================
+
+// Rule for exp(x): d/dx exp(x) = exp(x)
+ad_rule_exp: type = {
+    name: std::string = "exp";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::exp(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += res_val * res_adj;
+    }
+}
+
+// Rule for log(x): d/dx log(x) = 1/x
+ad_rule_log: type = {
+    name: std::string = "log";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::log(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += res_adj / x_val;
+    }
+}
+
+// =============================================================================
+// Power Functions
+// =============================================================================
+
+// Rule for sqrt(x): d/dx sqrt(x) = 0.5/sqrt(x)
+ad_rule_sqrt: type = {
+    name: std::string = "sqrt";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::sqrt(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += 0.5 * res_adj / res_val;
+    }
+}
+
+// Rule for pow(x, y): d/dx = y*x^(y-1), d/dy = x^y * log(x)
+ad_rule_pow: type = {
+    name: std::string = "pow";
+    n_args: int = 2;
+    is_member: bool = false;
+
+    forward: (x: double, y: double) -> double = std::pow(x, y);
+
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += y_val * res_val / x_val * res_adj;
+        y_adj += res_val * std::log(x_val) * res_adj;
+    }
+}
+
+// =============================================================================
+// Trigonometric Functions
+// =============================================================================
+
+// Rule for sin(x): d/dx sin(x) = cos(x)
+ad_rule_sin: type = {
+    name: std::string = "sin";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::sin(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += std::cos(x_val) * res_adj;
+    }
+}
+
+// Rule for cos(x): d/dx cos(x) = -sin(x)
+ad_rule_cos: type = {
+    name: std::string = "cos";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::cos(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj -= std::sin(x_val) * res_adj;
+    }
+}
+
+// Rule for tan(x): d/dx tan(x) = sec^2(x) = 1 + tan^2(x)
+ad_rule_tan: type = {
+    name: std::string = "tan";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::tan(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += (1.0 + res_val * res_val) * res_adj;
+    }
+}
+
+// =============================================================================
+// Hyperbolic Functions
+// =============================================================================
+
+// Rule for sinh(x): d/dx sinh(x) = cosh(x)
+ad_rule_sinh: type = {
+    name: std::string = "sinh";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::sinh(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += std::cosh(x_val) * res_adj;
+    }
+}
+
+// Rule for cosh(x): d/dx cosh(x) = sinh(x)
+ad_rule_cosh: type = {
+    name: std::string = "cosh";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::cosh(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += std::sinh(x_val) * res_adj;
+    }
+}
+
+// Rule for tanh(x): d/dx tanh(x) = 1 - tanh^2(x)
+ad_rule_tanh: type = {
+    name: std::string = "tanh";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::tanh(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        x_adj += (1.0 - res_val * res_val) * res_adj;
+    }
+}
+
+// =============================================================================
+// Other Common Functions
+// =============================================================================
+
+// Rule for abs(x): d/dx |x| = sign(x)
+ad_rule_abs: type = {
+    name: std::string = "abs";
+    n_args: int = 1;
+    is_member: bool = false;
+
+    forward: (x: double) -> double = std::abs(x);
+
+    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
+        if x_val != 0.0 {
+            x_adj += (x_val / res_val) * res_adj;
+        }
+    }
+}
+
+}  // namespace ad
+
+//-----------------------------------------------------------------------
+//
 //  Typed AD IR definitions for reverse-mode autodiff
 //
 //-----------------------------------------------------------------------
@@ -417,8 +862,8 @@ ad_type_to_string: (t: ad_type) -> std::string = {
         return "[]";
     }
     if t.kind == ad_type_kind::template_ {
-        result := t.name + "<";
-        (copy first := true)
+        result: std::string = t.name + "<";
+        (copy first: bool = true)
         for t.type_args do (arg) {
             if !first { result += ", "; }
             first = false;
@@ -1370,650 +1815,6 @@ ad_function_ir: type = {
 
 //-----------------------------------------------------------------------
 //
-//  AD IR Helper Modules - Convenience builders following Stan's pattern
-//
-//-----------------------------------------------------------------------
-
-/**
- * @brief Type helper namespace for creating common types.
- *
- * Provides convenient factory functions for commonly used types in autodiff.
- * Following Stan compiler's MIR pattern of reducing boilerplate.
- */
-ad_types: namespace = {
-
-    // ===== Primitive types =====
-
-    /**
-     * @brief Create a double type.
-     */
-    double_: () -> ad_type = {
-        return ad_type::make_double();
-    }
-
-    /**
-     * @brief Create an int type.
-     */
-    int_: () -> ad_type = {
-        return ad_type::make_int();
-    }
-
-    /**
-     * @brief Create a size_t type.
-     */
-    size_t_: () -> ad_type = {
-        return ad_type::make_size_t();
-    }
-
-    /**
-     * @brief Create a bool type.
-     */
-    bool_: () -> ad_type = {
-        return ad_type::make_bool();
-    }
-
-    /**
-     * @brief Create a void type.
-     */
-    void_: () -> ad_type = {
-        return ad_type::make_void();
-    }
-
-    /**
-     * @brief Create an auto type.
-     */
-    auto_: () -> ad_type = {
-        return ad_type::make_auto();
-    }
-
-    // ===== Qualified types =====
-
-    /**
-     * @brief Create const double type.
-     */
-    const_double: () -> ad_type = {
-        return ad_type::make_const(ad_type::make_double());
-    }
-
-    /**
-     * @brief Create double reference type (double&).
-     */
-    double_ref: () -> ad_type = {
-        return ad_type::make_ref(ad_type::make_double());
-    }
-
-    /**
-     * @brief Create const double reference type (const double&).
-     */
-    const_double_ref: () -> ad_type = {
-        return ad_type::make_const(ad_type::make_ref(ad_type::make_double()));
-    }
-
-    /**
-     * @brief Create int reference type (int&).
-     */
-    int_ref: () -> ad_type = {
-        return ad_type::make_ref(ad_type::make_int());
-    }
-
-    /**
-     * @brief Create const int reference type (const int&).
-     */
-    const_int_ref: () -> ad_type = {
-        return ad_type::make_const(ad_type::make_ref(ad_type::make_int()));
-    }
-
-    // ===== Container types =====
-
-    /**
-     * @brief Create std::vector<T> type.
-     * @param elem Element type.
-     */
-    std_vector: (elem: ad_type) -> ad_type = {
-        return ad_type::make_std_vector(elem);
-    }
-
-    /**
-     * @brief Create std::vector<double> type.
-     */
-    vector_double: () -> ad_type = {
-        return ad_type::make_std_vector(ad_type::make_double());
-    }
-
-    /**
-     * @brief Create std::vector<int> type.
-     */
-    vector_int: () -> ad_type = {
-        return ad_type::make_std_vector(ad_type::make_int());
-    }
-
-    /**
-     * @brief Create const reference to std::vector<double>.
-     */
-    const_vector_double_ref: () -> ad_type = {
-        return ad_type::make_const(ad_type::make_ref(ad_type::make_std_vector(ad_type::make_double())));
-    }
-
-    // ===== Named types =====
-
-    /**
-     * @brief Create a named type.
-     * @param name Type name.
-     */
-    named: (name: std::string) -> ad_type = {
-        return ad_type::make_named(name);
-    }
-
-    /**
-     * @brief Create a template type.
-     * @param name Template name.
-     * @param args Type arguments.
-     */
-    template_: (name: std::string, args: std::vector<ad_type>) -> ad_type = {
-        return ad_type::make_template(name, args);
-    }
-}
-
-/**
- * @brief Expression helper namespace for creating common expressions.
- *
- * Provides convenient factory functions for commonly used expressions in autodiff.
- */
-ad_exprs: namespace = {
-
-    // ===== Literals =====
-
-    /**
-     * @brief Create a variable reference (identifier).
-     * @param name Variable name.
-     */
-    var: (name: std::string) -> ad_expr = {
-        return ad_expr::make_identifier(name, "double");
-    }
-
-    /**
-     * @brief Create a typed variable reference.
-     * @param name Variable name.
-     * @param type_name Type name.
-     */
-    var_typed: (name: std::string, type_name: std::string) -> ad_expr = {
-        return ad_expr::make_identifier(name, type_name);
-    }
-
-    /**
-     * @brief Create a double literal.
-     * @param value Numeric value.
-     */
-    lit: (value: double) -> ad_expr = {
-        return ad_expr::make_literal(std::to_string(value), "double");
-    }
-
-    /**
-     * @brief Create a string literal.
-     * @param value String value (as Cpp2 source).
-     */
-    lit_str: (value: std::string) -> ad_expr = {
-        return ad_expr::make_literal(value, "double");
-    }
-
-    /**
-     * @brief Create an integer literal.
-     * @param value Integer value.
-     */
-    lit_int: (value: int) -> ad_expr = {
-        return ad_expr::make_int_literal(value);
-    }
-
-    /**
-     * @brief Create a boolean literal.
-     * @param value Boolean value.
-     */
-    lit_bool: (value: bool) -> ad_expr = {
-        return ad_expr::make_bool_literal(value);
-    }
-
-    /**
-     * @brief Create zero literal (0.0).
-     */
-    zero: () -> ad_expr = {
-        return ad_expr::make_literal("0.0", "double");
-    }
-
-    /**
-     * @brief Create one literal (1.0).
-     */
-    one: () -> ad_expr = {
-        return ad_expr::make_literal("1.0", "double");
-    }
-
-    // ===== Arithmetic operations =====
-
-    /**
-     * @brief Create addition expression.
-     */
-    add: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::add, lhs, rhs, "double");
-    }
-
-    /**
-     * @brief Create subtraction expression.
-     */
-    sub: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::sub, lhs, rhs, "double");
-    }
-
-    /**
-     * @brief Create multiplication expression.
-     */
-    mul: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::mul, lhs, rhs, "double");
-    }
-
-    /**
-     * @brief Create division expression.
-     */
-    div: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::div, lhs, rhs, "double");
-    }
-
-    /**
-     * @brief Create negation expression.
-     */
-    neg: (operand: ad_expr) -> ad_expr = {
-        return ad_expr::make_unary(ad_op_kind::neg, operand, "double");
-    }
-
-    // ===== Comparison operations =====
-
-    /**
-     * @brief Create less-than comparison.
-     */
-    lt: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::lt, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create greater-than comparison.
-     */
-    gt: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::gt, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create less-or-equal comparison.
-     */
-    le: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::le, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create greater-or-equal comparison.
-     */
-    ge: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::ge, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create equality comparison.
-     */
-    eq: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::eq, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create inequality comparison.
-     */
-    ne: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::ne, lhs, rhs, "bool");
-    }
-
-    // ===== Logical operations =====
-
-    /**
-     * @brief Create logical AND.
-     */
-    land: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::land, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create logical OR.
-     */
-    lor: (lhs: ad_expr, rhs: ad_expr) -> ad_expr = {
-        return ad_expr::make_binary(ad_op_kind::lor, lhs, rhs, "bool");
-    }
-
-    /**
-     * @brief Create logical NOT.
-     */
-    lnot: (operand: ad_expr) -> ad_expr = {
-        return ad_expr::make_unary(ad_op_kind::lnot, operand, "bool");
-    }
-
-    // ===== Increment/Decrement =====
-
-    /**
-     * @brief Create prefix increment (++x).
-     */
-    pre_inc: (operand: ad_expr) -> ad_expr = {
-        return ad_expr::make_unary(ad_op_kind::pre_inc, operand, operand.type_name);
-    }
-
-    /**
-     * @brief Create prefix decrement (--x).
-     */
-    pre_dec: (operand: ad_expr) -> ad_expr = {
-        return ad_expr::make_unary(ad_op_kind::pre_dec, operand, operand.type_name);
-    }
-
-    /**
-     * @brief Create postfix increment (x++).
-     */
-    post_inc: (operand: ad_expr) -> ad_expr = {
-        return ad_expr::make_unary(ad_op_kind::post_inc, operand, operand.type_name);
-    }
-
-    /**
-     * @brief Create postfix decrement (x--).
-     */
-    post_dec: (operand: ad_expr) -> ad_expr = {
-        return ad_expr::make_unary(ad_op_kind::post_dec, operand, operand.type_name);
-    }
-
-    // ===== Access expressions =====
-
-    /**
-     * @brief Create member access (obj.member).
-     */
-    member: (obj: ad_expr, member_name: std::string) -> ad_expr = {
-        return ad_expr::make_member(obj, member_name, false, "auto");
-    }
-
-    /**
-     * @brief Create pointer member access (obj->member).
-     */
-    arrow: (obj: ad_expr, member_name: std::string) -> ad_expr = {
-        return ad_expr::make_member(obj, member_name, true, "auto");
-    }
-
-    /**
-     * @brief Create subscript access (arr[index]).
-     */
-    subscript: (arr: ad_expr, index: ad_expr) -> ad_expr = {
-        return ad_expr::make_subscript(arr, index, "auto");
-    }
-
-    /**
-     * @brief Create subscript with integer index.
-     */
-    at: (arr: ad_expr, index: int) -> ad_expr = {
-        return ad_expr::make_subscript(arr, ad_expr::make_int_literal(index), "auto");
-    }
-
-    // ===== Calls =====
-
-    /**
-     * @brief Create a function call.
-     * @param fn Function name.
-     * @param args Call arguments.
-     */
-    call: (fn: std::string, args: std::vector<ad_expr>) -> ad_expr = {
-        return ad_expr::make_call(fn, ad_op_kind::call, args, "double");
-    }
-
-    /**
-     * @brief Create a method call.
-     * @param obj Object expression.
-     * @param method Method name.
-     * @param args Call arguments.
-     */
-    method: (obj: ad_expr, method_name: std::string, args: std::vector<ad_expr>) -> ad_expr = {
-        return ad_expr::make_method_call(obj, method_name, args, "auto");
-    }
-
-    /**
-     * @brief Create a method call with no arguments.
-     */
-    method0: (obj: ad_expr, method_name: std::string) -> ad_expr = {
-        empty_args: std::vector<ad_expr> = ();
-        return ad_expr::make_method_call(obj, method_name, empty_args, "auto");
-    }
-
-    // ===== Common math function calls =====
-
-    /**
-     * @brief Create sin(x) call.
-     */
-    sin: (x: ad_expr) -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(x);
-        return ad_expr::make_call("std::sin", ad_op_kind::call, args, "double");
-    }
-
-    /**
-     * @brief Create cos(x) call.
-     */
-    cos: (x: ad_expr) -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(x);
-        return ad_expr::make_call("std::cos", ad_op_kind::call, args, "double");
-    }
-
-    /**
-     * @brief Create exp(x) call.
-     */
-    exp: (x: ad_expr) -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(x);
-        return ad_expr::make_call("std::exp", ad_op_kind::call, args, "double");
-    }
-
-    /**
-     * @brief Create log(x) call.
-     */
-    log: (x: ad_expr) -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(x);
-        return ad_expr::make_call("std::log", ad_op_kind::call, args, "double");
-    }
-
-    /**
-     * @brief Create sqrt(x) call.
-     */
-    sqrt: (x: ad_expr) -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(x);
-        return ad_expr::make_call("std::sqrt", ad_op_kind::call, args, "double");
-    }
-
-    /**
-     * @brief Create pow(x, y) call.
-     */
-    pow: (x: ad_expr, y: ad_expr) -> ad_expr = {
-        args: std::vector<ad_expr> = ();
-        args.push_back(x);
-        args.push_back(y);
-        return ad_expr::make_call("std::pow", ad_op_kind::call, args, "double");
-    }
-
-    // ===== Ternary and other =====
-
-    /**
-     * @brief Create a ternary expression (cond ? then : else).
-     */
-    ternary: (cond: ad_expr, then_expr: ad_expr, else_expr: ad_expr) -> ad_expr = {
-        return ad_expr::make_ternary(cond, then_expr, else_expr, then_expr.type_name);
-    }
-
-    /**
-     * @brief Create a parenthesized expression.
-     */
-    paren: (inner: ad_expr) -> ad_expr = {
-        return ad_expr::make_paren(inner);
-    }
-}
-
-/**
- * @brief Statement helper namespace for creating common statements.
- *
- * Provides convenient factory functions for commonly used statements in autodiff.
- */
-ad_stmts: namespace = {
-
-    // ===== Declarations =====
-
-    /**
-     * @brief Create a declaration with initializer.
-     */
-    decl_init: (name: std::string, init: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_decl(name, init.type_name, init);
-    }
-
-    /**
-     * @brief Create a double declaration with initializer.
-     */
-    decl_double: (name: std::string, init: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_decl(name, "double", init);
-    }
-
-    /**
-     * @brief Create an int declaration with initializer.
-     */
-    decl_int: (name: std::string, init: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_decl(name, "int", init);
-    }
-
-    /**
-     * @brief Create a declaration with zero initializer.
-     */
-    decl_zero: (name: std::string) -> ad_stmt = {
-        return ad_stmt::make_decl(name, "double", ad_exprs::zero());
-    }
-
-    // ===== Assignments =====
-
-    /**
-     * @brief Create an assignment.
-     */
-    assign: (target: std::string, value: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_assign(target, value);
-    }
-
-    /**
-     * @brief Create an add-assignment (+=).
-     */
-    assign_add: (target: std::string, value: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_assign_add(target, value);
-    }
-
-    /**
-     * @brief Create a subtract-assignment (-=).
-     */
-    assign_sub: (target: std::string, value: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_assign_sub(target, value);
-    }
-
-    /**
-     * @brief Create a multiply-assignment (*=).
-     */
-    assign_mul: (target: std::string, value: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_assign_mul(target, value);
-    }
-
-    /**
-     * @brief Create a divide-assignment (/=).
-     */
-    assign_div: (target: std::string, value: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_assign_div(target, value);
-    }
-
-    // ===== Control flow =====
-
-    /**
-     * @brief Create an if-then statement (no else).
-     */
-    if_then: (cond: ad_expr, body: std::vector<ad_stmt>) -> ad_stmt = {
-        empty: std::vector<ad_stmt> = ();
-        return ad_stmt::make_if(cond, body, empty);
-    }
-
-    /**
-     * @brief Create an if-then-else statement.
-     */
-    if_else: (cond: ad_expr, then_body: std::vector<ad_stmt>, else_body: std::vector<ad_stmt>) -> ad_stmt = {
-        return ad_stmt::make_if(cond, then_body, else_body);
-    }
-
-    /**
-     * @brief Create a for loop with int counter.
-     * @param var Loop variable name.
-     * @param start Start value.
-     * @param end_exclusive End value (exclusive).
-     * @param body Loop body.
-     */
-    for_range: (var: std::string, start: int, end_exclusive: ad_expr, body: std::vector<ad_stmt>) -> ad_stmt = {
-        init := ad_stmt::make_decl(var, "int", ad_expr::make_int_literal(start));
-        cond := ad_exprs::lt(ad_exprs::var_typed(var, "int"), end_exclusive);
-        incr := ad_exprs::post_inc(ad_exprs::var_typed(var, "int"));
-        return ad_stmt::make_for(init, cond, incr, body);
-    }
-
-    /**
-     * @brief Create a while loop.
-     */
-    while_: (cond: ad_expr, body: std::vector<ad_stmt>) -> ad_stmt = {
-        return ad_stmt::make_while(cond, body);
-    }
-
-    /**
-     * @brief Create a foreach loop.
-     */
-    foreach: (var: std::string, range: ad_expr, body: std::vector<ad_stmt>) -> ad_stmt = {
-        return ad_stmt::make_foreach(var, "auto", range, body);
-    }
-
-    // ===== Jump statements =====
-
-    /**
-     * @brief Create a return statement.
-     */
-    return_: (value: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_return(value);
-    }
-
-    /**
-     * @brief Create a break statement.
-     */
-    break_: () -> ad_stmt = {
-        return ad_stmt::make_break();
-    }
-
-    /**
-     * @brief Create a continue statement.
-     */
-    continue_: () -> ad_stmt = {
-        return ad_stmt::make_continue();
-    }
-
-    // ===== Expression statements =====
-
-    /**
-     * @brief Create an expression statement.
-     */
-    expr: (e: ad_expr) -> ad_stmt = {
-        return ad_stmt::make_expr(e);
-    }
-
-    /**
-     * @brief Create a compound statement (block).
-     */
-    block: (stmts: std::vector<ad_stmt>) -> ad_stmt = {
-        return ad_stmt::make_compound(stmts);
-    }
-}
-
-//-----------------------------------------------------------------------
-//
 //  AD IR debug dump functions
 //
 //-----------------------------------------------------------------------
@@ -2088,339 +1889,6 @@ ad_op_kind_to_string: (op: ad_op_kind) -> std::string = {
     if op == ad_op_kind::identifier { return "identifier"; }
 
     return "unknown";
-}
-
-/**
- * @brief Convert ad_expr_kind to string for debug output.
- * @param kind Expression kind.
- * @return String representation.
- */
-ad_expr_kind_to_string: (kind: ad_expr_kind) -> std::string = {
-    if kind == ad_expr_kind::literal         { return "literal"; }
-    if kind == ad_expr_kind::identifier      { return "identifier"; }
-    if kind == ad_expr_kind::unary           { return "unary"; }
-    if kind == ad_expr_kind::binary          { return "binary"; }
-    if kind == ad_expr_kind::ternary         { return "ternary"; }
-    if kind == ad_expr_kind::member          { return "member"; }
-    if kind == ad_expr_kind::subscript       { return "subscript"; }
-    if kind == ad_expr_kind::call            { return "call"; }
-    if kind == ad_expr_kind::method_call     { return "method_call"; }
-    if kind == ad_expr_kind::cast            { return "cast"; }
-    if kind == ad_expr_kind::construct       { return "construct"; }
-    if kind == ad_expr_kind::paren           { return "paren"; }
-    if kind == ad_expr_kind::lambda          { return "lambda"; }
-    if kind == ad_expr_kind::initializer_list{ return "initializer_list"; }
-    return "unknown";
-}
-
-/**
- * @brief Convert ad_stmt_kind to string for debug output.
- * @param kind Statement kind.
- * @return String representation.
- */
-ad_stmt_kind_to_string: (kind: ad_stmt_kind) -> std::string = {
-    if kind == ad_stmt_kind::decl           { return "decl"; }
-    if kind == ad_stmt_kind::assign         { return "assign"; }
-    if kind == ad_stmt_kind::compound_assign{ return "compound_assign"; }
-    if kind == ad_stmt_kind::assign_add     { return "assign_add"; }
-    if kind == ad_stmt_kind::if_stmt        { return "if_stmt"; }
-    if kind == ad_stmt_kind::for_stmt       { return "for_stmt"; }
-    if kind == ad_stmt_kind::foreach_stmt   { return "foreach_stmt"; }
-    if kind == ad_stmt_kind::while_stmt     { return "while_stmt"; }
-    if kind == ad_stmt_kind::do_while_stmt  { return "do_while_stmt"; }
-    if kind == ad_stmt_kind::switch_stmt    { return "switch_stmt"; }
-    if kind == ad_stmt_kind::return_        { return "return"; }
-    if kind == ad_stmt_kind::break_stmt     { return "break_stmt"; }
-    if kind == ad_stmt_kind::continue_stmt  { return "continue_stmt"; }
-    if kind == ad_stmt_kind::compound       { return "compound"; }
-    if kind == ad_stmt_kind::expr_stmt      { return "expr_stmt"; }
-    if kind == ad_stmt_kind::expr           { return "expr"; }
-    if kind == ad_stmt_kind::raw_code       { return "raw_code"; }
-    if kind == ad_stmt_kind::try_catch      { return "try_catch"; }
-    if kind == ad_stmt_kind::throw_stmt     { return "throw_stmt"; }
-    return "unknown";
-}
-
-/**
- * @brief Print indentation for debug output.
- * @param indent Indentation level.
- */
-ad_ir_print_indent: (indent: i32) = {
-    i := 0;
-    while i < indent next i++ {
-        std::cout << "  ";
-    }
-}
-
-/**
- * @brief Print a readable form of an IR expression.
- * @param e Expression to dump.
- * @param indent Indentation level.
- */
-ad_ir_debug_dump_expr: (e: ad_expr, indent: i32 = 0) = {
-    ad_ir_print_indent(indent);
-    std::cout << "expr(" << ad_expr_kind_to_string(e.kind) << ")";
-
-    if e.kind == ad_expr_kind::literal {
-        std::cout << " value=" << e.name << " type=" << e.type_name << "\n";
-    }
-    else if e.kind == ad_expr_kind::identifier {
-        std::cout << " name=" << e.name << " type=" << e.type_name << "\n";
-    }
-    else if e.kind == ad_expr_kind::unary {
-        std::cout << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        for e.args do (arg) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else if e.kind == ad_expr_kind::binary {
-        std::cout << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        for e.args do (arg) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else if e.kind == ad_expr_kind::ternary {
-        std::cout << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        if e.args.ssize() > 0 { ad_ir_debug_dump_expr(e.args[0], indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "then:\n";
-        if e.args.ssize() > 1 { ad_ir_debug_dump_expr(e.args[1], indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "else:\n";
-        if e.args.ssize() > 2 { ad_ir_debug_dump_expr(e.args[2], indent + 2); }
-    }
-    else if e.kind == ad_expr_kind::member {
-        std::cout << " member=" << e.member_name << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "object:\n";
-        if !e.args.empty() { ad_ir_debug_dump_expr(e.args[0], indent + 2); }
-    }
-    else if e.kind == ad_expr_kind::subscript {
-        std::cout << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "array:\n";
-        if e.args.ssize() > 0 { ad_ir_debug_dump_expr(e.args[0], indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "index:\n";
-        if e.args.ssize() > 1 { ad_ir_debug_dump_expr(e.args[1], indent + 2); }
-    }
-    else if e.kind == ad_expr_kind::call {
-        std::cout << " func=" << e.name << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        for e.args do (arg) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else if e.kind == ad_expr_kind::method_call {
-        std::cout << " method=" << e.name << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "object:\n";
-        if !e.args.empty() { ad_ir_debug_dump_expr(e.args[0], indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "arguments:\n";
-        i := 1;
-        while i < e.args.ssize() next i++ {
-            ad_ir_debug_dump_expr(e.args[i], indent + 2);
-        }
-    }
-    else if e.kind == ad_expr_kind::cast {
-        std::cout << " cast_kind=" << e.name << " type=" << e.type_name << "\n";
-        for e.args do (arg) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else if e.kind == ad_expr_kind::construct {
-        std::cout << " type=" << e.name << "\n";
-        for e.args do (arg) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else if e.kind == ad_expr_kind::paren {
-        std::cout << " type=" << e.type_name << "\n";
-        if !e.args.empty() { ad_ir_debug_dump_expr(e.args[0], indent + 1); }
-    }
-    else if e.kind == ad_expr_kind::initializer_list {
-        std::cout << " type=" << e.type_name << " elements=" << e.args.ssize() << "\n";
-        for e.args do (arg) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {
-        std::cout << " type=" << e.type_name << "\n";
-    }
-}
-
-/**
- * @brief Print a readable form of an IR statement.
- * @param s Statement to dump.
- * @param indent Indentation level.
- */
-ad_ir_debug_dump_stmt: (s: ad_stmt, indent: i32 = 0) = {
-    ad_ir_print_indent(indent);
-    std::cout << "stmt(" << ad_stmt_kind_to_string(s.kind) << ")";
-
-    if s.kind == ad_stmt_kind::decl {
-        std::cout << " target=" << s.target << " type=" << s.type_name << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::assign {
-        std::cout << " target=" << s.target << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::compound_assign {
-        std::cout << " target=" << s.target << " op=" << ad_op_kind_to_string(s.op) << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::assign_add {
-        std::cout << " target=" << s.target << " (+=)\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::if_stmt {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "then (" << s.stmts.ssize() << " statements):\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-        if !s.else_stmts.empty() {
-            ad_ir_print_indent(indent + 1);
-            std::cout << "else (" << s.else_stmts.ssize() << " statements):\n";
-            for s.else_stmts do (nested) {
-                ad_ir_debug_dump_stmt(nested, indent + 2);
-            }
-        }
-    }
-    else if s.kind == ad_stmt_kind::for_stmt {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "init:\n";
-        if s.init_stmt != nullptr {
-            ad_ir_debug_dump_stmt(s.init_stmt*, indent + 2);
-        }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "increment:\n";
-        ad_ir_debug_dump_expr(s.incr_expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << s.stmts.ssize() << " statements):\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else if s.kind == ad_stmt_kind::foreach_stmt {
-        std::cout << " var=" << s.target << " type=" << s.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "range:\n";
-        ad_ir_debug_dump_expr(s.range_expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << s.stmts.ssize() << " statements):\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else if s.kind == ad_stmt_kind::while_stmt {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << s.stmts.ssize() << " statements):\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else if s.kind == ad_stmt_kind::do_while_stmt {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << s.stmts.ssize() << " statements):\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-    }
-    else if s.kind == ad_stmt_kind::break_stmt {
-        std::cout << "\n";
-    }
-    else if s.kind == ad_stmt_kind::continue_stmt {
-        std::cout << "\n";
-    }
-    else if s.kind == ad_stmt_kind::expr || s.kind == ad_stmt_kind::expr_stmt {
-        std::cout << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::return_ {
-        std::cout << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::compound {
-        std::cout << " (" << s.stmts.ssize() << " statements)\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 1);
-        }
-    }
-    else if s.kind == ad_stmt_kind::try_catch {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "try (" << s.stmts.ssize() << " statements):\n";
-        for s.stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "catch(" << s.catch_type << " " << s.catch_var << ") (" << s.catch_stmts.ssize() << " statements):\n";
-        for s.catch_stmts do (nested) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else if s.kind == ad_stmt_kind::throw_stmt {
-        std::cout << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else if s.kind == ad_stmt_kind::raw_code {
-        std::cout << " code='" << s.target << "'\n";
-    }
-    else {
-        std::cout << "\n";
-    }
-}
-
-/**
- * @brief Print a readable form of a function IR.
- * @param ir Function IR to dump.
- */
-ad_ir_debug_dump: (ir: ad_function_ir) = {
-    std::cout << "=== AD Function IR: " << ir.name << " ===\n";
-
-    std::cout << "Parameters:\n";
-    for ir.params do (p) {
-        std::cout << "  " << p.name << ": " << p.type_name
-                  << " (active=" << p.is_active << ")\n";
-    }
-
-    std::cout << "Returns:\n";
-    for ir.returns do (r) {
-        std::cout << "  " << r.name << ": " << r.type_name
-                  << " (active=" << r.is_active << ")\n";
-    }
-
-    std::cout << "Forward pass (" << ir.forward.ssize() << " statements):\n";
-    for ir.forward do (s) {
-        ad_ir_debug_dump_stmt(s, 1);
-    }
-
-    std::cout << "Reverse pass (" << ir.reverse.ssize() << " statements):\n";
-    for ir.reverse do (s) {
-        ad_ir_debug_dump_stmt(s, 1);
-    }
-
-    std::cout << "=== End AD Function IR ===\n";
 }
 
 //-----------------------------------------------------------------------
@@ -2520,7 +1988,7 @@ substitute_expr_params: (expr: ad_expr, ctx: ad_substitution_context) -> ad_expr
     // For unary expressions, substitute in the operand
     if expr.kind == ad_expr_kind::unary {
         if !expr.args.empty() {
-            new_operand := substitute_expr_params(expr.args[0], ctx);
+            new_operand: ad_expr = substitute_expr_params(expr.args[0], ctx);
             return ad_expr::make_unary(expr.op, new_operand, expr.type_name);
         }
         return expr;
@@ -2529,8 +1997,8 @@ substitute_expr_params: (expr: ad_expr, ctx: ad_substitution_context) -> ad_expr
     // For binary expressions, substitute in both operands
     if expr.kind == ad_expr_kind::binary {
         if expr.args.ssize() >= 2 {
-            new_lhs := substitute_expr_params(expr.args[0], ctx);
-            new_rhs := substitute_expr_params(expr.args[1], ctx);
+            new_lhs: ad_expr = substitute_expr_params(expr.args[0], ctx);
+            new_rhs: ad_expr = substitute_expr_params(expr.args[1], ctx);
             return ad_expr::make_binary(expr.op, new_lhs, new_rhs, expr.type_name);
         }
         return expr;
@@ -2561,9 +2029,9 @@ substitute_expr_params: (expr: ad_expr, ctx: ad_substitution_context) -> ad_expr
 substitute_stmt_params: (stmt: ad_stmt, ctx: ad_substitution_context) -> ad_stmt = {
     if stmt.kind == ad_stmt_kind::decl {
         // Substitute in the initializer expression
-        new_init := substitute_expr_params(stmt.expr, ctx);
+        new_init: ad_expr = substitute_expr_params(stmt.expr, ctx);
         // Also check if the target name should be substituted
-        new_target := stmt.target;
+        new_target: std::string = stmt.target;
         target_expr: ad_expr = ();
         if ctx.find(stmt.target, target_expr) && target_expr.kind == ad_expr_kind::identifier {
             new_target = target_expr.name;
@@ -2572,9 +2040,9 @@ substitute_stmt_params: (stmt: ad_stmt, ctx: ad_substitution_context) -> ad_stmt
     }
 
     if stmt.kind == ad_stmt_kind::assign {
-        new_value := substitute_expr_params(stmt.expr, ctx);
+        new_value: ad_expr = substitute_expr_params(stmt.expr, ctx);
         // Check if target should be substituted
-        new_target := stmt.target;
+        new_target: std::string = stmt.target;
         target_expr: ad_expr = ();
         if ctx.find(stmt.target, target_expr) && target_expr.kind == ad_expr_kind::identifier {
             new_target = target_expr.name;
@@ -2583,9 +2051,9 @@ substitute_stmt_params: (stmt: ad_stmt, ctx: ad_substitution_context) -> ad_stmt
     }
 
     if stmt.kind == ad_stmt_kind::assign_add {
-        new_value := substitute_expr_params(stmt.expr, ctx);
+        new_value: ad_expr = substitute_expr_params(stmt.expr, ctx);
         // Check if target should be substituted
-        new_target := stmt.target;
+        new_target: std::string = stmt.target;
         target_expr: ad_expr = ();
         if ctx.find(stmt.target, target_expr) && target_expr.kind == ad_expr_kind::identifier {
             new_target = target_expr.name;
@@ -2594,12 +2062,12 @@ substitute_stmt_params: (stmt: ad_stmt, ctx: ad_substitution_context) -> ad_stmt
     }
 
     if stmt.kind == ad_stmt_kind::expr {
-        new_expr := substitute_expr_params(stmt.expr, ctx);
+        new_expr: ad_expr = substitute_expr_params(stmt.expr, ctx);
         return ad_stmt::make_expr(new_expr);
     }
 
     if stmt.kind == ad_stmt_kind::return_ {
-        new_value := substitute_expr_params(stmt.expr, ctx);
+        new_value: ad_expr = substitute_expr_params(stmt.expr, ctx);
         return ad_stmt::make_return(new_value);
     }
 
@@ -2612,7 +2080,7 @@ substitute_stmt_params: (stmt: ad_stmt, ctx: ad_substitution_context) -> ad_stmt
     }
 
     if stmt.kind == ad_stmt_kind::if_stmt {
-        new_cond := substitute_expr_params(stmt.expr, ctx);
+        new_cond: ad_expr = substitute_expr_params(stmt.expr, ctx);
         new_then: std::vector<ad_stmt> = ();
         for stmt.stmts do (s) {
             new_then.push_back(substitute_stmt_params(s, ctx));
@@ -2654,11 +2122,6 @@ ad_rule_meta: type = {
     public reverse_body_stmts : std::vector<statement> = ();
     public has_reverse_body_stmts : bool = false;
 
-    // DEPRECATED: Stores the reverse() function body string for inlining at code generation time.
-    // This is extracted during rule discovery. Will be removed after IR migration is complete.
-    public reverse_body_str : std::string = "";
-    public has_reverse_body : bool = false;
-
     /// Default constructor
     operator=: (out this) = {}
 
@@ -2675,8 +2138,6 @@ ad_rule_meta: type = {
         reverse_body = that.reverse_body;
         reverse_body_stmts = that.reverse_body_stmts;
         has_reverse_body_stmts = that.has_reverse_body_stmts;
-        reverse_body_str = that.reverse_body_str;
-        has_reverse_body = that.has_reverse_body;
     }
 
     /**
@@ -2827,6 +2288,36 @@ ad_rule_registry: type = {
     size: (this) -> int = {
         return rules.ssize();
     }
+
+    /**
+     * @brief Check if an operator has a registered rule.
+     *
+     * Operators are stored with their symbol as the name ("+", "-", "*", "/").
+     * This provides a unified interface for both operators and functions.
+     *
+     * @param op_name Operator symbol (e.g., "+", "-", "*", "/").
+     * @return true if a rule exists for this operator.
+     */
+    has_operator_rule: (this, op_name: std::string) -> bool = {
+        // Operators are binary (n_args=2) and not member functions
+        return has_rule(op_name, 2, false);
+    }
+
+    /**
+     * @brief Apply an operator's reverse rule.
+     *
+     * Operators are treated identically to functions in the rule system.
+     * The operator symbol is used as the rule name.
+     *
+     * @param op_name Operator symbol (e.g., "+", "-", "*", "/").
+     * @param ctx Substitution context mapping lhs_val, rhs_val, res_adj, etc.
+     * @return Result with IR statements for the reverse pass.
+     */
+    apply_operator_rule: (this, op_name: std::string,
+                          ctx: ad_substitution_context) -> ad_reverse_rule_result = {
+        // Operators are binary (n_args=2) and not member functions
+        return apply_reverse_rule(op_name, 2, false, ctx);
+    }
 }
 
 /**
@@ -2865,10 +2356,10 @@ ad_rule_registry_debug_dump: (reg: ad_rule_registry) = {
  * @return True if this looks like an ad_rule.
  */
 is_ad_rule_type: (member_type: meta::type_declaration) -> bool = {
-    has_name := false;
-    has_n_args := false;
-    has_forward := false;
-    has_reverse := false;
+    has_name: bool = false;
+    has_n_args: bool = false;
+    has_forward: bool = false;
+    has_reverse: bool = false;
 
     // Check member objects for name and n_args
     for member_type.get_member_objects() do (obj) {
@@ -2900,7 +2391,7 @@ is_ad_rule_type: (member_type: meta::type_declaration) -> bool = {
  * Extracts the reverse() function body for later inlining.
  *
  * @param member_type Pointer to the rule type to extract from.
- * @return Extracted rule metadata with reverse_body_str set.
+ * @return Extracted rule metadata.
  */
 extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
     rule: ad_rule_meta = ();
@@ -2920,7 +2411,7 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
         }
         if obj.name() == "n_args" {
             if obj.has_initializer() {
-                init_str := obj.initializer().to_string();
+                init_str: std::string = obj.initializer().to_string() as std::string;
                 val: int = 0;
                 if string_util::string_to_int(init_str, val) {
                     rule.n_args = val;
@@ -2929,7 +2420,7 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
         }
         if obj.name() == "is_member" {
             if obj.has_initializer() {
-                init_str := obj.initializer().to_string();
+                init_str: std::string_view = obj.initializer().to_string();
                 rule.is_member = (init_str == "true");
             }
         }
@@ -2939,7 +2430,7 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
     // Extract the reverse() function body for later inlining
     for member_type*.get_member_functions() do (func) {
         if func.name() == "reverse" && func.has_compound_body() {
-            body := func.get_compound_body();
+            body: meta::compound_statement = func.get_compound_body();
 
             // NEW: Store the AST statements for IR-based parsing
             for body.get_statements() do (move stmt) {
@@ -2952,10 +2443,10 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
             // DEPRECATED: Also build the string representation for backward compatibility
             body_stmts: std::string = "";
             for body.get_statements() do (stmt) {
-                stmt_str := stmt.to_string() as std::string;
+                stmt_str: std::string = stmt.to_string() as std::string;
 
                 // BUG FIX: Trim trailing whitespace before checking last character
-                trimmed := stmt_str;
+                trimmed: std::string = stmt_str;
                 while !trimmed.empty() && std::isspace(trimmed.back() as int) != 0 {
                     trimmed.pop_back();
                 }
@@ -2967,9 +2458,7 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
                     body_stmts += trimmed + "\n";
                 }
             }
-            rule.reverse_body_str = body_stmts;
-            rule.has_reverse_body = true;
-            std::cout << "AD: Extracted reverse() body for '" << rule.name << "': " << rule.reverse_body_str << "\n";
+            _ = body_stmts; // TODO: Remove after IR-based rule inlining is complete
         }
     }
 
@@ -2990,11 +2479,11 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
 
     // 1. Nested types inside the @autodiff type (highest priority)
     for t.get_member_types() do (inout member_type) {
-        type_name := member_type.name();
+        type_name: std::string_view = member_type.name();
         std::cout << "AD: Checking nested type: " << type_name << "\n";
 
         if is_ad_rule_type(member_type) {
-            rule := extract_ad_rule_meta(member_type&);
+            rule: ad_rule_meta = extract_ad_rule_meta(member_type&);
             std::cout << "AD: Found nested rule: " << rule.name << " (n_args=" << rule.n_args << ")\n";
             out.register_rule(rule);
         }
@@ -3017,11 +2506,11 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
 
         for members do (m) {
             if m.is_type() && !m.is_same(t) {
-                type_name := m.name() as std::string;
+                type_name: std::string = m.name() as std::string;
                 if type_name.starts_with("ad_rule_") {
-                    sibling_type := m.as_type();
+                    sibling_type: meta::type_declaration = m.as_type();
                     if is_ad_rule_type(sibling_type) {
-                        rule := extract_ad_rule_meta(sibling_type&);
+                        rule: ad_rule_meta = extract_ad_rule_meta(sibling_type&);
                         std::cout << "AD: Found sibling rule: " << rule.name << " (n_args=" << rule.n_args << ")\n";
                         out.register_rule(rule);
                     }
@@ -3053,21 +2542,6 @@ ad_rule_body_result: type = {
         r.body_str = body_;
         return r;
     }
-}
-
-/**
- * @brief Get the reverse() function body from an ad_rule.
- *
- * Returns the body string that was extracted during rule discovery.
- *
- * @param rule The rule metadata (must have has_reverse_body set).
- * @return Result with ok=true and body string if available.
- */
-extract_rule_reverse_body: (rule: ad_rule_meta) -> ad_rule_body_result = {
-    if rule.has_reverse_body {
-        return ad_rule_body_result::make(true, rule.reverse_body_str);
-    }
-    return ad_rule_body_result::make(false, "");
 }
 
 //-----------------------------------------------------------------------
@@ -3184,13 +2658,13 @@ parse_logical_or_expr: (expr: meta::logical_or_expression, ctx: ad_substitution_
         return parse_logical_and_expr(terms.front().get_term(), ctx);
     }
     // LHS is first term (with empty operator)
-    lhs_result := parse_logical_and_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_logical_and_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
+    result: ad_expr = lhs_result.expr;
     // Process remaining terms (which have actual operators)
-    i := 1;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_logical_and_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_logical_and_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::lor, result, rhs_result.expr, "bool");
         i++;
@@ -3205,12 +2679,12 @@ parse_logical_and_expr: (expr: meta::logical_and_expression, ctx: ad_substitutio
     if terms.ssize() == 1 {
         return parse_bit_or_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_bit_or_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_bit_or_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_bit_or_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_bit_or_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::land, result, rhs_result.expr, "bool");
         i++;
@@ -3225,12 +2699,12 @@ parse_bit_or_expr: (expr: meta::bit_or_expression, ctx: ad_substitution_context)
     if terms.ssize() == 1 {
         return parse_bit_xor_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_bit_xor_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_bit_xor_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_bit_xor_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_bit_xor_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::bor, result, rhs_result.expr, "int");
         i++;
@@ -3245,12 +2719,12 @@ parse_bit_xor_expr: (expr: meta::bit_xor_expression, ctx: ad_substitution_contex
     if terms.ssize() == 1 {
         return parse_bit_and_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_bit_and_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_bit_and_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_bit_and_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_bit_and_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::bxor, result, rhs_result.expr, "int");
         i++;
@@ -3265,12 +2739,12 @@ parse_bit_and_expr: (expr: meta::bit_and_expression, ctx: ad_substitution_contex
     if terms.ssize() == 1 {
         return parse_equality_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_equality_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_equality_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_equality_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_equality_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::band, result, rhs_result.expr, "int");
         i++;
@@ -3285,14 +2759,14 @@ parse_equality_expr: (expr: meta::equality_expression, ctx: ad_substitution_cont
     if terms.ssize() == 1 {
         return parse_relational_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_relational_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_relational_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_relational_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_relational_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
-        op_kind := map_op_string(terms[i].get_op());
+        op_kind: ad_op_kind = map_op_string(terms[i].get_op());
         result = ad_expr::make_binary(op_kind, result, rhs_result.expr, "bool");
         i++;
     }
@@ -3306,14 +2780,14 @@ parse_relational_expr: (expr: meta::relational_expression, ctx: ad_substitution_
     if terms.ssize() == 1 {
         return parse_compare_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_compare_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_compare_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_compare_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_compare_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
-        op_kind := map_op_string(terms[i].get_op());
+        op_kind: ad_op_kind = map_op_string(terms[i].get_op());
         result = ad_expr::make_binary(op_kind, result, rhs_result.expr, "bool");
         i++;
     }
@@ -3327,12 +2801,12 @@ parse_compare_expr: (expr: meta::compare_expression, ctx: ad_substitution_contex
     if terms.ssize() == 1 {
         return parse_shift_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_shift_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_shift_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_shift_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_shift_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::spaceship, result, rhs_result.expr, "auto");
         i++;
@@ -3347,14 +2821,14 @@ parse_shift_expr: (expr: meta::shift_expression, ctx: ad_substitution_context) -
     if terms.ssize() == 1 {
         return parse_additive_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_additive_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_additive_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_additive_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_additive_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
-        op_kind := map_op_string(terms[i].get_op());
+        op_kind: ad_op_kind = map_op_string(terms[i].get_op());
         result = ad_expr::make_binary(op_kind, result, rhs_result.expr, "int");
         i++;
     }
@@ -3368,14 +2842,14 @@ parse_additive_expr: (expr: meta::additive_expression, ctx: ad_substitution_cont
     if terms.ssize() == 1 {
         return parse_multiplicative_expr(terms.front().get_term(), ctx);
     }
-    lhs_result := parse_multiplicative_expr(terms.front().get_term(), ctx);
+    lhs_result: ad_parse_expr_result = parse_multiplicative_expr(terms.front().get_term(), ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
-    i := 1;
+    result: ad_expr = lhs_result.expr;
+    i: i64 = 1;
     while i < terms.ssize() {
-        rhs_result := parse_multiplicative_expr(terms[i].get_term(), ctx);
+        rhs_result: ad_parse_expr_result = parse_multiplicative_expr(terms[i].get_term(), ctx);
         if !rhs_result.ok { return rhs_result; }
-        op_kind := map_op_string(terms[i].get_op());
+        op_kind: ad_op_kind = map_op_string(terms[i].get_op());
         result = ad_expr::make_binary(op_kind, result, rhs_result.expr, "double");
         i++;
     }
@@ -3400,21 +2874,21 @@ parse_multiplicative_expr: (expr: meta::multiplicative_expression, ctx: ad_subst
     lhs_is_as := terms.front().get_term();
     lhs_pf_expr := lhs_is_as.get_expression();
     lhs_pf := lhs_pf_expr.get_postfix_expression();
-    lhs_result := parse_postfix_expr(lhs_pf, ctx);
+    lhs_result: ad_parse_expr_result = parse_postfix_expr(lhs_pf, ctx);
     if !lhs_result.ok { return lhs_result; }
-    result := lhs_result.expr;
+    result: ad_expr = lhs_result.expr;
     // Process remaining terms (which have actual operators)
-    i := 1;
+    i: i64 = 1;
     while i < terms.ssize() {
         term := terms[i];
         rhs_is_as := term.get_term();
         rhs_pf_expr := rhs_is_as.get_expression();
         rhs_pf := rhs_pf_expr.get_postfix_expression();
-        rhs_result := parse_postfix_expr(rhs_pf, ctx);
+        rhs_result: ad_parse_expr_result = parse_postfix_expr(rhs_pf, ctx);
         if !rhs_result.ok { return rhs_result; }
         op_str := term.get_op();
         std::cout << "AD: multiplicative op = '" << op_str << "'\n";
-        op_kind := map_op_string(op_str);
+        op_kind: ad_op_kind = map_op_string(op_str);
         result = ad_expr::make_binary(op_kind, result, rhs_result.expr, "double");
         i++;
     }
@@ -3423,16 +2897,16 @@ parse_multiplicative_expr: (expr: meta::multiplicative_expression, ctx: ad_subst
 
 // Prefix expression: - ! etc.
 parse_prefix_expr: (expr: meta::prefix_expression, ctx: ad_substitution_context) -> ad_parse_expr_result = {
-    ops := expr.get_ops();
-    pf := expr.get_postfix_expression();
-    inner_result := parse_postfix_expr(pf, ctx);
+    ops: std::vector<std::string> = expr.get_ops();
+    pf: meta::postfix_expression = expr.get_postfix_expression();
+    inner_result: ad_parse_expr_result = parse_postfix_expr(pf, ctx);
     if !inner_result.ok { return inner_result; }
 
     // Apply prefix operators from right to left
-    result := inner_result.expr;
-    i := ops.ssize() - 1;
+    result: ad_expr = inner_result.expr;
+    i: i64 = ops.ssize() - 1;
     while i >= 0 {
-        op_str := ops[i];
+        op_str: std::string = ops[i];
         if op_str == "-" {
             result = ad_expr::make_unary(ad_op_kind::neg, result, "double");
         } else if op_str == "!" {
@@ -3455,7 +2929,7 @@ parse_postfix_expr: (expr: meta::postfix_expression, ctx: ad_substitution_contex
 
     // Check if it's a simple identifier
     if expr.is_identifier() {
-        id_name := expr.as_identifier();
+        id_name: std::string = expr.as_identifier();
         substituted: ad_expr = ();
         if ctx.find(id_name, substituted) {
             return ad_parse_expr_result::make(true, substituted);
@@ -3470,7 +2944,7 @@ parse_postfix_expr: (expr: meta::postfix_expression, ctx: ad_substitution_contex
 
     // For function calls and other postfix operations, use the string representation for now
     // TODO: Properly handle function calls via get_terms()
-    expr_str := expr.to_string() as std::string;
+    expr_str: std::string = expr.to_string() as std::string;
     return ad_parse_expr_result::make(true, ad_expr::make_identifier(expr_str, "double"));
 }
 
@@ -3483,7 +2957,7 @@ parse_rule_expr: (expr: meta::expression, ctx: ad_substitution_context) -> ad_pa
 
     // Check for simple cases first
     if expr.is_identifier() {
-        id_name := expr.to_string() as std::string;
+        id_name: std::string = expr.to_string() as std::string;
         substituted: ad_expr = ();
         if ctx.find(id_name, substituted) {
             return ad_parse_expr_result::make(true, substituted);
@@ -3520,16 +2994,16 @@ parse_rule_expr: (expr: meta::expression, ctx: ad_substitution_context) -> ad_pa
  * @return Result with ok=true and parsed statement if successful.
  */
 parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_parse_stmt_result = {
-    stmt_str := string_util::trim_copy(stmt.to_string());
+    stmt_str: std::string = string_util::trim_copy(stmt.to_string());
 
     std::cout << "AD: parse_rule_stmt: '" << stmt_str << "'\n";
 
     // Check for compound statement
     if stmt.is_compound_statement() {
-        compound := stmt.as_compound_statement();
+        compound: meta::compound_statement = stmt.as_compound_statement();
         nested_stmts: std::vector<ad_stmt> = ();
         for compound.get_statements() do (s) {
-            nested_result := parse_rule_stmt(s, ctx);
+            nested_result: ad_parse_stmt_result = parse_rule_stmt(s, ctx);
             if !nested_result.ok {
                 std::cout << "AD: Failed to parse nested statement in compound\n";
                 return ad_parse_stmt_result::make_fail();
@@ -3541,20 +3015,20 @@ parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_par
 
     // Check for selection (if) statement
     if stmt.is_selection_statement() {
-        sel := stmt.as_selection_statement();
+        sel: meta::selection_statement = stmt.as_selection_statement();
         // Parse condition - need to convert logical_or_expression to expression
         // For now, use the string representation
-        cond_str := sel.get_expression().to_string() as std::string;
+        cond_str: std::string = sel.get_expression().to_string() as std::string;
         std::cout << "AD: If condition string: '" << cond_str << "'\n";
 
         // Create a simple condition expression (for now just use the string)
-        cond_expr := ad_expr::make_identifier(cond_str, "bool");
+        cond_expr: ad_expr = ad_expr::make_identifier(cond_str, "bool");
 
         // Parse then branch
-        then_compound := sel.get_true_branch();
+        then_compound: meta::compound_statement = sel.get_true_branch();
         then_stmts: std::vector<ad_stmt> = ();
         for then_compound.get_statements() do (s) {
-            then_result := parse_rule_stmt(s, ctx);
+            then_result: ad_parse_stmt_result = parse_rule_stmt(s, ctx);
             if !then_result.ok {
                 std::cout << "AD: Failed to parse if then-branch\n";
                 return ad_parse_stmt_result::make_fail();
@@ -3565,9 +3039,9 @@ parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_par
         // Parse else branch if present
         else_stmts: std::vector<ad_stmt> = ();
         if sel.has_false_branch() {
-            else_compound := sel.get_false_branch();
+            else_compound: meta::compound_statement = sel.get_false_branch();
             for else_compound.get_statements() do (s) {
-                else_result := parse_rule_stmt(s, ctx);
+                else_result: ad_parse_stmt_result = parse_rule_stmt(s, ctx);
                 if else_result.ok {
                     else_stmts.push_back(else_result.stmt);
                 }
@@ -3583,127 +3057,86 @@ parse_rule_stmt: (stmt: meta::statement, ctx: ad_substitution_context) -> ad_par
     if stmt.is_expression_statement() {
         expr_stmt := stmt.as_expression_statement();
         expr := expr_stmt.get_expression();
-        expr_str2 := expr.to_string() as std::string;
 
-        std::cout << "AD: Expression statement: '" << expr_str2 << "'\n";
+        std::cout << "AD: Expression statement: '" << expr.to_string() << "'\n";
 
-        // Check for assignment-add (+=)
-        // Format: target += value
-        plus_eq_pos := expr_str2.find("+=");
-        if plus_eq_pos != std::string::npos {
-            target_str := string_util::trim_copy(expr_str2.substr(0, plus_eq_pos));
-            value_str := string_util::trim_copy(expr_str2.substr(plus_eq_pos + 2));
-            // Remove trailing semicolon if present
-            while !value_str.empty() && value_str.back() == ';' {
-                value_str.pop_back();
-            }
-            value_str = string_util::trim_copy(value_str);
+        // Use structural analysis via meta type methods
+        // Assignment expressions have terms: [LHS (empty op), RHS (with operator)]
+        if expr.is_assignment_expression() {
+            assign_expr := expr.as_assignment_expression();
+            terms := assign_expr.get_terms();
+            std::cout << "AD DEBUG: assignment_expression has " << terms.ssize() << " terms\n";
 
-            std::cout << "AD: Assignment-add: target='" << target_str << "' value='" << value_str << "'\n";
+            if terms.ssize() >= 2 {
+                // Extract LHS target structurally
+                lhs_term := terms[0].get_term();
+                target_str: std::string = string_util::trim_copy(lhs_term.to_string() as std::string);
 
-            // DEBUG: Check what the expression actually is
-            std::cout << "AD DEBUG: expr.is_assignment_expression() = " << expr.is_assignment_expression() << "\n";
-            std::cout << "AD DEBUG: expr.is_expression_list() = " << expr.is_expression_list() << "\n";
-            std::cout << "AD DEBUG: expr.is_identifier() = " << expr.is_identifier() << "\n";
+                // Get the operator structurally
+                op_str := terms[1].get_op();
+                std::cout << "AD DEBUG: operator is '" << op_str << "'\n";
 
-            // Substitute the target if needed
-            new_target := target_str;
-            target_expr: ad_expr = ();
-            if ctx.find(target_str, target_expr) && target_expr.kind == ad_expr_kind::identifier {
-                new_target = target_expr.name;
-            }
-
-            // For assignment expressions, use get_terms() to get the operator and RHS
-            // terms[0] is LHS with empty operator, terms[1] has the actual operator and RHS
-            if expr.is_assignment_expression() {
-                assign_expr := expr.as_assignment_expression();
-                terms := assign_expr.get_terms();
-                std::cout << "AD DEBUG: assignment_expression has " << terms.ssize() << " terms\n";
-
-                if terms.ssize() >= 2 {
-                    // terms[0] = LHS (empty op), terms[1] = RHS (with operator like +=)
-                    op_str := terms[1].get_op();
-                    std::cout << "AD DEBUG: operator is '" << op_str << "'\n";
-
-                    if op_str == "+=" {
-                        // Get the RHS term (logical_or_expression)
-                        rhs_term := terms[1].get_term();
-                        std::cout << "AD DEBUG: RHS term is '" << rhs_term.to_string() << "'\n";
-
-                        // Parse the RHS expression using proper AST traversal
-                        rhs_result := parse_logical_or_expr(rhs_term, ctx);
-                        if rhs_result.ok {
-                            return ad_parse_stmt_result::make(true,
-                                ad_stmt::make_assign_add(new_target, rhs_result.expr));
-                        }
-                        std::cout << "AD DEBUG: Failed to parse RHS expression\n";
-                    }
-                }
-            }
-
-            // Try to substitute the value string directly
-            subst_val: ad_expr = ();
-            if ctx.find(value_str, subst_val) {
-                return ad_parse_stmt_result::make(true,
-                    ad_stmt::make_assign_add(new_target, subst_val));
-            }
-
-            // Could not parse RHS of += expression
-            std::cout << "AD: ERROR - Could not parse += RHS value: '" << value_str << "'\n";
-            return ad_parse_stmt_result::make_fail();
-        }
-
-        // Check for regular assignment (=)
-        eq_pos := expr_str2.find('=');
-        if eq_pos != std::string::npos && (eq_pos == 0 || expr_str2[eq_pos - 1] != '+') {
-            // Make sure it's not +=, -=, etc.
-            if eq_pos > 0uz && (expr_str2[eq_pos - 1] == '-' || expr_str2[eq_pos - 1] == '*' || expr_str2[eq_pos - 1] == '/') {
-                // Skip compound assignment
-            } else {
-                target_str := string_util::trim_copy(expr_str2.substr(0, eq_pos));
-                value_str := string_util::trim_copy(expr_str2.substr(eq_pos + 1));
-                // Remove trailing semicolon if present
-                while !value_str.empty() && value_str.back() == ';' {
-                    value_str.pop_back();
-                }
-                value_str = string_util::trim_copy(value_str);
-
-                // Substitute target if needed
-                new_target := target_str;
+                // Substitute the target if needed
+                new_target: std::string = target_str;
                 target_expr: ad_expr = ();
                 if ctx.find(target_str, target_expr) && target_expr.kind == ad_expr_kind::identifier {
                     new_target = target_expr.name;
                 }
 
-                // For simple assignment, get the RHS via expression list
-                if expr.is_expression_list() {
-                    exp_list := expr.as_expression_list();
-                    sub_exprs := exp_list.get_expressions();
-                    // The second expression should be the RHS
-                    if sub_exprs.ssize() >= 2 {
-                        rhs_result := parse_rule_expr(sub_exprs[1], ctx);
-                        if rhs_result.ok {
-                            return ad_parse_stmt_result::make(true,
-                                ad_stmt::make_assign(new_target, rhs_result.expr));
-                        }
+                // Get the RHS term structurally
+                rhs_term := terms[1].get_term();
+                std::cout << "AD DEBUG: RHS term is '" << rhs_term.to_string() << "'\n";
+
+                // Handle compound assignments (+=, -=, *=, /=)
+                if op_str == "+=" {
+                    rhs_result: ad_parse_expr_result = parse_logical_or_expr(rhs_term, ctx);
+                    if rhs_result.ok {
+                        return ad_parse_stmt_result::make(true,
+                            ad_stmt::make_assign_add(new_target, rhs_result.expr));
+                    }
+                    std::cout << "AD DEBUG: Failed to parse += RHS expression\n";
+                }
+                else if op_str == "-=" {
+                    rhs_result: ad_parse_expr_result = parse_logical_or_expr(rhs_term, ctx);
+                    if rhs_result.ok {
+                        return ad_parse_stmt_result::make(true,
+                            ad_stmt::make_compound_assign(new_target, ad_op_kind::assign_sub, rhs_result.expr));
                     }
                 }
-
-                // Try to substitute the value string directly
-                subst_val: ad_expr = ();
-                if ctx.find(value_str, subst_val) {
-                    return ad_parse_stmt_result::make(true,
-                        ad_stmt::make_assign(new_target, subst_val));
+                else if op_str == "*=" {
+                    rhs_result: ad_parse_expr_result = parse_logical_or_expr(rhs_term, ctx);
+                    if rhs_result.ok {
+                        return ad_parse_stmt_result::make(true,
+                            ad_stmt::make_compound_assign(new_target, ad_op_kind::assign_mul, rhs_result.expr));
+                    }
                 }
-
-                // Could not parse RHS of assignment expression
-                std::cout << "AD: ERROR - Could not parse assignment RHS value: '" << value_str << "'\n";
-                return ad_parse_stmt_result::make_fail();
+                else if op_str == "/=" {
+                    rhs_result: ad_parse_expr_result = parse_logical_or_expr(rhs_term, ctx);
+                    if rhs_result.ok {
+                        return ad_parse_stmt_result::make(true,
+                            ad_stmt::make_compound_assign(new_target, ad_op_kind::assign_div, rhs_result.expr));
+                    }
+                }
+                else if op_str == "=" {
+                    // Simple assignment
+                    rhs_result: ad_parse_expr_result = parse_logical_or_expr(rhs_term, ctx);
+                    if rhs_result.ok {
+                        return ad_parse_stmt_result::make(true,
+                            ad_stmt::make_assign(new_target, rhs_result.expr));
+                    }
+                }
+                else {
+                    std::cout << "AD: Unknown assignment operator: '" << op_str << "'\n";
+                }
             }
+
+            // Assignment expression parsing failed
+            std::cout << "AD: ERROR - Could not parse assignment expression structurally\n";
+            return ad_parse_stmt_result::make_fail();
         }
 
         // General expression statement - just wrap the parsed expression
-        expr_result := parse_rule_expr(expr, ctx);
+        expr_result: ad_parse_expr_result = parse_rule_expr(expr, ctx);
         if expr_result.ok {
             return ad_parse_stmt_result::make(true, ad_stmt::make_expr(expr_result.expr));
         }
@@ -3729,7 +3162,7 @@ parse_rule_body_stmts: (stmts: std::vector<meta::statement>, ctx: ad_substitutio
     std::cout << "AD DEBUG: parse_rule_body_stmts called with " << stmts.ssize() << " statements\n";
     for stmts do (stmt) {
         std::cout << "AD DEBUG: About to call parse_rule_stmt\n";
-        result := parse_rule_stmt(stmt, ctx);
+        result: ad_parse_stmt_result = parse_rule_stmt(stmt, ctx);
         std::cout << "AD DEBUG: parse_rule_stmt returned ok=" << result.ok << "\n";
         if !result.ok {
             return false;
@@ -3780,10 +3213,10 @@ replace_word: (str: std::string, pattern: std::string, replacement: std::string)
 
     result: std::string = "";
     pos: size_t = 0;
-    pattern_len := pattern.size();
+    pattern_len: size_t = pattern.size();
 
     while pos < str.size() {
-        found := str.find(pattern, pos);
+        found: size_t = str.find(pattern, pos);
         if found == std::string::npos {
             // No more matches, append rest of string
             result += str.substr(pos);
@@ -3791,8 +3224,8 @@ replace_word: (str: std::string, pattern: std::string, replacement: std::string)
         }
 
         // Check word boundaries
-        is_word_start := (found == 0) || !is_identifier_char(str[found - 1]);
-        is_word_end := (found + pattern_len >= str.size()) || !is_identifier_char(str[found + pattern_len]);
+        is_word_start: bool = (found == 0) || !is_identifier_char(str[found - 1]);
+        is_word_end: bool = (found + pattern_len >= str.size()) || !is_identifier_char(str[found + pattern_len]);
 
         if is_word_start && is_word_end {
             // It's a whole word match - do the replacement
@@ -3833,7 +3266,7 @@ substitute_rule_params: (body_str: std::string,
                          target_val: std::string, target_adj: std::string,
                          arg_vals: std::vector<std::string>,
                          arg_adjs: std::vector<std::string>) -> std::string = {
-    result := body_str;
+    result: std::string = body_str;
 
     // Substitute result value and adjoint using word-boundary-aware replacement
     result = replace_word(result, "res_val", target_val);
@@ -3842,10 +3275,10 @@ substitute_rule_params: (body_str: std::string,
     // Substitute argument values and adjoints
     // BUG FIX: Check both arg_vals and arg_adjs sizes
     param_names: std::array<std::string, 4> = ("x", "y", "z", "w");
-    i := 0;
+    i: i64 = 0;
     while i < param_names.ssize() && i < arg_vals.ssize() && i < arg_adjs.ssize() {
-        val_param := param_names[i] + "_val";
-        adj_param := param_names[i] + "_adj";
+        val_param: std::string = param_names[i] + "_val";
+        adj_param: std::string = param_names[i] + "_adj";
 
         // Always substitute value params
         result = replace_word(result, val_param, arg_vals[i]);
@@ -3999,7 +3432,7 @@ ad_ir_builder: type = {
      * @return Unique temporary name.
      */
     gen_temp_name: (inout this, base: std::string) -> std::string = {
-        name := "(base)$_t(temp_counter)$";
+        name: std::string = "(base)$_t(temp_counter)$";
         temp_counter++;
         temp_names.push_back(name);
         return name;
@@ -4022,7 +3455,7 @@ ad_ir_builder: type = {
         }
         else if expr.kind == ad_expr_kind::unary {
             if !expr.args.empty() {
-                operand := emit_expr(expr.args[0]);
+                operand: std::string = emit_expr(expr.args[0]);
                 // Handle different unary operators
                 if expr.op == ad_op_kind::neg { return "(-" + operand + ")"; }
                 if expr.op == ad_op_kind::pos { return "(+" + operand + ")"; }
@@ -4039,9 +3472,9 @@ ad_ir_builder: type = {
         }
         else if expr.kind == ad_expr_kind::binary {
             if expr.args.ssize() >= 2 {
-                lhs := emit_expr(expr.args[0]);
-                rhs := emit_expr(expr.args[1]);
-                op_str := ad_op_kind_to_binary_str(expr.op);
+                lhs: std::string = emit_expr(expr.args[0]);
+                rhs: std::string = emit_expr(expr.args[1]);
+                op_str: std::string = ad_op_kind_to_binary_str(expr.op);
                 if op_str.empty() { op_str = " ?? "; }
                 return "(" + lhs + op_str + rhs + ")";
             }
@@ -4049,17 +3482,17 @@ ad_ir_builder: type = {
         }
         else if expr.kind == ad_expr_kind::ternary {
             if expr.args.ssize() >= 3 {
-                cond := emit_expr(expr.args[0]);
-                then_expr := emit_expr(expr.args[1]);
-                else_expr := emit_expr(expr.args[2]);
+                cond: std::string = emit_expr(expr.args[0]);
+                then_expr: std::string = emit_expr(expr.args[1]);
+                else_expr: std::string = emit_expr(expr.args[2]);
                 return "(" + cond + " ? " + then_expr + " : " + else_expr + ")";
             }
             return "(ternary)";
         }
         else if expr.kind == ad_expr_kind::member {
             if !expr.args.empty() {
-                obj := emit_expr(expr.args[0]);
-                op_str := "->";
+                obj: std::string = emit_expr(expr.args[0]);
+                op_str: std::string = "->";
                 if expr.op != ad_op_kind::arrow { op_str = "."; }
                 return obj + op_str + expr.member_name;
             }
@@ -4067,18 +3500,18 @@ ad_ir_builder: type = {
         }
         else if expr.kind == ad_expr_kind::subscript {
             if expr.args.ssize() >= 2 {
-                arr := emit_expr(expr.args[0]);
-                idx := emit_expr(expr.args[1]);
+                arr: std::string = emit_expr(expr.args[0]);
+                idx: std::string = emit_expr(expr.args[1]);
                 return arr + "[" + idx + "]";
             }
             return "(subscript)";
         }
         else if expr.kind == ad_expr_kind::call {
-            result := expr.name;
+            result: std::string = expr.name;
             // Add template args if present
             if !expr.type_args.empty() {
                 result += "<";
-                (copy first := true)
+                (copy first: bool = true)
                 for expr.type_args do (targ) {
                     if !first { result += ", "; }
                     first = false;
@@ -4087,7 +3520,7 @@ ad_ir_builder: type = {
                 result += ">";
             }
             result += "(";
-            (copy first := true)
+            (copy first: bool = true)
             for expr.args do (arg) {
                 if !first { result += ", "; }
                 first = false;
@@ -4098,12 +3531,12 @@ ad_ir_builder: type = {
         }
         else if expr.kind == ad_expr_kind::method_call {
             if !expr.args.empty() {
-                obj := emit_expr(expr.args[0]);
-                result := obj + "." + expr.name + "(";
+                obj: std::string = emit_expr(expr.args[0]);
+                result: std::string = obj + "." + expr.name + "(";
                 // Skip first arg (the object), emit remaining args
                 if expr.args.ssize() > 1 {
                     result += emit_expr(expr.args[1]);
-                    i := 2;
+                    i: i64 = 2;
                     while i < expr.args.ssize() {
                         result += ", ";
                         result += emit_expr(expr.args[i]);
@@ -4123,7 +3556,7 @@ ad_ir_builder: type = {
                 } else {
                     target_type = expr.type_name;
                 }
-                inner := emit_expr(expr.args[0]);
+                inner: std::string = emit_expr(expr.args[0]);
                 // C++ style cast
                 if expr.name != "" {
                     return expr.name + "<" + target_type + ">(" + inner + ")";
@@ -4134,8 +3567,8 @@ ad_ir_builder: type = {
             return "(cast)";
         }
         else if expr.kind == ad_expr_kind::construct {
-            result := expr.name + "(";
-            (copy first := true)
+            result: std::string = expr.name + "(";
+            (copy first: bool = true)
             for expr.args do (arg) {
                 if !first { result += ", "; }
                 first = false;
@@ -4152,7 +3585,7 @@ ad_ir_builder: type = {
         }
         else if expr.kind == ad_expr_kind::initializer_list {
             result: std::string = "{";
-            (copy first := true)
+            (copy first: bool = true)
             for expr.args do (arg) {
                 if !first { result += ", "; }
                 first = false;
@@ -4815,6 +4248,157 @@ ad_ir_builder: type = {
     }
 
     /**
+     * @brief Get rule suffix from operator symbol.
+     *
+     * Converts operator symbols to rule naming convention:
+     * "+" -> "add", "-" -> "sub", "*" -> "mul", "/" -> "div", "%" -> "mod"
+     *
+     * @param op_name Operator symbol.
+     * @return Rule suffix for error messages.
+     */
+    get_operator_rule_suffix: (this, op_name: std::string) -> std::string = {
+        if op_name == "+" { return "add"; }
+        if op_name == "-" { return "sub"; }
+        if op_name == "*" { return "mul"; }
+        if op_name == "/" { return "div"; }
+        if op_name == "%" { return "mod"; }
+        return "unknown";
+    }
+
+    /**
+     * @brief Get LHS derivative contribution expression for an operator.
+     *
+     * Implements the derivative rules from ad_rule_* types in cpp2ad_rules.h2:
+     * - add: x_adj += res_adj           -> contrib = res_adj
+     * - sub: x_adj += res_adj           -> contrib = res_adj
+     * - mul: x_adj += y_val * res_adj   -> contrib = y_val * res_adj
+     * - div: x_adj += res_adj / y_val   -> contrib = res_adj / y_val
+     *
+     * @param op_name Operator symbol.
+     * @param lhs_val LHS value expression.
+     * @param rhs_val RHS value expression.
+     * @param adj_ref Result adjoint expression.
+     * @return Contribution expression for LHS adjoint accumulation.
+     */
+    get_lhs_derivative_contrib: (this, op_name: std::string, lhs_val: ad_expr, rhs_val: ad_expr, adj_ref: ad_expr) -> ad_expr = {
+        if op_name == "+" || op_name == "-" {
+            // d(x+y)/dx = 1, d(x-y)/dx = 1 -> contrib = res_adj
+            return adj_ref;
+        }
+        if op_name == "*" {
+            // d(x*y)/dx = y -> contrib = y_val * res_adj
+            return ad_expr::make_binary(ad_op_kind::mul, rhs_val, adj_ref, "double");
+        }
+        if op_name == "/" {
+            // d(x/y)/dx = 1/y -> contrib = res_adj / y_val
+            return ad_expr::make_binary(ad_op_kind::div, adj_ref, rhs_val, "double");
+        }
+        // Default: just pass through adj_ref (treat like identity)
+        return adj_ref;
+    }
+
+    /**
+     * @brief Get RHS derivative contribution expression for an operator.
+     *
+     * Implements the derivative rules from ad_rule_* types in cpp2ad_rules.h2:
+     * - add: y_adj += res_adj           -> contrib = res_adj
+     * - sub: y_adj -= res_adj           -> contrib = -res_adj
+     * - mul: y_adj += x_val * res_adj   -> contrib = x_val * res_adj
+     * - div: y_adj -= x_val / (y_val * y_val) * res_adj
+     *
+     * @param op_name Operator symbol.
+     * @param lhs_val LHS value expression.
+     * @param rhs_val RHS value expression.
+     * @param adj_ref Result adjoint expression.
+     * @return Contribution expression for RHS adjoint accumulation.
+     */
+    get_rhs_derivative_contrib: (this, op_name: std::string, lhs_val: ad_expr, rhs_val: ad_expr, adj_ref: ad_expr) -> ad_expr = {
+        if op_name == "+" {
+            // d(x+y)/dy = 1 -> contrib = res_adj
+            return adj_ref;
+        }
+        if op_name == "-" {
+            // d(x-y)/dy = -1 -> contrib = -res_adj
+            return ad_expr::make_unary(ad_op_kind::neg, adj_ref, "double");
+        }
+        if op_name == "*" {
+            // d(x*y)/dy = x -> contrib = x_val * res_adj
+            return ad_expr::make_binary(ad_op_kind::mul, lhs_val, adj_ref, "double");
+        }
+        if op_name == "/" {
+            // d(x/y)/dy = -x/y^2 -> contrib = -(x_val / (y_val * y_val)) * res_adj
+            rhs_sq := ad_expr::make_binary(ad_op_kind::mul, rhs_val, rhs_val, "double");
+            quot := ad_expr::make_binary(ad_op_kind::div, lhs_val, rhs_sq, "double");
+            neg_quot := ad_expr::make_unary(ad_op_kind::neg, quot, "double");
+            return ad_expr::make_binary(ad_op_kind::mul, neg_quot, adj_ref, "double");
+        }
+        // Default: just pass through adj_ref
+        return adj_ref;
+    }
+
+    /**
+     * @brief Get LHS derivative scale factor for chain rule.
+     *
+     * When LHS is a function call, we need the scale factor to apply chain rule.
+     * For x * f(y), d/df = x, so scale = x_val (but for LHS, we use the other operand).
+     *
+     * @param op_name Operator symbol.
+     * @param lhs_val LHS value expression.
+     * @param rhs_val RHS value expression.
+     * @return Scale factor expression for chain rule application.
+     */
+    get_lhs_derivative_scale: (this, op_name: std::string, lhs_val: ad_expr, rhs_val: ad_expr) -> ad_expr = {
+        if op_name == "+" || op_name == "-" {
+            // d(x+y)/dx = 1 -> scale = 1 (use literal)
+            return ad_expr::make_literal("1.0", "double");
+        }
+        if op_name == "*" {
+            // d(x*y)/dx = y -> scale = y_val
+            return rhs_val;
+        }
+        if op_name == "/" {
+            // d(x/y)/dx = 1/y -> scale = 1/y_val
+            one := ad_expr::make_literal("1.0", "double");
+            return ad_expr::make_binary(ad_op_kind::div, one, rhs_val, "double");
+        }
+        return ad_expr::make_literal("1.0", "double");
+    }
+
+    /**
+     * @brief Get RHS derivative scale factor for chain rule.
+     *
+     * When RHS is a function call, we need the scale factor to apply chain rule.
+     * For x * f(y), d/dy = x * f'(y), so scale = x_val.
+     *
+     * @param op_name Operator symbol.
+     * @param lhs_val LHS value expression.
+     * @param rhs_val RHS value expression.
+     * @return Scale factor expression for chain rule application.
+     */
+    get_rhs_derivative_scale: (this, op_name: std::string, lhs_val: ad_expr, rhs_val: ad_expr) -> ad_expr = {
+        if op_name == "+" {
+            // d(x+y)/dy = 1 -> scale = 1
+            return ad_expr::make_literal("1.0", "double");
+        }
+        if op_name == "-" {
+            // d(x-y)/dy = -1 -> scale = -1
+            one := ad_expr::make_literal("1.0", "double");
+            return ad_expr::make_unary(ad_op_kind::neg, one, "double");
+        }
+        if op_name == "*" {
+            // d(x*y)/dy = x -> scale = x_val
+            return lhs_val;
+        }
+        if op_name == "/" {
+            // d(x/y)/dy = -x/y^2 -> scale = -x_val / (y_val * y_val)
+            rhs_sq := ad_expr::make_binary(ad_op_kind::mul, rhs_val, rhs_val, "double");
+            quot := ad_expr::make_binary(ad_op_kind::div, lhs_val, rhs_sq, "double");
+            return ad_expr::make_unary(ad_op_kind::neg, quot, "double");
+        }
+        return ad_expr::make_literal("1.0", "double");
+    }
+
+    /**
      * @brief Generate reverse (adjoint) statement for an expression.
      * @param target Target variable name (whose adjoint receives contribution).
      * @param expr Expression IR.
@@ -4823,130 +4407,101 @@ ad_ir_builder: type = {
     generate_reverse_for_expr: (inout this, target: std::string, expr: ad_expr) -> ad_stmt = {
         target_adj := ctx*.make_adj_name(target);
 
-        // For binary ops, generate partial derivative contributions
+        // For binary ops, look up the operator rule and apply partial derivatives
         if expr.kind == ad_expr_kind::binary {
             if expr.args.ssize() >= 2 {
                 lhs := expr.args[0];
                 rhs := expr.args[1];
 
-                if expr.op == ad_op_kind::add {
-                    // d(a+b)/da = 1, d(a+b)/db = 1
-                    // Reverse: lhs_adj += target_adj; rhs_adj += target_adj
-                    compound: std::vector<ad_stmt> = ();
-                    if lhs.kind == ad_expr_kind::identifier {
-                        lhs_adj := ctx*.make_adj_name(lhs.name);
-                        adj_ref := ad_expr::make_identifier(target_adj, "double");
-                        compound.push_back(ad_stmt::make_assign_add(lhs_adj, adj_ref));
+                // Get the operator symbol for rule lookup
+                op_name := ad_op_kind_to_rule_name(expr.op);
+
+                // Priority 1: Check for user-defined operator rules
+                // Users can override built-in operator differentiation by defining
+                // ad_rule_add, ad_rule_mul, etc. in their @autodiff type
+                if !op_name.empty() && registry != nullptr && registry*.has_operator_rule(op_name) {
+                    // For simple cases (both operands are identifiers), use rule lookup directly
+                    if lhs.kind == ad_expr_kind::identifier && rhs.kind == ad_expr_kind::identifier {
+                        // Build substitution context for the rule body
+                        sub_ctx: ad_substitution_context = ();
+
+                        // Map rule parameters to actual expressions
+                        sub_ctx.add("x_val", ad_expr::make_identifier(ctx*.make_value_name(lhs.name), "double"));
+                        sub_ctx.add("y_val", ad_expr::make_identifier(ctx*.make_value_name(rhs.name), "double"));
+                        sub_ctx.add("x_adj", ad_expr::make_identifier(ctx*.make_adj_name(lhs.name), "double"));
+                        sub_ctx.add("y_adj", ad_expr::make_identifier(ctx*.make_adj_name(rhs.name), "double"));
+                        sub_ctx.add("res_adj", ad_expr::make_identifier(target_adj, "double"));
+                        sub_ctx.add("res_val", ad_expr::make_identifier(ctx*.make_value_name(target), "double"));
+
+                        // Apply the operator rule
+                        rule_result := registry*.apply_operator_rule(op_name, sub_ctx);
+                        if rule_result.ir_success {
+                            return ad_stmt::make_compound(rule_result.ir_stmts);
+                        }
+                        // Rule parsing failed - hard fail with compiler error
+                        if !rule_result.error_message.empty() {
+                            ctx*.mf.error("AD rule parsing failed: " + rule_result.error_message);
+                        }
                     }
-                    if rhs.kind == ad_expr_kind::identifier {
-                        rhs_adj := ctx*.make_adj_name(rhs.name);
-                        adj_ref := ad_expr::make_identifier(target_adj, "double");
-                        compound.push_back(ad_stmt::make_assign_add(rhs_adj, adj_ref));
-                    }
-                    return ad_stmt::make_compound(compound);
                 }
-                else if expr.op == ad_op_kind::sub {
-                    // d(a-b)/da = 1, d(a-b)/db = -1
-                    compound: std::vector<ad_stmt> = ();
-                    if lhs.kind == ad_expr_kind::identifier {
-                        lhs_adj := ctx*.make_adj_name(lhs.name);
-                        adj_ref := ad_expr::make_identifier(target_adj, "double");
-                        compound.push_back(ad_stmt::make_assign_add(lhs_adj, adj_ref));
-                    }
-                    if rhs.kind == ad_expr_kind::identifier {
-                        rhs_adj := ctx*.make_adj_name(rhs.name);
-                        adj_ref := ad_expr::make_identifier(target_adj, "double");
-                        neg_adj := ad_expr::make_unary(ad_op_kind::neg, adj_ref, "double");
-                        compound.push_back(ad_stmt::make_assign_add(rhs_adj, neg_adj));
-                    }
-                    return ad_stmt::make_compound(compound);
-                }
-                else if expr.op == ad_op_kind::mul {
-                    // d(a*b)/da = b, d(a*b)/db = a
+
+                // Priority 2: Use built-in operator differentiation
+                // These formulas match the ad_rule_* types defined in include/cpp2ad_rules.h2:
+                // - ad_rule_add: x_adj += res_adj; y_adj += res_adj
+                // - ad_rule_sub: x_adj += res_adj; y_adj -= res_adj
+                // - ad_rule_mul: x_adj += y_val * res_adj; y_adj += x_val * res_adj
+                // - ad_rule_div: x_adj += res_adj / y_val; y_adj -= x_val / (y_val * y_val) * res_adj
+                if !op_name.empty() {
                     compound: std::vector<ad_stmt> = ();
                     adj_ref := ad_expr::make_identifier(target_adj, "double");
 
-                    // Handle LHS (contribution to lhs_adj)
+                    // Get lhs and rhs values for derivative computation
+                    lhs_val: ad_expr = ();
+                    rhs_val: ad_expr = ();
+                    if lhs.kind == ad_expr_kind::identifier {
+                        lhs_val = ad_expr::make_identifier(ctx*.make_value_name(lhs.name), "double");
+                    } else {
+                        lhs_val = lhs;
+                    }
+                    if rhs.kind == ad_expr_kind::identifier {
+                        rhs_val = ad_expr::make_identifier(ctx*.make_value_name(rhs.name), "double");
+                    } else {
+                        rhs_val = rhs;
+                    }
+
+                    // Apply derivative formulas from ad_rule_* types:
+                    // These partial derivative formulas are defined in ad_rule_add, ad_rule_sub, etc.
+                    // in include/cpp2ad_rules.h2 - we use them here via chain rule
+
+                    // Handle LHS contribution (d/d_lhs)
                     if lhs.kind == ad_expr_kind::identifier {
                         lhs_adj := ctx*.make_adj_name(lhs.name);
-                        // lhs_adj += rhs * target_adj
-                        // Need to get rhs value - could be identifier or call result
-                        rhs_val: ad_expr = ();
-                        if rhs.kind == ad_expr_kind::identifier {
-                            rhs_val = ad_expr::make_identifier(ctx*.make_value_name(rhs.name), "double");
-                        } else if rhs.kind == ad_expr_kind::call {
-                            // Use the call expression itself as the value (forward pass computes it)
-                            rhs_val = rhs;
-                        } else {
-                            // For literals, binary expressions, etc. - use the expression directly
-                            rhs_val = rhs;
-                        }
-                        contrib := ad_expr::make_binary(ad_op_kind::mul, rhs_val, adj_ref, "double");
+                        // Get contribution expression based on operator rule
+                        contrib := get_lhs_derivative_contrib(op_name, lhs_val, rhs_val, adj_ref);
                         compound.push_back(ad_stmt::make_assign_add(lhs_adj, contrib));
                     }
                     else if lhs.kind == ad_expr_kind::call {
                         // LHS is a call - need chain rule through it
-                        // tmp_adj = rhs * target_adj, then apply call's reverse
-                        // For now, recursively generate reverse for the call
-                        // The call's arguments will receive contributions scaled by lhs_val * target_adj
-                        call_reverse := generate_reverse_for_call_with_scale(lhs, rhs, adj_ref);
+                        // Scale factor comes from the derivative rule
+                        scale := get_lhs_derivative_scale(op_name, lhs_val, rhs_val);
+                        call_reverse := generate_reverse_for_call_with_scale(lhs, scale, adj_ref);
                         compound.push_back(call_reverse);
                     }
 
-                    // Handle RHS (contribution to rhs_adj)
+                    // Handle RHS contribution (d/d_rhs)
                     if rhs.kind == ad_expr_kind::identifier {
                         rhs_adj := ctx*.make_adj_name(rhs.name);
-                        // rhs_adj += lhs * target_adj
-                        lhs_val: ad_expr = ();
-                        if lhs.kind == ad_expr_kind::identifier {
-                            lhs_val = ad_expr::make_identifier(ctx*.make_value_name(lhs.name), "double");
-                        } else if lhs.kind == ad_expr_kind::call {
-                            lhs_val = lhs;
-                        } else {
-                            lhs_val = lhs;
-                        }
-                        contrib := ad_expr::make_binary(ad_op_kind::mul, lhs_val, adj_ref, "double");
+                        // Get contribution expression based on operator rule
+                        contrib := get_rhs_derivative_contrib(op_name, lhs_val, rhs_val, adj_ref);
                         compound.push_back(ad_stmt::make_assign_add(rhs_adj, contrib));
                     }
                     else if rhs.kind == ad_expr_kind::call {
                         // RHS is a call - need chain rule through it
-                        // The call's arguments receive: lhs_val * target_adj * d(call)/d(arg)
-                        lhs_val: ad_expr = ();
-                        if lhs.kind == ad_expr_kind::identifier {
-                            lhs_val = ad_expr::make_identifier(ctx*.make_value_name(lhs.name), "double");
-                        } else {
-                            lhs_val = lhs;
-                        }
-                        call_reverse := generate_reverse_for_call_with_scale(rhs, lhs_val, adj_ref);
+                        scale := get_rhs_derivative_scale(op_name, lhs_val, rhs_val);
+                        call_reverse := generate_reverse_for_call_with_scale(rhs, scale, adj_ref);
                         compound.push_back(call_reverse);
                     }
 
-                    return ad_stmt::make_compound(compound);
-                }
-                else if expr.op == ad_op_kind::div {
-                    // d(a/b)/da = 1/b, d(a/b)/db = -a/b^2
-                    compound: std::vector<ad_stmt> = ();
-                    adj_ref := ad_expr::make_identifier(target_adj, "double");
-                    if lhs.kind == ad_expr_kind::identifier {
-                        lhs_adj := ctx*.make_adj_name(lhs.name);
-                        // lhs_adj += (1/rhs) * target_adj
-                        one := ad_expr::make_literal("1.0", "double");
-                        rhs_val := ad_expr::make_identifier(ctx*.make_value_name(rhs.name), "double");
-                        inv_rhs := ad_expr::make_binary(ad_op_kind::div, one, rhs_val, "double");
-                        contrib := ad_expr::make_binary(ad_op_kind::mul, inv_rhs, adj_ref, "double");
-                        compound.push_back(ad_stmt::make_assign_add(lhs_adj, contrib));
-                    }
-                    if rhs.kind == ad_expr_kind::identifier {
-                        rhs_adj := ctx*.make_adj_name(rhs.name);
-                        // rhs_adj += (-lhs/rhs^2) * target_adj
-                        lhs_val := ad_expr::make_identifier(ctx*.make_value_name(lhs.name), "double");
-                        rhs_val := ad_expr::make_identifier(ctx*.make_value_name(rhs.name), "double");
-                        neg_lhs := ad_expr::make_unary(ad_op_kind::neg, lhs_val, "double");
-                        rhs_sq := ad_expr::make_binary(ad_op_kind::mul, rhs_val, rhs_val, "double");
-                        quot := ad_expr::make_binary(ad_op_kind::div, neg_lhs, rhs_sq, "double");
-                        contrib := ad_expr::make_binary(ad_op_kind::mul, quot, adj_ref, "double");
-                        compound.push_back(ad_stmt::make_assign_add(rhs_adj, contrib));
-                    }
                     return ad_stmt::make_compound(compound);
                 }
             }
@@ -5353,6 +4908,24 @@ ad_op_kind_to_binary_str: (op: ad_op_kind) -> std::string = {
 }
 
 /**
+ * @brief Map ad_op_kind to rule lookup name (operator symbol without spaces).
+ *
+ * This is used to look up operator rules in the ad_rule_registry.
+ * Operators are stored with their symbol as the name ("+", "-", "*", "/").
+ *
+ * @param op Operation kind.
+ * @return Operator symbol for rule lookup, or empty if not a differentiable binary op.
+ */
+ad_op_kind_to_rule_name: (op: ad_op_kind) -> std::string = {
+    if op == ad_op_kind::add { return "+"; }
+    if op == ad_op_kind::sub { return "-"; }
+    if op == ad_op_kind::mul { return "*"; }
+    if op == ad_op_kind::div { return "/"; }
+    if op == ad_op_kind::mod { return "%"; }
+    return "";  // Other operators don't have AD rules
+}
+
+/**
  * @brief Emitter for converting AD IR to Cpp2 source code.
  */
 ad_ir_emitter: type = {
@@ -5380,7 +4953,7 @@ ad_ir_emitter: type = {
         }
         else if expr.kind == ad_expr_kind::unary {
             if !expr.args.empty() {
-                operand := emit_expr(expr.args[0]);
+                operand: std::string = emit_expr(expr.args[0]);
                 // Handle different unary operators
                 if expr.op == ad_op_kind::neg { return "(-" + operand + ")"; }
                 if expr.op == ad_op_kind::pos { return "(+" + operand + ")"; }
@@ -5397,9 +4970,9 @@ ad_ir_emitter: type = {
         }
         else if expr.kind == ad_expr_kind::binary {
             if expr.args.ssize() >= 2 {
-                lhs := emit_expr(expr.args[0]);
-                rhs := emit_expr(expr.args[1]);
-                op_str := ad_op_kind_to_binary_str(expr.op);
+                lhs: std::string = emit_expr(expr.args[0]);
+                rhs: std::string = emit_expr(expr.args[1]);
+                op_str: std::string = ad_op_kind_to_binary_str(expr.op);
                 if op_str.empty() { op_str = " ?? "; }
                 return "(" + lhs + op_str + rhs + ")";
             }
@@ -5407,17 +4980,17 @@ ad_ir_emitter: type = {
         }
         else if expr.kind == ad_expr_kind::ternary {
             if expr.args.ssize() >= 3 {
-                cond := emit_expr(expr.args[0]);
-                then_expr := emit_expr(expr.args[1]);
-                else_expr := emit_expr(expr.args[2]);
+                cond: std::string = emit_expr(expr.args[0]);
+                then_expr: std::string = emit_expr(expr.args[1]);
+                else_expr: std::string = emit_expr(expr.args[2]);
                 return "(" + cond + " ? " + then_expr + " : " + else_expr + ")";
             }
             return "(ternary)";
         }
         else if expr.kind == ad_expr_kind::member {
             if !expr.args.empty() {
-                obj := emit_expr(expr.args[0]);
-                op_str := "->";
+                obj: std::string = emit_expr(expr.args[0]);
+                op_str: std::string = "->";
                 if expr.op != ad_op_kind::arrow { op_str = "."; }
                 return obj + op_str + expr.member_name;
             }
@@ -5425,18 +4998,18 @@ ad_ir_emitter: type = {
         }
         else if expr.kind == ad_expr_kind::subscript {
             if expr.args.ssize() >= 2 {
-                arr := emit_expr(expr.args[0]);
-                idx := emit_expr(expr.args[1]);
+                arr: std::string = emit_expr(expr.args[0]);
+                idx: std::string = emit_expr(expr.args[1]);
                 return arr + "[" + idx + "]";
             }
             return "(subscript)";
         }
         else if expr.kind == ad_expr_kind::call {
-            result := expr.name;
+            result: std::string = expr.name;
             // Add template args if present
             if !expr.type_args.empty() {
                 result += "<";
-                (copy first := true)
+                (copy first: bool = true)
                 for expr.type_args do (targ) {
                     if !first { result += ", "; }
                     first = false;
@@ -5445,7 +5018,7 @@ ad_ir_emitter: type = {
                 result += ">";
             }
             result += "(";
-            (copy first := true)
+            (copy first: bool = true)
             for expr.args do (arg) {
                 if !first { result += ", "; }
                 first = false;
@@ -5456,12 +5029,12 @@ ad_ir_emitter: type = {
         }
         else if expr.kind == ad_expr_kind::method_call {
             if !expr.args.empty() {
-                obj := emit_expr(expr.args[0]);
-                result := obj + "." + expr.name + "(";
+                obj: std::string = emit_expr(expr.args[0]);
+                result: std::string = obj + "." + expr.name + "(";
                 // Skip first arg (the object), emit remaining args
                 if expr.args.ssize() > 1 {
                     result += emit_expr(expr.args[1]);
-                    i := 2;
+                    i: i64 = 2;
                     while i < expr.args.ssize() {
                         result += ", ";
                         result += emit_expr(expr.args[i]);
@@ -5490,8 +5063,8 @@ ad_ir_emitter: type = {
             return "(cast)";
         }
         else if expr.kind == ad_expr_kind::construct {
-            result := expr.name + "(";
-            (copy first := true)
+            result: std::string = expr.name + "(";
+            (copy first: bool = true)
             for expr.args do (arg) {
                 if !first { result += ", "; }
                 first = false;
@@ -5508,7 +5081,7 @@ ad_ir_emitter: type = {
         }
         else if expr.kind == ad_expr_kind::initializer_list {
             result: std::string = "{";
-            (copy first := true)
+            (copy first: bool = true)
             for expr.args do (arg) {
                 if !first { result += ", "; }
                 first = false;
@@ -5527,7 +5100,7 @@ ad_ir_emitter: type = {
      * @return Cpp2 source string.
      */
     emit_stmt: (this, stmt: ad_stmt, indent: int = 0) -> std::string = {
-        ind := std::string(indent * 4, ' ');
+        ind: std::string = std::string(indent * 4, ' ');
 
         if stmt.kind == ad_stmt_kind::decl {
             // Declaration: name : type = expr;
@@ -5539,7 +5112,7 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::compound_assign {
             // Compound assignment: name op= expr;
-            op_str := ad_op_kind_to_binary_str(stmt.op);
+            op_str: std::string = ad_op_kind_to_binary_str(stmt.op);
             if op_str.empty() { op_str = " ??= "; }
             return ind + stmt.target + op_str + emit_expr(stmt.expr) + ";\n";
         }
@@ -5571,7 +5144,7 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::if_stmt {
             // If statement
-            result := ind + "if " + emit_expr(stmt.expr) + " {\n";
+            result: std::string = ind + "if " + emit_expr(stmt.expr) + " {\n";
             for stmt.stmts do (s) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -5586,10 +5159,10 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::for_stmt {
             // For loop - emit as Cpp2 style
-            result := ind + "for ";
+            result: std::string = ind + "for ";
             // Init statement
             if stmt.init_stmt != nullptr {
-                init_code := emit_stmt(stmt.init_stmt*, 0);
+                init_code: std::string = emit_stmt(stmt.init_stmt*, 0);
                 // Remove trailing newline and semicolon for init
                 if init_code.ends_with(";\n") {
                     init_code = init_code.substr(0, init_code.size() - 2);
@@ -5598,7 +5171,7 @@ ad_ir_emitter: type = {
             }
             result += "; " + emit_expr(stmt.expr) + " next ";
             // Increment - emit without semicolon
-            incr_code := emit_expr(stmt.incr_expr);
+            incr_code: std::string = emit_expr(stmt.incr_expr);
             result += incr_code + " {\n";
             for stmt.stmts do (s) {
                 result += emit_stmt(s, indent + 1);
@@ -5608,7 +5181,7 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::foreach_stmt {
             // Range-based for loop
-            result := ind + "for " + stmt.target;
+            result: std::string = ind + "for " + stmt.target;
             if stmt.type_name != "" && stmt.type_name != "auto" {
                 result += " : " + stmt.type_name;
             }
@@ -5621,7 +5194,7 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::while_stmt {
             // While loop
-            result := ind + "while " + emit_expr(stmt.expr) + " {\n";
+            result: std::string = ind + "while " + emit_expr(stmt.expr) + " {\n";
             for stmt.stmts do (s) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -5630,7 +5203,7 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::do_while_stmt {
             // Do-while loop
-            result := ind + "do {\n";
+            result: std::string = ind + "do {\n";
             for stmt.stmts do (s) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -5639,7 +5212,7 @@ ad_ir_emitter: type = {
         }
         else if stmt.kind == ad_stmt_kind::try_catch {
             // Try-catch block
-            result := ind + "try {\n";
+            result: std::string = ind + "try {\n";
             for stmt.stmts do (s) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -5689,7 +5262,7 @@ ad_ir_emitter: type = {
 
         // Seed the output adjoint(s)
         for ir.returns do (ret) {
-            adj_name := ctx*.make_adj_name(ret.name);
+            adj_name: std::string = ctx*.make_adj_name(ret.name);
             // Don't emit seed here - it's passed in as parameter
         }
 
@@ -5700,7 +5273,7 @@ ad_ir_emitter: type = {
 
         // Reset adjoints to zero after use
         for ir.returns do (ret) {
-            adj_name := ctx*.make_adj_name(ret.name);
+            adj_name: std::string = ctx*.make_adj_name(ret.name);
             result += std::string("    ") + adj_name + " = 0.0;\n";
         }
 
@@ -5714,7 +5287,7 @@ ad_ir_emitter: type = {
      */
     emit_function: (this, ir: ad_function_ir) -> std::string = {
         // Build signature
-        result := ir.name + "_d: (\n";
+        result: std::string = ir.name + "_d: (\n";
 
         // Input parameters with adjoints
         for ir.params do (p) {
@@ -5728,19 +5301,19 @@ ad_ir_emitter: type = {
 
             result += std::string("    ") + pass_str + " " + p.name + ": " + p.type_name + ",\n";
             // Add adjoint parameter
-            adj_name := ctx*.make_adj_name(p.name);
+            adj_name: std::string = ctx*.make_adj_name(p.name);
             result += std::string("    inout ") + adj_name + ": " + p.type_name + ",\n";
         }
 
         // Return adjoint parameter
         for ir.returns do (r) {
-            adj_name := ctx*.make_adj_name(r.name);
+            adj_name: std::string = ctx*.make_adj_name(r.name);
             result += std::string("    inout ") + adj_name + ": " + r.type_name + ",\n";
         }
 
         // Return type
         result += ") -> (";
-        (copy first := true)
+        (copy first: bool = true)
         for ir.returns do (r) {
             if !first { result += ", "; }
             first = false;
@@ -5751,7 +5324,7 @@ ad_ir_emitter: type = {
         // Create _val variables for input parameters
         result += "// Setup value variables\n";
         for ir.params do (p) {
-            val_name := ctx*.make_value_name(p.name);
+            val_name: std::string = ctx*.make_value_name(p.name);
             result += std::string("    ") + val_name + " := " + p.name + ";\n";
         }
 
@@ -5777,7 +5350,7 @@ ad_ir_builder_debug_dump: (builder: ad_ir_builder) = {
     std::cout << "=== AD IR Builder State ===\n";
     std::cout << "  temp_counter: " << builder.temp_counter << "\n";
     std::cout << "  temp_names: [";
-    (copy first := true)
+    (copy first: bool = true)
     for builder.temp_names do (name) {
         if !first { std::cout << ", "; }
         first = false;
@@ -5952,11 +5525,6 @@ autodiff_reverse_ir: (inout t: meta::type_declaration, debug: bool) = {
         }
         func_ir := builder.build_function_ir(mf);
         _ = builder;  // Explicitly discard modified builder
-
-        // Dump the function IR
-        if debug {
-            ad_ir_debug_dump(func_ir);
-        }
 
         // Emit complete function
         emitter: ad_ir_emitter = (rc&);

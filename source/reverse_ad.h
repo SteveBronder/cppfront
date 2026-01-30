@@ -24,97 +24,95 @@ class reverse_autodiff_base;
 class reverse_autodiff_context;
     
 
-#line 94 "source/reverse_ad.h2"
+#line 120 "source/reverse_ad.h2"
+template<typename MetaType, typename Metadata> class ad_dual;
+    
+
+#line 153 "source/reverse_ad.h2"
+class ad_expr_metadata;
+    
+
+#line 168 "source/reverse_ad.h2"
+class ad_stmt_metadata;
+    
+
+#line 184 "source/reverse_ad.h2"
+class ad_string_substitution_context;
+    
+
+#line 277 "source/reverse_ad.h2"
 class ad_type_kind;
     
 
-#line 125 "source/reverse_ad.h2"
+#line 308 "source/reverse_ad.h2"
 class ad_type;
 
-#line 444 "source/reverse_ad.h2"
+#line 627 "source/reverse_ad.h2"
 class ad_op_kind;
     
 
-#line 515 "source/reverse_ad.h2"
+#line 698 "source/reverse_ad.h2"
 class ad_expr_kind;
     
 
-#line 549 "source/reverse_ad.h2"
+#line 732 "source/reverse_ad.h2"
 class ad_stmt_kind;
     
 
-#line 607 "source/reverse_ad.h2"
+#line 790 "source/reverse_ad.h2"
 class ad_expr;
 
-#line 960 "source/reverse_ad.h2"
+#line 1143 "source/reverse_ad.h2"
 class ad_stmt;
 
-#line 1320 "source/reverse_ad.h2"
+#line 1503 "source/reverse_ad.h2"
 class ad_param;
 
-#line 1357 "source/reverse_ad.h2"
+#line 1540 "source/reverse_ad.h2"
 class ad_function_ir;
 
-#line 1383 "source/reverse_ad.h2"
-namespace ad_types {
-
-#line 1515 "source/reverse_ad.h2"
-}
-
-#line 1522 "source/reverse_ad.h2"
-namespace ad_exprs {
-
-#line 1854 "source/reverse_ad.h2"
-}
-
-#line 1861 "source/reverse_ad.h2"
-namespace ad_stmts {
-
-#line 2013 "source/reverse_ad.h2"
-}
-
-#line 2438 "source/reverse_ad.h2"
+#line 1644 "source/reverse_ad.h2"
 class ad_substitution_context;
     
 
-#line 2644 "source/reverse_ad.h2"
+#line 1850 "source/reverse_ad.h2"
 class ad_rule_meta;
 
-#line 2707 "source/reverse_ad.h2"
+#line 1906 "source/reverse_ad.h2"
 class ad_reverse_rule_result;
 
-#line 2748 "source/reverse_ad.h2"
+#line 1947 "source/reverse_ad.h2"
 class ad_rule_registry;
     
 
-#line 3043 "source/reverse_ad.h2"
+#line 2270 "source/reverse_ad.h2"
 class ad_rule_body_result;
 
-#line 3082 "source/reverse_ad.h2"
+#line 2294 "source/reverse_ad.h2"
 class ad_parse_expr_result;
 
-#line 3106 "source/reverse_ad.h2"
+#line 2318 "source/reverse_ad.h2"
 class ad_parse_stmt_result;
 
-#line 3751 "source/reverse_ad.h2"
+#line 2922 "source/reverse_ad.h2"
 class ad_rule_param_names;
     
 
-#line 3882 "source/reverse_ad.h2"
+#line 3053 "source/reverse_ad.h2"
 class ad_op_mapping_result;
 
-#line 3964 "source/reverse_ad.h2"
+#line 3135 "source/reverse_ad.h2"
 class ad_ir_builder;
 
-#line 5299 "source/reverse_ad.h2"
+#line 4592 "source/reverse_ad.h2"
 class ad_rule_application_result;
     
 
-#line 5358 "source/reverse_ad.h2"
+#line 4669 "source/reverse_ad.h2"
 class ad_ir_emitter;
     
 
-#line 6100 "source/reverse_ad.h2"
+#line 5406 "source/reverse_ad.h2"
 }
 
 }
@@ -201,6 +199,169 @@ class reverse_autodiff_context: public reverse_autodiff_base {
 
 //-----------------------------------------------------------------------
 //
+//  Dual-Type IR Infrastructure
+//
+//  Wraps meta reflection types with AD-specific metadata, enabling
+//  transformation without rebuilding AST structure.
+//
+//-----------------------------------------------------------------------
+
+/*
+  @brief Derive a value name from an original identifier.
+  @param original Base identifier name.
+  @return Value name with _val suffix.
+ */
+[[nodiscard]] auto make_value_name(cpp2::impl::in<std::string> original) -> std::string;
+
+#line 99 "source/reverse_ad.h2"
+/*
+  @brief Derive an adjoint name from an original identifier.
+  @param original Base identifier name.
+  @return Adjoint name with _adj suffix.
+ */
+[[nodiscard]] auto make_adjoint_name(cpp2::impl::in<std::string> original) -> std::string;
+
+#line 111 "source/reverse_ad.h2"
+/*
+  @brief Generic dual-type wrapper pairing a meta type with user-provided metadata.
+ 
+  The dual-type approach wraps meta reflection types (meta::expression, meta::statement)
+  with AD-specific metadata, avoiding the need to rebuild AST structure.
+ 
+  @tparam MetaType The wrapped meta reflection type.
+  @tparam Metadata User-provided metadata type.
+ */
+template<typename MetaType, typename Metadata> class ad_dual {
+    public: MetaType meta; 
+    public: Metadata data; 
+
+    /// Constructor with explicit meta and data
+    public: ad_dual(MetaType const& m, Metadata const& d);
+
+#line 130 "source/reverse_ad.h2"
+    /*
+      @brief Wrap a meta type with default-constructed metadata.
+      @param m Meta type to wrap.
+      @return Dual-type wrapper.
+     */
+    public: [[nodiscard]] static auto wrap(cpp2::impl::in<MetaType> m) -> ad_dual<MetaType,Metadata>;
+
+#line 139 "source/reverse_ad.h2"
+    /*
+      @brief Delegate to_string to the underlying meta type.
+      @return String representation from meta type.
+     */
+    public: [[nodiscard]] auto to_string() const& -> std::string;
+    public: ad_dual(ad_dual const&) = delete; /* No 'that' constructor, suppress copy */
+    public: auto operator=(ad_dual const&) -> void = delete;
+
+
+#line 146 "source/reverse_ad.h2"
+};
+
+/*
+  @brief Metadata for expressions during AD transformation.
+ 
+  Tracks whether an expression affects gradients (is_active).
+ */
+class ad_expr_metadata {
+    public: bool is_active {false};   // Does this expression affect gradients?
+
+    /// Default constructor
+    public: explicit ad_expr_metadata();
+
+    /// Copy constructor
+    public: ad_expr_metadata(ad_expr_metadata const& that);
+#line 160 "source/reverse_ad.h2"
+    public: auto operator=(ad_expr_metadata const& that) -> ad_expr_metadata& ;
+#line 160 "source/reverse_ad.h2"
+    public: ad_expr_metadata(ad_expr_metadata&& that) noexcept;
+#line 160 "source/reverse_ad.h2"
+    public: auto operator=(ad_expr_metadata&& that) noexcept -> ad_expr_metadata& ;
+};
+
+/*
+  @brief Metadata for statements during AD transformation.
+ 
+  Tracks whether a statement is an accumulation (+=) operation.
+ */
+class ad_stmt_metadata {
+    public: bool is_accumulation {false};   // Is this a += statement?
+
+    /// Default constructor
+    public: explicit ad_stmt_metadata();
+
+    /// Copy constructor
+    public: ad_stmt_metadata(ad_stmt_metadata const& that);
+#line 175 "source/reverse_ad.h2"
+    public: auto operator=(ad_stmt_metadata const& that) -> ad_stmt_metadata& ;
+#line 175 "source/reverse_ad.h2"
+    public: ad_stmt_metadata(ad_stmt_metadata&& that) noexcept;
+#line 175 "source/reverse_ad.h2"
+    public: auto operator=(ad_stmt_metadata&& that) noexcept -> ad_stmt_metadata& ;
+};
+
+/*
+  @brief String-based substitution context for dual-type rule application.
+ 
+  Maps parameter names to their string replacements. Used during
+  rule body substitution where we transform to_string() output.
+ */
+class ad_string_substitution_context {
+    public: std::map<std::string,std::string> substitutions {}; 
+
+    /// Default constructor
+    public: explicit ad_string_substitution_context();
+
+    /// Copy constructor
+    public: ad_string_substitution_context(ad_string_substitution_context const& that);
+#line 191 "source/reverse_ad.h2"
+    public: auto operator=(ad_string_substitution_context const& that) -> ad_string_substitution_context& ;
+#line 191 "source/reverse_ad.h2"
+    public: ad_string_substitution_context(ad_string_substitution_context&& that) noexcept;
+#line 191 "source/reverse_ad.h2"
+    public: auto operator=(ad_string_substitution_context&& that) noexcept -> ad_string_substitution_context& ;
+
+    /*
+      @brief Add a substitution mapping.
+      @param name Parameter name to substitute.
+      @param replacement String to substitute in place of the parameter.
+     */
+    public: auto add(cpp2::impl::in<std::string> name, cpp2::impl::in<std::string> replacement) & -> void;
+
+#line 202 "source/reverse_ad.h2"
+    /*
+      @brief Apply all substitutions to a text string.
+     
+      Replaces all occurrences of parameter names with their replacements.
+      Uses word-boundary matching to avoid partial replacements.
+     
+      @param text Text to transform.
+      @return Text with all substitutions applied.
+     */
+    public: [[nodiscard]] auto apply(cpp2::impl::in<std::string> text) const& -> std::string;
+
+#line 238 "source/reverse_ad.h2"
+    /*
+      @brief Check if a substitution exists for a name.
+      @param name Parameter name to check.
+      @return true if a substitution exists.
+     */
+    public: [[nodiscard]] auto has(cpp2::impl::in<std::string> name) const& -> bool;
+
+#line 247 "source/reverse_ad.h2"
+    /*
+      @brief Get the replacement for a name.
+      @param name Parameter name to look up.
+      @return Replacement string, or empty string if not found.
+     */
+    public: [[nodiscard]] auto get(cpp2::impl::in<std::string> name) const& -> std::string;
+
+#line 259 "source/reverse_ad.h2"
+};
+
+//-----------------------------------------------------------------------
+//
 //  Typed AD IR definitions for reverse-mode autodiff
 //
 //-----------------------------------------------------------------------
@@ -247,7 +408,7 @@ public: [[nodiscard]] auto to_code() const& -> std::string;
 public: [[nodiscard]] static auto from_string(cpp2::impl::in<std::string_view> s) -> ad_type_kind;
 public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) -> ad_type_kind;
 
-#line 95 "source/reverse_ad.h2"
+#line 278 "source/reverse_ad.h2"
                     // auto keyword
                     // void
                     // int
@@ -263,7 +424,7 @@ public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) 
                     // T* (inner type in inner_type)
                     // T[N] (inner type in inner_type, size in array_size)
                     // Template instantiation T<Args...> (name + type_args)
-#line 110 "source/reverse_ad.h2"
+#line 293 "source/reverse_ad.h2"
 };
 
 /*
@@ -291,11 +452,11 @@ class ad_type {
 
     /// Copy constructor
     public: ad_type(ad_type const& that);
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     public: auto operator=(ad_type const& that) -> ad_type& ;
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     public: ad_type(ad_type&& that) noexcept;
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     public: auto operator=(ad_type&& that) noexcept -> ad_type& ;
 
     // ===== Factory methods for primitive types =====
@@ -306,56 +467,56 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_auto() -> ad_type;
 
-#line 150 "source/reverse_ad.h2"
+#line 333 "source/reverse_ad.h2"
     /*
       @brief Create a void type.
       @return void type node.
      */
     public: [[nodiscard]] static auto make_void() -> ad_type;
 
-#line 160 "source/reverse_ad.h2"
+#line 343 "source/reverse_ad.h2"
     /*
       @brief Create an int type.
       @return int type node.
      */
     public: [[nodiscard]] static auto make_int() -> ad_type;
 
-#line 170 "source/reverse_ad.h2"
+#line 353 "source/reverse_ad.h2"
     /*
       @brief Create a size_t type.
       @return size_t type node.
      */
     public: [[nodiscard]] static auto make_size_t() -> ad_type;
 
-#line 180 "source/reverse_ad.h2"
+#line 363 "source/reverse_ad.h2"
     /*
       @brief Create a double type.
       @return double type node.
      */
     public: [[nodiscard]] static auto make_double() -> ad_type;
 
-#line 190 "source/reverse_ad.h2"
+#line 373 "source/reverse_ad.h2"
     /*
       @brief Create a float type.
       @return float type node.
      */
     public: [[nodiscard]] static auto make_float() -> ad_type;
 
-#line 200 "source/reverse_ad.h2"
+#line 383 "source/reverse_ad.h2"
     /*
       @brief Create a bool type.
       @return bool type node.
      */
     public: [[nodiscard]] static auto make_bool() -> ad_type;
 
-#line 210 "source/reverse_ad.h2"
+#line 393 "source/reverse_ad.h2"
     /*
       @brief Create a char type.
       @return char type node.
      */
     public: [[nodiscard]] static auto make_char() -> ad_type;
 
-#line 220 "source/reverse_ad.h2"
+#line 403 "source/reverse_ad.h2"
     // ===== Factory methods for composite types =====
 
     /*
@@ -365,7 +526,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_named(cpp2::impl::in<std::string> type_name) -> ad_type;
 
-#line 234 "source/reverse_ad.h2"
+#line 417 "source/reverse_ad.h2"
     /*
       @brief Create a const-qualified type.
       @param inner The type being const-qualified.
@@ -373,7 +534,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_const(cpp2::impl::in<ad_type> inner) -> ad_type;
 
-#line 246 "source/reverse_ad.h2"
+#line 429 "source/reverse_ad.h2"
     /*
       @brief Create an lvalue reference type.
       @param inner The type being referenced.
@@ -381,7 +542,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_ref(cpp2::impl::in<ad_type> inner) -> ad_type;
 
-#line 258 "source/reverse_ad.h2"
+#line 441 "source/reverse_ad.h2"
     /*
       @brief Create an rvalue reference type.
       @param inner The type being referenced.
@@ -389,7 +550,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_rvalue_ref(cpp2::impl::in<ad_type> inner) -> ad_type;
 
-#line 270 "source/reverse_ad.h2"
+#line 453 "source/reverse_ad.h2"
     /*
       @brief Create a pointer type.
       @param inner The pointed-to type.
@@ -397,7 +558,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_pointer(cpp2::impl::in<ad_type> inner) -> ad_type;
 
-#line 282 "source/reverse_ad.h2"
+#line 465 "source/reverse_ad.h2"
     /*
       @brief Create an array type.
       @param inner Element type.
@@ -406,7 +567,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_array(cpp2::impl::in<ad_type> inner, cpp2::impl::in<int> size) -> ad_type;
 
-#line 296 "source/reverse_ad.h2"
+#line 479 "source/reverse_ad.h2"
     /*
       @brief Create a template instantiation type.
       @param template_name Template name (e.g., "std::vector").
@@ -415,7 +576,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_template(cpp2::impl::in<std::string> template_name, cpp2::impl::in<std::vector<ad_type>> args) -> ad_type;
 
-#line 310 "source/reverse_ad.h2"
+#line 493 "source/reverse_ad.h2"
     // ===== Convenience factory methods for common patterns =====
 
     /*
@@ -425,7 +586,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_const_ref(cpp2::impl::in<ad_type> inner) -> ad_type;
 
-#line 321 "source/reverse_ad.h2"
+#line 504 "source/reverse_ad.h2"
     /*
       @brief Create std::vector<T> type.
       @param elem Element type.
@@ -433,7 +594,7 @@ class ad_type {
      */
     public: [[nodiscard]] static auto make_std_vector(cpp2::impl::in<ad_type> elem) -> ad_type;
 
-#line 332 "source/reverse_ad.h2"
+#line 515 "source/reverse_ad.h2"
     // ===== Type query methods =====
 
     /*
@@ -442,28 +603,28 @@ class ad_type {
      */
     public: [[nodiscard]] auto is_const() const& -> bool;
 
-#line 342 "source/reverse_ad.h2"
+#line 525 "source/reverse_ad.h2"
     /*
       @brief Check if this type is a reference.
       @return true if lvalue or rvalue reference.
      */
     public: [[nodiscard]] auto is_reference() const& -> bool;
 
-#line 350 "source/reverse_ad.h2"
+#line 533 "source/reverse_ad.h2"
     /*
       @brief Check if this type is a pointer.
       @return true if pointer type.
      */
     public: [[nodiscard]] auto is_pointer() const& -> bool;
 
-#line 358 "source/reverse_ad.h2"
+#line 541 "source/reverse_ad.h2"
     /*
       @brief Get the underlying type, stripping qualifiers and modifiers.
       @return Base type (recursive unwrap).
      */
     public: [[nodiscard]] auto get_base_type() const& -> ad_type;
 
-#line 368 "source/reverse_ad.h2"
+#line 551 "source/reverse_ad.h2"
 };
 
 /*
@@ -473,7 +634,7 @@ class ad_type {
  */
 [[nodiscard]] auto ad_type_to_string(cpp2::impl::in<ad_type> t) -> std::string;
 
-#line 433 "source/reverse_ad.h2"
+#line 616 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //  Operation kinds for AD expressions
 //-----------------------------------------------------------------------
@@ -547,7 +708,7 @@ public: [[nodiscard]] auto to_code() const& -> std::string;
 public: [[nodiscard]] static auto from_string(cpp2::impl::in<std::string_view> s) -> ad_op_kind;
 public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) -> ad_op_kind;
 
-#line 445 "source/reverse_ad.h2"
+#line 628 "source/reverse_ad.h2"
     // Arithmetic operators
                 // Binary addition
                 // Binary subtraction
@@ -610,7 +771,7 @@ public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) 
                 // Function call (differentiation rules looked up by name)
                 // Numeric literal
                 // Variable reference
-#line 507 "source/reverse_ad.h2"
+#line 690 "source/reverse_ad.h2"
 };
 
 /*
@@ -650,7 +811,7 @@ public: [[nodiscard]] auto to_code() const& -> std::string;
 public: [[nodiscard]] static auto from_string(cpp2::impl::in<std::string_view> s) -> ad_expr_kind;
 public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) -> ad_expr_kind;
 
-#line 516 "source/reverse_ad.h2"
+#line 699 "source/reverse_ad.h2"
     // Values
                     // Numeric/string literal (e.g., 3.0, "hello")
                     // Variable reference (e.g., x)
@@ -676,7 +837,7 @@ public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) 
                     // Parenthesized expression ((expr))
                     // Lambda expression ([captures](params) { body })
                       // Initializer list ({a, b, c})
-#line 541 "source/reverse_ad.h2"
+#line 724 "source/reverse_ad.h2"
 };
 
 /*
@@ -721,7 +882,7 @@ public: [[nodiscard]] auto to_code() const& -> std::string;
 public: [[nodiscard]] static auto from_string(cpp2::impl::in<std::string_view> s) -> ad_stmt_kind;
 public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) -> ad_stmt_kind;
 
-#line 550 "source/reverse_ad.h2"
+#line 733 "source/reverse_ad.h2"
     // Declarations
                     // Local variable declaration (name: type = init)
 
@@ -757,7 +918,7 @@ public: [[nodiscard]] static auto from_code(cpp2::impl::in<std::string_view> s) 
     // Exception handling (future)
                     // Try-catch block
                     // Throw statement
-#line 585 "source/reverse_ad.h2"
+#line 768 "source/reverse_ad.h2"
 };
 
 /*
@@ -798,11 +959,11 @@ class ad_expr {
 
     /// Copy constructor
     public: ad_expr(ad_expr const& that);
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     public: auto operator=(ad_expr const& that) -> ad_expr& ;
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     public: ad_expr(ad_expr&& that) noexcept;
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     public: auto operator=(ad_expr&& that) noexcept -> ad_expr& ;
 
     // ===== Factory methods for basic expressions =====
@@ -815,7 +976,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_literal(cpp2::impl::in<std::string> value, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 643 "source/reverse_ad.h2"
+#line 826 "source/reverse_ad.h2"
     /*
       @brief Create a literal expression with structured type.
       @param value Literal value as string.
@@ -824,7 +985,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_literal_typed(cpp2::impl::in<std::string> value, cpp2::impl::in<ad_type> t) -> ad_expr;
 
-#line 659 "source/reverse_ad.h2"
+#line 842 "source/reverse_ad.h2"
     /*
       @brief Create an identifier expression.
       @param name_ Variable name.
@@ -833,7 +994,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_identifier(cpp2::impl::in<std::string> name_, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 674 "source/reverse_ad.h2"
+#line 857 "source/reverse_ad.h2"
     /*
       @brief Create an identifier expression with structured type.
       @param name_ Variable name.
@@ -842,7 +1003,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_identifier_typed(cpp2::impl::in<std::string> name_, cpp2::impl::in<ad_type> t) -> ad_expr;
 
-#line 690 "source/reverse_ad.h2"
+#line 873 "source/reverse_ad.h2"
     // ===== Factory methods for operations =====
 
     /*
@@ -854,7 +1015,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_unary(cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<ad_expr> operand, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 708 "source/reverse_ad.h2"
+#line 891 "source/reverse_ad.h2"
     /*
       @brief Create a binary expression.
       @param op_ Operation kind (e.g., add, mul, lt, land).
@@ -865,7 +1026,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_binary(cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 726 "source/reverse_ad.h2"
+#line 909 "source/reverse_ad.h2"
     /*
       @brief Create a ternary (conditional) expression.
       @param condition Condition expression.
@@ -877,7 +1038,7 @@ class ad_expr {
     public: [[nodiscard]] static auto make_ternary(cpp2::impl::in<ad_expr> condition, cpp2::impl::in<ad_expr> then_expr, cpp2::impl::in<ad_expr> else_expr, 
                    cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 745 "source/reverse_ad.h2"
+#line 928 "source/reverse_ad.h2"
     // ===== Factory methods for access expressions =====
 
     /*
@@ -891,7 +1052,7 @@ class ad_expr {
     public: [[nodiscard]] static auto make_member(cpp2::impl::in<ad_expr> object, cpp2::impl::in<std::string> member, cpp2::impl::in<bool> is_arrow, 
                   cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 767 "source/reverse_ad.h2"
+#line 950 "source/reverse_ad.h2"
     /*
       @brief Create a subscript expression (arr[index]).
       @param array Array/container expression.
@@ -901,7 +1062,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_subscript(cpp2::impl::in<ad_expr> array, cpp2::impl::in<ad_expr> index, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 783 "source/reverse_ad.h2"
+#line 966 "source/reverse_ad.h2"
     // ===== Factory methods for calls =====
 
     /*
@@ -914,7 +1075,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_call(cpp2::impl::in<std::string> func_name, cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<std::vector<ad_expr>> call_args, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 803 "source/reverse_ad.h2"
+#line 986 "source/reverse_ad.h2"
     /*
       @brief Create a function call with template arguments.
       @param func_name Function name.
@@ -926,7 +1087,7 @@ class ad_expr {
     public: [[nodiscard]] static auto make_template_call(cpp2::impl::in<std::string> func_name, cpp2::impl::in<std::vector<ad_expr>> call_args, 
                          cpp2::impl::in<std::vector<ad_type>> template_args, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 823 "source/reverse_ad.h2"
+#line 1006 "source/reverse_ad.h2"
     /*
       @brief Create a method call expression (obj.method(args)).
       @param object Object expression.
@@ -938,7 +1099,7 @@ class ad_expr {
     public: [[nodiscard]] static auto make_method_call(cpp2::impl::in<ad_expr> object, cpp2::impl::in<std::string> method_name, 
                        cpp2::impl::in<std::vector<ad_expr>> call_args, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 845 "source/reverse_ad.h2"
+#line 1028 "source/reverse_ad.h2"
     // ===== Factory methods for type operations =====
 
     /*
@@ -952,7 +1113,7 @@ class ad_expr {
     public: [[nodiscard]] static auto make_cast(cpp2::impl::in<std::string> cast_kind, cpp2::impl::in<ad_type> target_type, cpp2::impl::in<ad_expr> expr, 
                 cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 866 "source/reverse_ad.h2"
+#line 1049 "source/reverse_ad.h2"
     /*
       @brief Create a constructor call expression (T(args) or T{args}).
       @param type_name_ Type being constructed.
@@ -961,7 +1122,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_construct(cpp2::impl::in<std::string> type_name_, cpp2::impl::in<std::vector<ad_expr>> construct_args) -> ad_expr;
 
-#line 881 "source/reverse_ad.h2"
+#line 1064 "source/reverse_ad.h2"
     // ===== Factory methods for special expressions =====
 
     /*
@@ -971,7 +1132,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_paren(cpp2::impl::in<ad_expr> inner) -> ad_expr;
 
-#line 896 "source/reverse_ad.h2"
+#line 1079 "source/reverse_ad.h2"
     /*
       @brief Create an initializer list expression ({a, b, c}).
       @param elements List elements.
@@ -980,7 +1141,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_initializer_list(cpp2::impl::in<std::vector<ad_expr>> elements, cpp2::impl::in<std::string> type_name_) -> ad_expr;
 
-#line 910 "source/reverse_ad.h2"
+#line 1093 "source/reverse_ad.h2"
     // ===== Convenience factory methods =====
 
     /*
@@ -990,7 +1151,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_int_literal(cpp2::impl::in<int> value) -> ad_expr;
 
-#line 921 "source/reverse_ad.h2"
+#line 1104 "source/reverse_ad.h2"
     /*
       @brief Create a double literal.
       @param value Double value.
@@ -998,7 +1159,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_double_literal(cpp2::impl::in<double> value) -> ad_expr;
 
-#line 930 "source/reverse_ad.h2"
+#line 1113 "source/reverse_ad.h2"
     /*
       @brief Create a boolean literal.
       @param value Boolean value.
@@ -1006,7 +1167,7 @@ class ad_expr {
      */
     public: [[nodiscard]] static auto make_bool_literal(cpp2::impl::in<bool> value) -> ad_expr;
 
-#line 939 "source/reverse_ad.h2"
+#line 1122 "source/reverse_ad.h2"
 };
 
 /*
@@ -1057,11 +1218,11 @@ class ad_stmt {
 
     /// Copy constructor
     public: ad_stmt(ad_stmt const& that);
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     public: auto operator=(ad_stmt const& that) -> ad_stmt& ;
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     public: ad_stmt(ad_stmt&& that) noexcept;
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     public: auto operator=(ad_stmt&& that) noexcept -> ad_stmt& ;
 
     // ===== Factory methods for declarations and assignments =====
@@ -1075,7 +1236,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_decl(cpp2::impl::in<std::string> name, cpp2::impl::in<std::string> type_name_, cpp2::impl::in<ad_expr> init) -> ad_stmt;
 
-#line 1008 "source/reverse_ad.h2"
+#line 1191 "source/reverse_ad.h2"
     /*
       @brief Create a declaration statement with structured type.
       @param name Variable name.
@@ -1085,7 +1246,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_decl_typed(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_type> t, cpp2::impl::in<ad_expr> init) -> ad_stmt;
 
-#line 1025 "source/reverse_ad.h2"
+#line 1208 "source/reverse_ad.h2"
     /*
       @brief Create an assignment statement.
       @param name Target variable name.
@@ -1094,7 +1255,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_assign(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1039 "source/reverse_ad.h2"
+#line 1222 "source/reverse_ad.h2"
     /*
       @brief Create a compound assignment statement (+=, -=, =, /=, etc.).
       @param name Target variable name.
@@ -1104,7 +1265,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_compound_assign(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1055 "source/reverse_ad.h2"
+#line 1238 "source/reverse_ad.h2"
     /*
       @brief Create an add-assignment statement (+=).
       @param name Target variable name.
@@ -1114,7 +1275,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_assign_add(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1070 "source/reverse_ad.h2"
+#line 1253 "source/reverse_ad.h2"
     /*
       @brief Create a subtract-assignment statement (-=).
       @param name Target variable name.
@@ -1123,7 +1284,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_assign_sub(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1080 "source/reverse_ad.h2"
+#line 1263 "source/reverse_ad.h2"
     /*
       @brief Create a multiply-assignment statement (=).
       @param name Target variable name.
@@ -1132,7 +1293,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_assign_mul(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1090 "source/reverse_ad.h2"
+#line 1273 "source/reverse_ad.h2"
     /*
       @brief Create a divide-assignment statement (/=).
       @param name Target variable name.
@@ -1141,7 +1302,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_assign_div(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1100 "source/reverse_ad.h2"
+#line 1283 "source/reverse_ad.h2"
     // ===== Factory methods for expression and return statements =====
 
     /*
@@ -1151,7 +1312,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_expr(cpp2::impl::in<ad_expr> e) -> ad_stmt;
 
-#line 1114 "source/reverse_ad.h2"
+#line 1297 "source/reverse_ad.h2"
     /*
       @brief Create a return statement.
       @param value Return value expression.
@@ -1159,7 +1320,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_return(cpp2::impl::in<ad_expr> value) -> ad_stmt;
 
-#line 1126 "source/reverse_ad.h2"
+#line 1309 "source/reverse_ad.h2"
     // ===== Factory methods for control flow =====
 
     /*
@@ -1169,7 +1330,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_compound(cpp2::impl::in<std::vector<ad_stmt>> nested) -> ad_stmt;
 
-#line 1140 "source/reverse_ad.h2"
+#line 1323 "source/reverse_ad.h2"
     /*
       @brief Create an if statement.
       @param condition Condition expression.
@@ -1180,7 +1341,7 @@ class ad_stmt {
     public: [[nodiscard]] static auto make_if(cpp2::impl::in<ad_expr> condition, cpp2::impl::in<std::vector<ad_stmt>> then_body, 
               cpp2::impl::in<std::vector<ad_stmt>> else_body) -> ad_stmt;
 
-#line 1157 "source/reverse_ad.h2"
+#line 1340 "source/reverse_ad.h2"
     /*
       @brief Create a C-style for loop.
       @param init Initialization statement.
@@ -1192,7 +1353,7 @@ class ad_stmt {
     public: [[nodiscard]] static auto make_for(cpp2::impl::in<ad_stmt> init, cpp2::impl::in<ad_expr> condition, cpp2::impl::in<ad_expr> increment, 
                cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
 
-#line 1176 "source/reverse_ad.h2"
+#line 1359 "source/reverse_ad.h2"
     /*
       @brief Create a range-based for loop (foreach).
       @param var_name Loop variable name.
@@ -1204,7 +1365,7 @@ class ad_stmt {
     public: [[nodiscard]] static auto make_foreach(cpp2::impl::in<std::string> var_name, cpp2::impl::in<std::string> var_type, 
                    cpp2::impl::in<ad_expr> range, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
 
-#line 1195 "source/reverse_ad.h2"
+#line 1378 "source/reverse_ad.h2"
     /*
       @brief Create a while loop.
       @param condition Loop condition.
@@ -1213,7 +1374,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_while(cpp2::impl::in<ad_expr> condition, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
 
-#line 1209 "source/reverse_ad.h2"
+#line 1392 "source/reverse_ad.h2"
     /*
       @brief Create a do-while loop.
       @param body Loop body statements.
@@ -1222,7 +1383,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_do_while(cpp2::impl::in<std::vector<ad_stmt>> body, cpp2::impl::in<ad_expr> condition) -> ad_stmt;
 
-#line 1223 "source/reverse_ad.h2"
+#line 1406 "source/reverse_ad.h2"
     // ===== Factory methods for jump statements =====
 
     /*
@@ -1231,14 +1392,14 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_break() -> ad_stmt;
 
-#line 1235 "source/reverse_ad.h2"
+#line 1418 "source/reverse_ad.h2"
     /*
       @brief Create a continue statement.
       @return Continue statement node.
      */
     public: [[nodiscard]] static auto make_continue() -> ad_stmt;
 
-#line 1245 "source/reverse_ad.h2"
+#line 1428 "source/reverse_ad.h2"
     // ===== Factory methods for switch statement =====
 
     /*
@@ -1252,7 +1413,7 @@ class ad_stmt {
                   cpp2::impl::in<std::vector<std::pair<ad_expr,std::vector<ad_stmt>>>> cases, 
                   cpp2::impl::in<std::vector<ad_stmt>> default_body) -> ad_stmt;
 
-#line 1265 "source/reverse_ad.h2"
+#line 1448 "source/reverse_ad.h2"
     // ===== Factory methods for exception handling =====
 
     /*
@@ -1267,7 +1428,7 @@ class ad_stmt {
                      cpp2::impl::in<std::string> catch_type_, cpp2::impl::in<std::string> catch_var_, 
                      cpp2::impl::in<std::vector<ad_stmt>> catch_body) -> ad_stmt;
 
-#line 1287 "source/reverse_ad.h2"
+#line 1470 "source/reverse_ad.h2"
     /*
       @brief Create a throw statement.
       @param throw_expr Expression to throw.
@@ -1275,7 +1436,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_throw(cpp2::impl::in<ad_expr> throw_expr) -> ad_stmt;
 
-#line 1299 "source/reverse_ad.h2"
+#line 1482 "source/reverse_ad.h2"
     // ===== Legacy factory methods =====
 
     /*
@@ -1286,7 +1447,7 @@ class ad_stmt {
      */
     public: [[nodiscard]] static auto make_raw_code(cpp2::impl::in<std::string> code) -> ad_stmt;
 
-#line 1313 "source/reverse_ad.h2"
+#line 1496 "source/reverse_ad.h2"
 };
 
 /*
@@ -1305,11 +1466,11 @@ class ad_param {
 
     /// Copy constructor
     public: ad_param(ad_param const& that);
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     public: auto operator=(ad_param const& that) -> ad_param& ;
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     public: ad_param(ad_param&& that) noexcept;
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     public: auto operator=(ad_param&& that) noexcept -> ad_param& ;
 
     /*
@@ -1322,7 +1483,7 @@ class ad_param {
      */
     public: [[nodiscard]] static auto make(cpp2::impl::in<std::string> name_, cpp2::impl::in<std::string> type_name_, cpp2::impl::in<passing_style> pass_, cpp2::impl::in<bool> is_active_) -> ad_param;
 
-#line 1348 "source/reverse_ad.h2"
+#line 1531 "source/reverse_ad.h2"
 };
 
 /*
@@ -1344,565 +1505,13 @@ class ad_function_ir {
 
     /// Copy constructor
     public: ad_function_ir(ad_function_ir const& that);
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     public: auto operator=(ad_function_ir const& that) -> ad_function_ir& ;
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     public: ad_function_ir(ad_function_ir&& that) noexcept;
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     public: auto operator=(ad_function_ir&& that) noexcept -> ad_function_ir& ;
 };
-
-//-----------------------------------------------------------------------
-//
-//  AD IR Helper Modules - Convenience builders following Stan's pattern
-//
-//-----------------------------------------------------------------------
-
-/*
-  @brief Type helper namespace for creating common types.
- 
-  Provides convenient factory functions for commonly used types in autodiff.
-  Following Stan compiler's MIR pattern of reducing boilerplate.
- */
-namespace ad_types {
-
-    // ===== Primitive types =====
-
-    /*
-      @brief Create a double type.
-     */
-    [[nodiscard]] auto double_() -> ad_type;
-
-#line 1394 "source/reverse_ad.h2"
-    /*
-      @brief Create an int type.
-     */
-    [[nodiscard]] auto int_() -> ad_type;
-
-#line 1401 "source/reverse_ad.h2"
-    /*
-      @brief Create a size_t type.
-     */
-    [[nodiscard]] auto size_t_() -> ad_type;
-
-#line 1408 "source/reverse_ad.h2"
-    /*
-      @brief Create a bool type.
-     */
-    [[nodiscard]] auto bool_() -> ad_type;
-
-#line 1415 "source/reverse_ad.h2"
-    /*
-      @brief Create a void type.
-     */
-    [[nodiscard]] auto void_() -> ad_type;
-
-#line 1422 "source/reverse_ad.h2"
-    /*
-      @brief Create an auto type.
-     */
-    [[nodiscard]] auto auto_() -> ad_type;
-
-#line 1429 "source/reverse_ad.h2"
-    // ===== Qualified types =====
-
-    /*
-      @brief Create const double type.
-     */
-    [[nodiscard]] auto const_double() -> ad_type;
-
-#line 1438 "source/reverse_ad.h2"
-    /*
-      @brief Create double reference type (double&).
-     */
-    [[nodiscard]] auto double_ref() -> ad_type;
-
-#line 1445 "source/reverse_ad.h2"
-    /*
-      @brief Create const double reference type (const double&).
-     */
-    [[nodiscard]] auto const_double_ref() -> ad_type;
-
-#line 1452 "source/reverse_ad.h2"
-    /*
-      @brief Create int reference type (int&).
-     */
-    [[nodiscard]] auto int_ref() -> ad_type;
-
-#line 1459 "source/reverse_ad.h2"
-    /*
-      @brief Create const int reference type (const int&).
-     */
-    [[nodiscard]] auto const_int_ref() -> ad_type;
-
-#line 1466 "source/reverse_ad.h2"
-    // ===== Container types =====
-
-    /*
-      @brief Create std::vector<T> type.
-      @param elem Element type.
-     */
-    [[nodiscard]] auto std_vector(cpp2::impl::in<ad_type> elem) -> ad_type;
-
-#line 1476 "source/reverse_ad.h2"
-    /*
-      @brief Create std::vector<double> type.
-     */
-    [[nodiscard]] auto vector_double() -> ad_type;
-
-#line 1483 "source/reverse_ad.h2"
-    /*
-      @brief Create std::vector<int> type.
-     */
-    [[nodiscard]] auto vector_int() -> ad_type;
-
-#line 1490 "source/reverse_ad.h2"
-    /*
-      @brief Create const reference to std::vector<double>.
-     */
-    [[nodiscard]] auto const_vector_double_ref() -> ad_type;
-
-#line 1497 "source/reverse_ad.h2"
-    // ===== Named types =====
-
-    /*
-      @brief Create a named type.
-      @param name Type name.
-     */
-    [[nodiscard]] auto named(cpp2::impl::in<std::string> name) -> ad_type;
-
-#line 1507 "source/reverse_ad.h2"
-    /*
-      @brief Create a template type.
-      @param name Template name.
-      @param args Type arguments.
-     */
-    [[nodiscard]] auto template_(cpp2::impl::in<std::string> name, cpp2::impl::in<std::vector<ad_type>> args) -> ad_type;
-
-#line 1515 "source/reverse_ad.h2"
-}
-
-/*
-  @brief Expression helper namespace for creating common expressions.
- 
-  Provides convenient factory functions for commonly used expressions in autodiff.
- */
-namespace ad_exprs {
-
-    // ===== Literals =====
-
-    /*
-      @brief Create a variable reference (identifier).
-      @param name Variable name.
-     */
-    [[nodiscard]] auto var(cpp2::impl::in<std::string> name) -> ad_expr;
-
-#line 1534 "source/reverse_ad.h2"
-    /*
-      @brief Create a typed variable reference.
-      @param name Variable name.
-      @param type_name Type name.
-     */
-    [[nodiscard]] auto var_typed(cpp2::impl::in<std::string> name, cpp2::impl::in<std::string> type_name) -> ad_expr;
-
-#line 1543 "source/reverse_ad.h2"
-    /*
-      @brief Create a double literal.
-      @param value Numeric value.
-     */
-    [[nodiscard]] auto lit(cpp2::impl::in<double> value) -> ad_expr;
-
-#line 1551 "source/reverse_ad.h2"
-    /*
-      @brief Create a string literal.
-      @param value String value (as Cpp2 source).
-     */
-    [[nodiscard]] auto lit_str(cpp2::impl::in<std::string> value) -> ad_expr;
-
-#line 1559 "source/reverse_ad.h2"
-    /*
-      @brief Create an integer literal.
-      @param value Integer value.
-     */
-    [[nodiscard]] auto lit_int(cpp2::impl::in<int> value) -> ad_expr;
-
-#line 1567 "source/reverse_ad.h2"
-    /*
-      @brief Create a boolean literal.
-      @param value Boolean value.
-     */
-    [[nodiscard]] auto lit_bool(cpp2::impl::in<bool> value) -> ad_expr;
-
-#line 1575 "source/reverse_ad.h2"
-    /*
-      @brief Create zero literal (0.0).
-     */
-    [[nodiscard]] auto zero() -> ad_expr;
-
-#line 1582 "source/reverse_ad.h2"
-    /*
-      @brief Create one literal (1.0).
-     */
-    [[nodiscard]] auto one() -> ad_expr;
-
-#line 1589 "source/reverse_ad.h2"
-    // ===== Arithmetic operations =====
-
-    /*
-      @brief Create addition expression.
-     */
-    [[nodiscard]] auto add(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1598 "source/reverse_ad.h2"
-    /*
-      @brief Create subtraction expression.
-     */
-    [[nodiscard]] auto sub(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1605 "source/reverse_ad.h2"
-    /*
-      @brief Create multiplication expression.
-     */
-    [[nodiscard]] auto mul(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1612 "source/reverse_ad.h2"
-    /*
-      @brief Create division expression.
-     */
-    [[nodiscard]] auto div(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1619 "source/reverse_ad.h2"
-    /*
-      @brief Create negation expression.
-     */
-    [[nodiscard]] auto neg(cpp2::impl::in<ad_expr> operand) -> ad_expr;
-
-#line 1626 "source/reverse_ad.h2"
-    // ===== Comparison operations =====
-
-    /*
-      @brief Create less-than comparison.
-     */
-    [[nodiscard]] auto lt(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1635 "source/reverse_ad.h2"
-    /*
-      @brief Create greater-than comparison.
-     */
-    [[nodiscard]] auto gt(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1642 "source/reverse_ad.h2"
-    /*
-      @brief Create less-or-equal comparison.
-     */
-    [[nodiscard]] auto le(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1649 "source/reverse_ad.h2"
-    /*
-      @brief Create greater-or-equal comparison.
-     */
-    [[nodiscard]] auto ge(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1656 "source/reverse_ad.h2"
-    /*
-      @brief Create equality comparison.
-     */
-    [[nodiscard]] auto eq(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1663 "source/reverse_ad.h2"
-    /*
-      @brief Create inequality comparison.
-     */
-    [[nodiscard]] auto ne(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1670 "source/reverse_ad.h2"
-    // ===== Logical operations =====
-
-    /*
-      @brief Create logical AND.
-     */
-    [[nodiscard]] auto land(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1679 "source/reverse_ad.h2"
-    /*
-      @brief Create logical OR.
-     */
-    [[nodiscard]] auto lor(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr;
-
-#line 1686 "source/reverse_ad.h2"
-    /*
-      @brief Create logical NOT.
-     */
-    [[nodiscard]] auto lnot(cpp2::impl::in<ad_expr> operand) -> ad_expr;
-
-#line 1693 "source/reverse_ad.h2"
-    // ===== Increment/Decrement =====
-
-    /*
-      @brief Create prefix increment (++x).
-     */
-    [[nodiscard]] auto pre_inc(cpp2::impl::in<ad_expr> operand) -> ad_expr;
-
-#line 1702 "source/reverse_ad.h2"
-    /*
-      @brief Create prefix decrement (--x).
-     */
-    [[nodiscard]] auto pre_dec(cpp2::impl::in<ad_expr> operand) -> ad_expr;
-
-#line 1709 "source/reverse_ad.h2"
-    /*
-      @brief Create postfix increment (x++).
-     */
-    [[nodiscard]] auto post_inc(cpp2::impl::in<ad_expr> operand) -> ad_expr;
-
-#line 1716 "source/reverse_ad.h2"
-    /*
-      @brief Create postfix decrement (x--).
-     */
-    [[nodiscard]] auto post_dec(cpp2::impl::in<ad_expr> operand) -> ad_expr;
-
-#line 1723 "source/reverse_ad.h2"
-    // ===== Access expressions =====
-
-    /*
-      @brief Create member access (obj.member).
-     */
-    [[nodiscard]] auto member(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> member_name) -> ad_expr;
-
-#line 1732 "source/reverse_ad.h2"
-    /*
-      @brief Create pointer member access (obj->member).
-     */
-    [[nodiscard]] auto arrow(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> member_name) -> ad_expr;
-
-#line 1739 "source/reverse_ad.h2"
-    /*
-      @brief Create subscript access (arr[index]).
-     */
-    [[nodiscard]] auto subscript(cpp2::impl::in<ad_expr> arr, cpp2::impl::in<ad_expr> index) -> ad_expr;
-
-#line 1746 "source/reverse_ad.h2"
-    /*
-      @brief Create subscript with integer index.
-     */
-    [[nodiscard]] auto at(cpp2::impl::in<ad_expr> arr, cpp2::impl::in<int> index) -> ad_expr;
-
-#line 1753 "source/reverse_ad.h2"
-    // ===== Calls =====
-
-    /*
-      @brief Create a function call.
-      @param fn Function name.
-      @param args Call arguments.
-     */
-    [[nodiscard]] auto call(cpp2::impl::in<std::string> fn, cpp2::impl::in<std::vector<ad_expr>> args) -> ad_expr;
-
-#line 1764 "source/reverse_ad.h2"
-    /*
-      @brief Create a method call.
-      @param obj Object expression.
-      @param method Method name.
-      @param args Call arguments.
-     */
-    [[nodiscard]] auto method(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> method_name, cpp2::impl::in<std::vector<ad_expr>> args) -> ad_expr;
-
-#line 1774 "source/reverse_ad.h2"
-    /*
-      @brief Create a method call with no arguments.
-     */
-    [[nodiscard]] auto method0(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> method_name) -> ad_expr;
-
-#line 1782 "source/reverse_ad.h2"
-    // ===== Common math function calls =====
-
-    /*
-      @brief Create sin(x) call.
-     */
-    [[nodiscard]] auto sin(cpp2::impl::in<ad_expr> x) -> ad_expr;
-
-#line 1793 "source/reverse_ad.h2"
-    /*
-      @brief Create cos(x) call.
-     */
-    [[nodiscard]] auto cos(cpp2::impl::in<ad_expr> x) -> ad_expr;
-
-#line 1802 "source/reverse_ad.h2"
-    /*
-      @brief Create exp(x) call.
-     */
-    [[nodiscard]] auto exp(cpp2::impl::in<ad_expr> x) -> ad_expr;
-
-#line 1811 "source/reverse_ad.h2"
-    /*
-      @brief Create log(x) call.
-     */
-    [[nodiscard]] auto log(cpp2::impl::in<ad_expr> x) -> ad_expr;
-
-#line 1820 "source/reverse_ad.h2"
-    /*
-      @brief Create sqrt(x) call.
-     */
-    [[nodiscard]] auto sqrt(cpp2::impl::in<ad_expr> x) -> ad_expr;
-
-#line 1829 "source/reverse_ad.h2"
-    /*
-      @brief Create pow(x, y) call.
-     */
-    [[nodiscard]] auto pow(cpp2::impl::in<ad_expr> x, cpp2::impl::in<ad_expr> y) -> ad_expr;
-
-#line 1839 "source/reverse_ad.h2"
-    // ===== Ternary and other =====
-
-    /*
-      @brief Create a ternary expression (cond ? then : else).
-     */
-    [[nodiscard]] auto ternary(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<ad_expr> then_expr, cpp2::impl::in<ad_expr> else_expr) -> ad_expr;
-
-#line 1848 "source/reverse_ad.h2"
-    /*
-      @brief Create a parenthesized expression.
-     */
-    [[nodiscard]] auto paren(cpp2::impl::in<ad_expr> inner) -> ad_expr;
-
-#line 1854 "source/reverse_ad.h2"
-}
-
-/*
-  @brief Statement helper namespace for creating common statements.
- 
-  Provides convenient factory functions for commonly used statements in autodiff.
- */
-namespace ad_stmts {
-
-    // ===== Declarations =====
-
-    /*
-      @brief Create a declaration with initializer.
-     */
-    [[nodiscard]] auto decl_init(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> init) -> ad_stmt;
-
-#line 1872 "source/reverse_ad.h2"
-    /*
-      @brief Create a double declaration with initializer.
-     */
-    [[nodiscard]] auto decl_double(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> init) -> ad_stmt;
-
-#line 1879 "source/reverse_ad.h2"
-    /*
-      @brief Create an int declaration with initializer.
-     */
-    [[nodiscard]] auto decl_int(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> init) -> ad_stmt;
-
-#line 1886 "source/reverse_ad.h2"
-    /*
-      @brief Create a declaration with zero initializer.
-     */
-    [[nodiscard]] auto decl_zero(cpp2::impl::in<std::string> name) -> ad_stmt;
-
-#line 1893 "source/reverse_ad.h2"
-    // ===== Assignments =====
-
-    /*
-      @brief Create an assignment.
-     */
-    [[nodiscard]] auto assign(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt;
-
-#line 1902 "source/reverse_ad.h2"
-    /*
-      @brief Create an add-assignment (+=).
-     */
-    [[nodiscard]] auto assign_add(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt;
-
-#line 1909 "source/reverse_ad.h2"
-    /*
-      @brief Create a subtract-assignment (-=).
-     */
-    [[nodiscard]] auto assign_sub(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt;
-
-#line 1916 "source/reverse_ad.h2"
-    /*
-      @brief Create a multiply-assignment (=).
-     */
-    [[nodiscard]] auto assign_mul(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt;
-
-#line 1923 "source/reverse_ad.h2"
-    /*
-      @brief Create a divide-assignment (/=).
-     */
-    [[nodiscard]] auto assign_div(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt;
-
-#line 1930 "source/reverse_ad.h2"
-    // ===== Control flow =====
-
-    /*
-      @brief Create an if-then statement (no else).
-     */
-    [[nodiscard]] auto if_then(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
-
-#line 1940 "source/reverse_ad.h2"
-    /*
-      @brief Create an if-then-else statement.
-     */
-    [[nodiscard]] auto if_else(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<std::vector<ad_stmt>> then_body, cpp2::impl::in<std::vector<ad_stmt>> else_body) -> ad_stmt;
-
-#line 1947 "source/reverse_ad.h2"
-    /*
-      @brief Create a for loop with int counter.
-      @param var Loop variable name.
-      @param start Start value.
-      @param end_exclusive End value (exclusive).
-      @param body Loop body.
-     */
-    [[nodiscard]] auto for_range(cpp2::impl::in<std::string> var, cpp2::impl::in<int> start, cpp2::impl::in<ad_expr> end_exclusive, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
-
-#line 1961 "source/reverse_ad.h2"
-    /*
-      @brief Create a while loop.
-     */
-    [[nodiscard]] auto while_(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
-
-#line 1968 "source/reverse_ad.h2"
-    /*
-      @brief Create a foreach loop.
-     */
-    [[nodiscard]] auto foreach(cpp2::impl::in<std::string> var, cpp2::impl::in<ad_expr> range, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt;
-
-#line 1975 "source/reverse_ad.h2"
-    // ===== Jump statements =====
-
-    /*
-      @brief Create a return statement.
-     */
-    [[nodiscard]] auto return_(cpp2::impl::in<ad_expr> value) -> ad_stmt;
-
-#line 1984 "source/reverse_ad.h2"
-    /*
-      @brief Create a break statement.
-     */
-    [[nodiscard]] auto break_() -> ad_stmt;
-
-#line 1991 "source/reverse_ad.h2"
-    /*
-      @brief Create a continue statement.
-     */
-    [[nodiscard]] auto continue_() -> ad_stmt;
-
-#line 1998 "source/reverse_ad.h2"
-    // ===== Expression statements =====
-
-    /*
-      @brief Create an expression statement.
-     */
-    [[nodiscard]] auto expr(cpp2::impl::in<ad_expr> e) -> ad_stmt;
-
-#line 2007 "source/reverse_ad.h2"
-    /*
-      @brief Create a compound statement (block).
-     */
-    [[nodiscard]] auto block(cpp2::impl::in<std::vector<ad_stmt>> stmts) -> ad_stmt;
-
-#line 2013 "source/reverse_ad.h2"
-}
 
 //-----------------------------------------------------------------------
 //
@@ -1917,53 +1526,7 @@ namespace ad_stmts {
  */
 [[nodiscard]] auto ad_op_kind_to_string(cpp2::impl::in<ad_op_kind> op) -> std::string;
 
-#line 2093 "source/reverse_ad.h2"
-/*
-  @brief Convert ad_expr_kind to string for debug output.
-  @param kind Expression kind.
-  @return String representation.
- */
-[[nodiscard]] auto ad_expr_kind_to_string(cpp2::impl::in<ad_expr_kind> kind) -> std::string;
-
-#line 2116 "source/reverse_ad.h2"
-/*
-  @brief Convert ad_stmt_kind to string for debug output.
-  @param kind Statement kind.
-  @return String representation.
- */
-[[nodiscard]] auto ad_stmt_kind_to_string(cpp2::impl::in<ad_stmt_kind> kind) -> std::string;
-
-#line 2144 "source/reverse_ad.h2"
-/*
-  @brief Print indentation for debug output.
-  @param indent Indentation level.
- */
-auto ad_ir_print_indent(cpp2::impl::in<cpp2::i32> indent) -> void;
-
-#line 2155 "source/reverse_ad.h2"
-/*
-  @brief Print a readable form of an IR expression.
-  @param e Expression to dump.
-  @param indent Indentation level.
- */
-auto ad_ir_debug_dump_expr(cpp2::impl::in<ad_expr> e, cpp2::impl::in<cpp2::i32> indent = 0) -> void;
-
-#line 2254 "source/reverse_ad.h2"
-/*
-  @brief Print a readable form of an IR statement.
-  @param s Statement to dump.
-  @param indent Indentation level.
- */
-auto ad_ir_debug_dump_stmt(cpp2::impl::in<ad_stmt> s, cpp2::impl::in<cpp2::i32> indent = 0) -> void;
-
-#line 2394 "source/reverse_ad.h2"
-/*
-  @brief Print a readable form of a function IR.
-  @param ir Function IR to dump.
- */
-auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void;
-
-#line 2426 "source/reverse_ad.h2"
+#line 1632 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //
 //  IR-based parameter substitution for rule bodies
@@ -1984,11 +1547,11 @@ class ad_substitution_context {
 
     /// Copy constructor
     public: ad_substitution_context(ad_substitution_context const& that);
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     public: auto operator=(ad_substitution_context const& that) -> ad_substitution_context& ;
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     public: ad_substitution_context(ad_substitution_context&& that) noexcept;
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     public: auto operator=(ad_substitution_context&& that) noexcept -> ad_substitution_context& ;
 
     /*
@@ -1998,7 +1561,7 @@ class ad_substitution_context {
      */
     public: auto add(cpp2::impl::in<std::string> param_name, cpp2::impl::in<ad_expr> expr) & -> void;
 
-#line 2456 "source/reverse_ad.h2"
+#line 1662 "source/reverse_ad.h2"
     /*
       @brief Find a substitution for a parameter name.
       @param name Parameter name to look up.
@@ -2007,7 +1570,7 @@ class ad_substitution_context {
      */
     public: [[nodiscard]] auto find(cpp2::impl::in<std::string> name, ad_expr& result) const& -> bool;
 
-#line 2472 "source/reverse_ad.h2"
+#line 1678 "source/reverse_ad.h2"
     /*
       @brief Check if a name has a substitution.
       @param name Parameter name to check.
@@ -2015,14 +1578,14 @@ class ad_substitution_context {
      */
     public: [[nodiscard]] auto has(cpp2::impl::in<std::string> name) const& -> bool;
 
-#line 2486 "source/reverse_ad.h2"
+#line 1692 "source/reverse_ad.h2"
     /*
       @brief Get the number of substitutions.
       @return Number of substitution mappings.
      */
     public: [[nodiscard]] auto size() const& -> int;
 
-#line 2493 "source/reverse_ad.h2"
+#line 1699 "source/reverse_ad.h2"
 };
 
 /*
@@ -2037,7 +1600,7 @@ class ad_substitution_context {
  */
 [[nodiscard]] auto substitute_expr_params(cpp2::impl::in<ad_expr> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_expr;
 
-#line 2551 "source/reverse_ad.h2"
+#line 1757 "source/reverse_ad.h2"
 /*
   @brief Substitute parameter names in an IR statement.
  
@@ -2050,7 +1613,7 @@ class ad_substitution_context {
  */
 [[nodiscard]] auto substitute_stmt_params(cpp2::impl::in<ad_stmt> stmt, cpp2::impl::in<ad_substitution_context> ctx) -> ad_stmt;
 
-#line 2631 "source/reverse_ad.h2"
+#line 1837 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //
 //  Subtask 3: ad_rule registry + discovery
@@ -2077,11 +1640,6 @@ class ad_rule_meta {
     public: std::vector<statement> reverse_body_stmts {}; 
     public: bool has_reverse_body_stmts {false}; 
 
-    // DEPRECATED: Stores the reverse() function body string for inlining at code generation time.
-    // This is extracted during rule discovery. Will be removed after IR migration is complete.
-    public: std::string reverse_body_str {""}; 
-    public: bool has_reverse_body {false}; 
-
     /// Default constructor
     public: explicit ad_rule_meta();
 
@@ -2091,7 +1649,7 @@ class ad_rule_meta {
     /// Move constructor
     public: ad_rule_meta(ad_rule_meta&& that) noexcept;
 
-#line 2682 "source/reverse_ad.h2"
+#line 1881 "source/reverse_ad.h2"
     /*
       @brief Create rule metadata.
       @param name_ Rule name (matches function name).
@@ -2102,7 +1660,7 @@ class ad_rule_meta {
      */
     public: [[nodiscard]] static auto make(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_, cpp2::impl::in<std::string> rule_type_) -> ad_rule_meta;
 
-#line 2698 "source/reverse_ad.h2"
+#line 1897 "source/reverse_ad.h2"
 };
 
 /*
@@ -2121,22 +1679,22 @@ class ad_reverse_rule_result {
 
     public: explicit ad_reverse_rule_result();
     public: ad_reverse_rule_result(ad_reverse_rule_result const& that);
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     public: auto operator=(ad_reverse_rule_result const& that) -> ad_reverse_rule_result& ;
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     public: ad_reverse_rule_result(ad_reverse_rule_result&& that) noexcept;
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     public: auto operator=(ad_reverse_rule_result&& that) noexcept -> ad_reverse_rule_result& ;
 
     public: [[nodiscard]] static auto make_not_found() -> ad_reverse_rule_result;
 
-#line 2722 "source/reverse_ad.h2"
+#line 1921 "source/reverse_ad.h2"
     public: [[nodiscard]] static auto make_success(cpp2::impl::in<std::vector<ad_stmt>> stmts, cpp2::impl::in<std::string> rule_type_) -> ad_reverse_rule_result;
 
-#line 2731 "source/reverse_ad.h2"
+#line 1930 "source/reverse_ad.h2"
     public: [[nodiscard]] static auto make_parse_error(cpp2::impl::in<std::string> rule_type_, cpp2::impl::in<std::string> error_msg) -> ad_reverse_rule_result;
 
-#line 2739 "source/reverse_ad.h2"
+#line 1938 "source/reverse_ad.h2"
 };
 
 /*
@@ -2158,19 +1716,19 @@ class ad_rule_registry {
      */
     public: auto register_rule(ad_rule_meta&& rule) & -> void;
 
-#line 2762 "source/reverse_ad.h2"
+#line 1961 "source/reverse_ad.h2"
     /*
       @brief Check if a rule exists.
      */
     public: [[nodiscard]] auto has_rule(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_) const& -> bool;
 
-#line 2774 "source/reverse_ad.h2"
+#line 1973 "source/reverse_ad.h2"
     /*
       @brief Get rule type name for debug messages.
      */
     public: [[nodiscard]] auto get_rule_type(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_) const& -> std::string;
 
-#line 2786 "source/reverse_ad.h2"
+#line 1985 "source/reverse_ad.h2"
     /*
       @brief Apply rule's reverse body with substitutions.
      
@@ -2187,17 +1745,43 @@ class ad_rule_registry {
     public: [[nodiscard]] auto apply_reverse_rule(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_, 
                          cpp2::impl::in<ad_substitution_context> ctx) const& -> ad_reverse_rule_result;
 
-#line 2823 "source/reverse_ad.h2"
+#line 2022 "source/reverse_ad.h2"
     /*
       @brief Get the number of registered rules.
       @return Number of rules.
      */
     public: [[nodiscard]] auto size() const& -> int;
+
+#line 2030 "source/reverse_ad.h2"
+    /*
+      @brief Check if an operator has a registered rule.
+     
+      Operators are stored with their symbol as the name ("+", "-", "", "/").
+      This provides a unified interface for both operators and functions.
+     
+      @param op_name Operator symbol (e.g., "+", "-", "", "/").
+      @return true if a rule exists for this operator.
+     */
+    public: [[nodiscard]] auto has_operator_rule(cpp2::impl::in<std::string> op_name) const& -> bool;
+
+#line 2044 "source/reverse_ad.h2"
+    /*
+      @brief Apply an operator's reverse rule.
+     
+      Operators are treated identically to functions in the rule system.
+      The operator symbol is used as the rule name.
+     
+      @param op_name Operator symbol (e.g., "+", "-", "", "/").
+      @param ctx Substitution context mapping lhs_val, rhs_val, res_adj, etc.
+      @return Result with IR statements for the reverse pass.
+     */
+    public: [[nodiscard]] auto apply_operator_rule(cpp2::impl::in<std::string> op_name, 
+                          cpp2::impl::in<ad_substitution_context> ctx) const& -> ad_reverse_rule_result;
     public: ad_rule_registry(ad_rule_registry const&) = delete; /* No 'that' constructor, suppress copy */
     public: auto operator=(ad_rule_registry const&) -> void = delete;
 
 
-#line 2830 "source/reverse_ad.h2"
+#line 2059 "source/reverse_ad.h2"
 };
 
 /*
@@ -2206,14 +1790,14 @@ class ad_rule_registry {
  */
 auto ad_rule_debug_dump(cpp2::impl::in<ad_rule_meta> rule) -> void;
 
-#line 2843 "source/reverse_ad.h2"
+#line 2072 "source/reverse_ad.h2"
 /*
   @brief Debug dump for ad_rule_registry.
   @param reg Registry to dump.
  */
 auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void;
 
-#line 2855 "source/reverse_ad.h2"
+#line 2084 "source/reverse_ad.h2"
 /*
   @brief Check if a type member looks like an ad_rule definition.
  
@@ -2228,7 +1812,7 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void;
  */
 [[nodiscard]] auto is_ad_rule_type(cpp2::impl::in<meta::type_declaration> member_type) -> bool;
 
-#line 2896 "source/reverse_ad.h2"
+#line 2125 "source/reverse_ad.h2"
 /*
   @brief Extract ad_rule metadata from a type declaration.
  
@@ -2236,11 +1820,11 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void;
   Extracts the reverse() function body for later inlining.
  
   @param member_type Pointer to the rule type to extract from.
-  @return Extracted rule metadata with reverse_body_str set.
+  @return Extracted rule metadata.
  */
 [[nodiscard]] auto extract_ad_rule_meta(cpp2::impl::in<meta::type_declaration*> member_type) -> ad_rule_meta;
 
-#line 2979 "source/reverse_ad.h2"
+#line 2206 "source/reverse_ad.h2"
 /*
   @brief Discover ad_rule types inside an annotated type.
  
@@ -2252,7 +1836,7 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void;
  */
 auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registry& out) -> void;
 
-#line 3034 "source/reverse_ad.h2"
+#line 2261 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //
 //  Subtask 3b: Rule body extraction and inlining
@@ -2268,29 +1852,18 @@ class ad_rule_body_result {
 
     public: explicit ad_rule_body_result();
     public: ad_rule_body_result(ad_rule_body_result const& that);
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     public: auto operator=(ad_rule_body_result const& that) -> ad_rule_body_result& ;
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     public: ad_rule_body_result(ad_rule_body_result&& that) noexcept;
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     public: auto operator=(ad_rule_body_result&& that) noexcept -> ad_rule_body_result& ;
 
     public: [[nodiscard]] static auto make(cpp2::impl::in<bool> ok_, cpp2::impl::in<std::string> body_) -> ad_rule_body_result;
 
-#line 3056 "source/reverse_ad.h2"
+#line 2283 "source/reverse_ad.h2"
 };
 
-/*
-  @brief Get the reverse() function body from an ad_rule.
- 
-  Returns the body string that was extracted during rule discovery.
- 
-  @param rule The rule metadata (must have has_reverse_body set).
-  @return Result with ok=true and body string if available.
- */
-[[nodiscard]] auto extract_rule_reverse_body(cpp2::impl::in<ad_rule_meta> rule) -> ad_rule_body_result;
-
-#line 3073 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //
 //  AST-to-IR parsing for rule bodies
@@ -2306,19 +1879,19 @@ class ad_parse_expr_result {
 
     public: explicit ad_parse_expr_result();
     public: ad_parse_expr_result(ad_parse_expr_result const& that);
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     public: auto operator=(ad_parse_expr_result const& that) -> ad_parse_expr_result& ;
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     public: ad_parse_expr_result(ad_parse_expr_result&& that) noexcept;
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     public: auto operator=(ad_parse_expr_result&& that) noexcept -> ad_parse_expr_result& ;
 
     public: [[nodiscard]] static auto make(cpp2::impl::in<bool> ok_, cpp2::impl::in<ad_expr> expr_) -> ad_parse_expr_result;
 
-#line 3096 "source/reverse_ad.h2"
+#line 2308 "source/reverse_ad.h2"
     public: [[nodiscard]] static auto make_fail() -> ad_parse_expr_result;
 
-#line 3101 "source/reverse_ad.h2"
+#line 2313 "source/reverse_ad.h2"
 };
 
 /*
@@ -2330,19 +1903,19 @@ class ad_parse_stmt_result {
 
     public: explicit ad_parse_stmt_result();
     public: ad_parse_stmt_result(ad_parse_stmt_result const& that);
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     public: auto operator=(ad_parse_stmt_result const& that) -> ad_parse_stmt_result& ;
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     public: ad_parse_stmt_result(ad_parse_stmt_result&& that) noexcept;
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     public: auto operator=(ad_parse_stmt_result&& that) noexcept -> ad_parse_stmt_result& ;
 
     public: [[nodiscard]] static auto make(cpp2::impl::in<bool> ok_, cpp2::impl::in<ad_stmt> stmt_) -> ad_parse_stmt_result;
 
-#line 3120 "source/reverse_ad.h2"
+#line 2332 "source/reverse_ad.h2"
     public: [[nodiscard]] static auto make_fail() -> ad_parse_stmt_result;
 
-#line 3125 "source/reverse_ad.h2"
+#line 2337 "source/reverse_ad.h2"
 };
 
 /*
@@ -2362,70 +1935,70 @@ class ad_parse_stmt_result {
  */
 [[nodiscard]] auto map_op_string(cpp2::impl::in<std::string> op) -> ad_op_kind;
 
-#line 3164 "source/reverse_ad.h2"
+#line 2376 "source/reverse_ad.h2"
 // Assignment expression: = += -= etc.
 [[nodiscard]] auto parse_assignment_expr(cpp2::impl::in<meta::assignment_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3179 "source/reverse_ad.h2"
+#line 2391 "source/reverse_ad.h2"
 // Logical OR: ||
 [[nodiscard]] auto parse_logical_or_expr(cpp2::impl::in<meta::logical_or_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3201 "source/reverse_ad.h2"
+#line 2413 "source/reverse_ad.h2"
 // Logical AND: &&
 [[nodiscard]] auto parse_logical_and_expr(cpp2::impl::in<meta::logical_and_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3221 "source/reverse_ad.h2"
+#line 2433 "source/reverse_ad.h2"
 // Bit OR: |
 [[nodiscard]] auto parse_bit_or_expr(cpp2::impl::in<meta::bit_or_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3241 "source/reverse_ad.h2"
+#line 2453 "source/reverse_ad.h2"
 // Bit XOR: ^
 [[nodiscard]] auto parse_bit_xor_expr(cpp2::impl::in<meta::bit_xor_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3261 "source/reverse_ad.h2"
+#line 2473 "source/reverse_ad.h2"
 // Bit AND: &
 [[nodiscard]] auto parse_bit_and_expr(cpp2::impl::in<meta::bit_and_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3281 "source/reverse_ad.h2"
+#line 2493 "source/reverse_ad.h2"
 // Equality: == !=
 [[nodiscard]] auto parse_equality_expr(cpp2::impl::in<meta::equality_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3302 "source/reverse_ad.h2"
+#line 2514 "source/reverse_ad.h2"
 // Relational: < > <= >=
 [[nodiscard]] auto parse_relational_expr(cpp2::impl::in<meta::relational_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3323 "source/reverse_ad.h2"
+#line 2535 "source/reverse_ad.h2"
 // Compare: <=>
 [[nodiscard]] auto parse_compare_expr(cpp2::impl::in<meta::compare_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3343 "source/reverse_ad.h2"
+#line 2555 "source/reverse_ad.h2"
 // Shift: << >>
 [[nodiscard]] auto parse_shift_expr(cpp2::impl::in<meta::shift_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3364 "source/reverse_ad.h2"
+#line 2576 "source/reverse_ad.h2"
 // Additive: + -
 [[nodiscard]] auto parse_additive_expr(cpp2::impl::in<meta::additive_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3385 "source/reverse_ad.h2"
+#line 2597 "source/reverse_ad.h2"
 // Multiplicative: * / %
 [[nodiscard]] auto parse_multiplicative_expr(cpp2::impl::in<meta::multiplicative_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3424 "source/reverse_ad.h2"
+#line 2636 "source/reverse_ad.h2"
 // Prefix expression: - ! etc.
 [[nodiscard]] auto parse_prefix_expr(cpp2::impl::in<meta::prefix_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3452 "source/reverse_ad.h2"
+#line 2664 "source/reverse_ad.h2"
 // Postfix expression: identifiers, literals, function calls, member access
 [[nodiscard]] auto parse_postfix_expr(cpp2::impl::in<meta::postfix_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3477 "source/reverse_ad.h2"
+#line 2689 "source/reverse_ad.h2"
 /*
   @brief Parse an expression from meta::expression into IR.
   Entry point - dispatches to assignment_expression parsing.
  */
 [[nodiscard]] auto parse_rule_expr(cpp2::impl::in<meta::expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result;
 
-#line 3507 "source/reverse_ad.h2"
+#line 2719 "source/reverse_ad.h2"
 /*
   @brief Parse an AST statement into IR with parameter substitution.
  
@@ -2443,7 +2016,7 @@ class ad_parse_stmt_result {
  */
 [[nodiscard]] auto parse_rule_stmt(cpp2::impl::in<meta::statement> stmt, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_stmt_result;
 
-#line 3716 "source/reverse_ad.h2"
+#line 2887 "source/reverse_ad.h2"
 /*
   @brief Parse all AST statements from a rule body into IR.
  
@@ -2458,7 +2031,7 @@ class ad_parse_stmt_result {
 [[nodiscard]] auto parse_rule_body_stmts(cpp2::impl::in<std::vector<meta::statement>> stmts, cpp2::impl::in<ad_substitution_context> ctx, 
                         std::vector<ad_stmt>& out) -> bool;
 
-#line 3742 "source/reverse_ad.h2"
+#line 2913 "source/reverse_ad.h2"
 /*
   @brief Standard parameter names used in ad_rule reverse() functions.
  
@@ -2477,7 +2050,7 @@ class ad_rule_param_names {
     public: ad_rule_param_names(ad_rule_param_names const&) = delete; /* No 'that' constructor, suppress copy */
     public: auto operator=(ad_rule_param_names const&) -> void = delete;
 
-#line 3756 "source/reverse_ad.h2"
+#line 2927 "source/reverse_ad.h2"
 };
 
 /*
@@ -2485,7 +2058,7 @@ class ad_rule_param_names {
  */
 [[nodiscard]] auto is_identifier_char(cpp2::impl::in<char> c) -> bool;
 
-#line 3765 "source/reverse_ad.h2"
+#line 2936 "source/reverse_ad.h2"
 /*
   @brief Replace all whole-word occurrences of a pattern in a string.
  
@@ -2499,7 +2072,7 @@ class ad_rule_param_names {
  */
 [[nodiscard]] auto replace_word(cpp2::impl::in<std::string> str, cpp2::impl::in<std::string> pattern, cpp2::impl::in<std::string> replacement) -> std::string;
 
-#line 3812 "source/reverse_ad.h2"
+#line 2983 "source/reverse_ad.h2"
 /*
   @brief Substitute rule parameter names with actual values in body string.
  
@@ -2525,7 +2098,7 @@ class ad_rule_param_names {
                          cpp2::impl::in<std::vector<std::string>> arg_vals, 
                          cpp2::impl::in<std::vector<std::string>> arg_adjs) -> std::string;
 
-#line 3873 "source/reverse_ad.h2"
+#line 3044 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //
 //  Subtask 4: Operator token mapping for + - * /
@@ -2541,16 +2114,16 @@ class ad_op_mapping_result {
 
     public: explicit ad_op_mapping_result();
     public: ad_op_mapping_result(ad_op_mapping_result const& that);
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     public: auto operator=(ad_op_mapping_result const& that) -> ad_op_mapping_result& ;
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     public: ad_op_mapping_result(ad_op_mapping_result&& that) noexcept;
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     public: auto operator=(ad_op_mapping_result&& that) noexcept -> ad_op_mapping_result& ;
 
     public: [[nodiscard]] static auto make(cpp2::impl::in<bool> ok_, cpp2::impl::in<ad_op_kind> kind_) -> ad_op_mapping_result;
 
-#line 3895 "source/reverse_ad.h2"
+#line 3066 "source/reverse_ad.h2"
 };
 
 /*
@@ -2564,7 +2137,7 @@ class ad_op_mapping_result {
  */
 [[nodiscard]] auto map_operator_token(cpp2::impl::in<std::string_view> op) -> ad_op_mapping_result;
 
-#line 3922 "source/reverse_ad.h2"
+#line 3093 "source/reverse_ad.h2"
 /*
   @brief Map a function name to ad_op_kind.
  
@@ -2576,7 +2149,7 @@ class ad_op_mapping_result {
  */
 [[nodiscard]] auto map_function_to_op(cpp2::impl::in<std::string_view> name) -> ad_op_mapping_result;
 
-#line 3937 "source/reverse_ad.h2"
+#line 3108 "source/reverse_ad.h2"
 /*
   @brief Debug: print operator mapping result.
   @param op Operator string.
@@ -2585,7 +2158,7 @@ class ad_op_mapping_result {
  */
 auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<bool> ok, cpp2::impl::in<ad_op_kind> kind) -> void;
 
-#line 3952 "source/reverse_ad.h2"
+#line 3123 "source/reverse_ad.h2"
 //-----------------------------------------------------------------------
 //
 //  Subtask 5: Base expression builder
@@ -2607,11 +2180,11 @@ class ad_ir_builder {
     /// Default constructor
     public: explicit ad_ir_builder();
 
-#line 3976 "source/reverse_ad.h2"
+#line 3147 "source/reverse_ad.h2"
     /// Initialize with context and registry
     public: ad_ir_builder(cpp2::impl::in<reverse_autodiff_context*> ctx_, cpp2::impl::in<ad_rule_registry*> registry_);
 
-#line 3982 "source/reverse_ad.h2"
+#line 3153 "source/reverse_ad.h2"
     /*
       @brief Report an error during IR building and fail immediately.
       @param msg Error message.
@@ -2620,7 +2193,7 @@ class ad_ir_builder {
      */
     public: auto report_error(cpp2::impl::in<std::string> msg, cpp2::impl::in<std::string> loc = "", cpp2::impl::in<std::string> context = "") & -> void;
 
-#line 3996 "source/reverse_ad.h2"
+#line 3167 "source/reverse_ad.h2"
     /*
       @brief Generate a unique temporary name.
       @param base Base name for the temporary.
@@ -2628,7 +2201,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto gen_temp_name(cpp2::impl::in<std::string> base) & -> std::string;
 
-#line 4008 "source/reverse_ad.h2"
+#line 3179 "source/reverse_ad.h2"
     /*
       @brief Emit an expression as a Cpp2 string.
      
@@ -2639,7 +2212,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto emit_expr(cpp2::impl::in<ad_expr> expr) const& -> std::string;
 
-#line 4167 "source/reverse_ad.h2"
+#line 3338 "source/reverse_ad.h2"
     /*
       @brief Derive a readable operation name from op and args.
      
@@ -2651,7 +2224,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto derive_op_name(cpp2::impl::in<ad_op_kind> op, cpp2::impl::in<std::vector<ad_expr>> args) const& -> std::string;
 
-#line 4186 "source/reverse_ad.h2"
+#line 3357 "source/reverse_ad.h2"
     /*
       @brief Build IR from a primary expression.
      
@@ -2662,7 +2235,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_primary_expr(cpp2::impl::in<meta::primary_expression> primary) & -> ad_expr;
 
-#line 4234 "source/reverse_ad.h2"
+#line 3405 "source/reverse_ad.h2"
     /*
       @brief Build IR from a postfix expression.
      
@@ -2673,7 +2246,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_postfix_expr(cpp2::impl::in<meta::postfix_expression> postfix) & -> ad_expr;
 
-#line 4290 "source/reverse_ad.h2"
+#line 3461 "source/reverse_ad.h2"
     /*
       @brief Build IR from a prefix expression.
      
@@ -2684,7 +2257,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_prefix_expr(cpp2::impl::in<meta::prefix_expression> prefix) & -> ad_expr;
 
-#line 4336 "source/reverse_ad.h2"
+#line 3507 "source/reverse_ad.h2"
     /*
       @brief Build IR from an is-as expression.
      
@@ -2695,7 +2268,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_is_as_expr(cpp2::impl::in<meta::is_as_expression> isas) & -> ad_expr;
 
-#line 4357 "source/reverse_ad.h2"
+#line 3528 "source/reverse_ad.h2"
     /*
       @brief Build IR from a multiplicative expression.
      
@@ -2706,7 +2279,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_multiplicative_expr(cpp2::impl::in<meta::multiplicative_expression> binexpr) & -> ad_expr;
 
-#line 4401 "source/reverse_ad.h2"
+#line 3572 "source/reverse_ad.h2"
     /*
       @brief Build IR from an additive expression.
      
@@ -2717,7 +2290,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_additive_expr(cpp2::impl::in<meta::additive_expression> binexpr) & -> ad_expr;
 
-#line 4445 "source/reverse_ad.h2"
+#line 3616 "source/reverse_ad.h2"
     //-----------------------------------------------------------------------
     // Task 7: Call builder + rule application
     //-----------------------------------------------------------------------
@@ -2729,7 +2302,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto parse_call_args(cpp2::impl::in<meta::expression_list> expr_list) & -> std::vector<ad_expr>;
 
-#line 4463 "source/reverse_ad.h2"
+#line 3634 "source/reverse_ad.h2"
     /*
       @brief Build IR from a general expression node.
       @param expr Expression from reflection AST.
@@ -2737,7 +2310,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_expression(cpp2::impl::in<meta::expression> expr) & -> ad_expr;
 
-#line 4497 "source/reverse_ad.h2"
+#line 3668 "source/reverse_ad.h2"
     /*
       @brief Build IR from an assignment expression (top-level of most expressions).
       @param assign Assignment expression from reflection AST.
@@ -2745,35 +2318,35 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_from_assignment(cpp2::impl::in<meta::assignment_expression> assign) & -> ad_expr;
 
-#line 4517 "source/reverse_ad.h2"
+#line 3688 "source/reverse_ad.h2"
     // Traverse down the binary expression chain to get to additive expression
     public: [[nodiscard]] auto build_logical_or_expr(cpp2::impl::in<meta::logical_or_expression> expr) & -> ad_expr;
 
-#line 4527 "source/reverse_ad.h2"
+#line 3698 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_logical_and_expr(cpp2::impl::in<meta::logical_and_expression> expr) & -> ad_expr;
 
-#line 4536 "source/reverse_ad.h2"
+#line 3707 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_bit_or_expr(cpp2::impl::in<meta::bit_or_expression> expr) & -> ad_expr;
 
-#line 4545 "source/reverse_ad.h2"
+#line 3716 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_bit_xor_expr(cpp2::impl::in<meta::bit_xor_expression> expr) & -> ad_expr;
 
-#line 4554 "source/reverse_ad.h2"
+#line 3725 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_bit_and_expr(cpp2::impl::in<meta::bit_and_expression> expr) & -> ad_expr;
 
-#line 4563 "source/reverse_ad.h2"
+#line 3734 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_equality_expr(cpp2::impl::in<meta::equality_expression> expr) & -> ad_expr;
 
-#line 4572 "source/reverse_ad.h2"
+#line 3743 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_relational_expr(cpp2::impl::in<meta::relational_expression> expr) & -> ad_expr;
 
-#line 4581 "source/reverse_ad.h2"
+#line 3752 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_compare_expr(cpp2::impl::in<meta::compare_expression> expr) & -> ad_expr;
 
-#line 4590 "source/reverse_ad.h2"
+#line 3761 "source/reverse_ad.h2"
     public: [[nodiscard]] auto build_shift_expr(cpp2::impl::in<meta::shift_expression> expr) & -> ad_expr;
 
-#line 4599 "source/reverse_ad.h2"
+#line 3770 "source/reverse_ad.h2"
     /*
       @brief Apply rule override or default implementation for a call.
      
@@ -2790,7 +2363,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto apply_rule_or_default(cpp2::impl::in<std::string> name, cpp2::impl::in<int> n_args, cpp2::impl::in<bool> is_member, cpp2::impl::in<std::vector<ad_expr>> args) & -> ad_rule_application_result;
 
-#line 4634 "source/reverse_ad.h2"
+#line 3805 "source/reverse_ad.h2"
     //-----------------------------------------------------------------------
     // Task 8: Activity analysis
     //-----------------------------------------------------------------------
@@ -2802,7 +2375,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto is_active_ir_expr(cpp2::impl::in<ad_expr> expr) const& -> bool;
 
-#line 4678 "source/reverse_ad.h2"
+#line 3849 "source/reverse_ad.h2"
     //-----------------------------------------------------------------------
     // Task 9: Statement builder (decl + assignment)
     //-----------------------------------------------------------------------
@@ -2817,7 +2390,7 @@ class ad_ir_builder {
                         std::vector<ad_stmt>& body_stmts, 
                         std::vector<ad_stmt>& reverse_stmts) & -> void;
 
-#line 4738 "source/reverse_ad.h2"
+#line 3909 "source/reverse_ad.h2"
     /*
       @brief Build IR statements for an assignment.
       @param target Target variable name.
@@ -2829,7 +2402,7 @@ class ad_ir_builder {
                        std::vector<ad_stmt>& body_stmts, 
                        std::vector<ad_stmt>& reverse_stmts) & -> void;
 
-#line 4771 "source/reverse_ad.h2"
+#line 3942 "source/reverse_ad.h2"
     /*
       @brief Transform expression to use _val suffixes for identifiers.
       @param expr Expression to transform.
@@ -2837,7 +2410,83 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto transform_expr_to_val(cpp2::impl::in<ad_expr> expr) & -> ad_expr;
 
-#line 4817 "source/reverse_ad.h2"
+#line 3988 "source/reverse_ad.h2"
+    /*
+      @brief Get rule suffix from operator symbol.
+     
+      Converts operator symbols to rule naming convention:
+      "+" -> "add", "-" -> "sub", "" -> "mul", "/" -> "div", "%" -> "mod"
+     
+      @param op_name Operator symbol.
+      @return Rule suffix for error messages.
+     */
+    public: [[nodiscard]] auto get_operator_rule_suffix(cpp2::impl::in<std::string> op_name) const& -> std::string;
+
+#line 4006 "source/reverse_ad.h2"
+    /*
+      @brief Get LHS derivative contribution expression for an operator.
+     
+      Implements the derivative rules from ad_rule_ types in cpp2ad_rules.h2:
+      - add: x_adj += res_adj           -> contrib = res_adj
+      - sub: x_adj += res_adj           -> contrib = res_adj
+      - mul: x_adj += y_val  res_adj   -> contrib = y_val  res_adj
+      - div: x_adj += res_adj / y_val   -> contrib = res_adj / y_val
+     
+      @param op_name Operator symbol.
+      @param lhs_val LHS value expression.
+      @param rhs_val RHS value expression.
+      @param adj_ref Result adjoint expression.
+      @return Contribution expression for LHS adjoint accumulation.
+     */
+    public: [[nodiscard]] auto get_lhs_derivative_contrib(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val, cpp2::impl::in<ad_expr> adj_ref) const& -> ad_expr;
+
+#line 4038 "source/reverse_ad.h2"
+    /*
+      @brief Get RHS derivative contribution expression for an operator.
+     
+      Implements the derivative rules from ad_rule_ types in cpp2ad_rules.h2:
+      - add: y_adj += res_adj           -> contrib = res_adj
+      - sub: y_adj -= res_adj           -> contrib = -res_adj
+      - mul: y_adj += x_val  res_adj   -> contrib = x_val  res_adj
+      - div: y_adj -= x_val / (y_val  y_val)  res_adj
+     
+      @param op_name Operator symbol.
+      @param lhs_val LHS value expression.
+      @param rhs_val RHS value expression.
+      @param adj_ref Result adjoint expression.
+      @return Contribution expression for RHS adjoint accumulation.
+     */
+    public: [[nodiscard]] auto get_rhs_derivative_contrib(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val, cpp2::impl::in<ad_expr> adj_ref) const& -> ad_expr;
+
+#line 4077 "source/reverse_ad.h2"
+    /*
+      @brief Get LHS derivative scale factor for chain rule.
+     
+      When LHS is a function call, we need the scale factor to apply chain rule.
+      For x  f(y), d/df = x, so scale = x_val (but for LHS, we use the other operand).
+     
+      @param op_name Operator symbol.
+      @param lhs_val LHS value expression.
+      @param rhs_val RHS value expression.
+      @return Scale factor expression for chain rule application.
+     */
+    public: [[nodiscard]] auto get_lhs_derivative_scale(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val) const& -> ad_expr;
+
+#line 4105 "source/reverse_ad.h2"
+    /*
+      @brief Get RHS derivative scale factor for chain rule.
+     
+      When RHS is a function call, we need the scale factor to apply chain rule.
+      For x  f(y), d/dy = x  f'(y), so scale = x_val.
+     
+      @param op_name Operator symbol.
+      @param lhs_val LHS value expression.
+      @param rhs_val RHS value expression.
+      @return Scale factor expression for chain rule application.
+     */
+    public: [[nodiscard]] auto get_rhs_derivative_scale(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val) const& -> ad_expr;
+
+#line 4139 "source/reverse_ad.h2"
     /*
       @brief Generate reverse (adjoint) statement for an expression.
       @param target Target variable name (whose adjoint receives contribution).
@@ -2846,7 +2495,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto generate_reverse_for_expr(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> expr) & -> ad_stmt;
 
-#line 4979 "source/reverse_ad.h2"
+#line 4272 "source/reverse_ad.h2"
     /*
       @brief Generate reverse statement for a function call with scaling factor.
      
@@ -2860,7 +2509,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto generate_reverse_for_call_with_scale(cpp2::impl::in<ad_expr> call_expr, cpp2::impl::in<ad_expr> scale_expr, cpp2::impl::in<ad_expr> adj_ref) & -> ad_stmt;
 
-#line 5071 "source/reverse_ad.h2"
+#line 4364 "source/reverse_ad.h2"
     /*
       @brief Generate reverse statement for a function call.
       @param target Target variable name.
@@ -2869,7 +2518,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto generate_reverse_for_call(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> call_expr) & -> ad_stmt;
 
-#line 5148 "source/reverse_ad.h2"
+#line 4441 "source/reverse_ad.h2"
     //-----------------------------------------------------------------------
     // Task 10: Return statement lowering
     //-----------------------------------------------------------------------
@@ -2885,7 +2534,7 @@ class ad_ir_builder {
                    std::vector<ad_stmt>& body_stmts, 
                    std::vector<ad_stmt>& reverse_stmts) & -> void;
 
-#line 5175 "source/reverse_ad.h2"
+#line 4468 "source/reverse_ad.h2"
     //-----------------------------------------------------------------------
     // Full function building
     //-----------------------------------------------------------------------
@@ -2897,7 +2546,7 @@ class ad_ir_builder {
      */
     public: [[nodiscard]] auto build_function_ir(cpp2::impl::in<meta::function_declaration> mf) & -> ad_function_ir;
 
-#line 5239 "source/reverse_ad.h2"
+#line 4532 "source/reverse_ad.h2"
     /*
       @brief Process a single statement and add to forward/reverse lists.
       @param stmt Statement to process.
@@ -2911,7 +2560,7 @@ class ad_ir_builder {
     public: auto operator=(ad_ir_builder const&) -> void = delete;
 
 
-#line 5294 "source/reverse_ad.h2"
+#line 4587 "source/reverse_ad.h2"
 };
 
 /*
@@ -2923,11 +2572,11 @@ class ad_rule_application_result {
 
     public: explicit ad_rule_application_result();
     public: ad_rule_application_result(ad_rule_application_result const& that);
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     public: auto operator=(ad_rule_application_result const& that) -> ad_rule_application_result& ;
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     public: ad_rule_application_result(ad_rule_application_result&& that) noexcept;
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     public: auto operator=(ad_rule_application_result&& that) noexcept -> ad_rule_application_result& ;
 };
 
@@ -2942,7 +2591,19 @@ class ad_rule_application_result {
  */
 [[nodiscard]] auto ad_op_kind_to_binary_str(cpp2::impl::in<ad_op_kind> op) -> std::string;
 
-#line 5355 "source/reverse_ad.h2"
+#line 4648 "source/reverse_ad.h2"
+/*
+  @brief Map ad_op_kind to rule lookup name (operator symbol without spaces).
+ 
+  This is used to look up operator rules in the ad_rule_registry.
+  Operators are stored with their symbol as the name ("+", "-", "", "/").
+ 
+  @param op Operation kind.
+  @return Operator symbol for rule lookup, or empty if not a differentiable binary op.
+ */
+[[nodiscard]] auto ad_op_kind_to_rule_name(cpp2::impl::in<ad_op_kind> op) -> std::string;
+
+#line 4666 "source/reverse_ad.h2"
 /*
   @brief Emitter for converting AD IR to Cpp2 source code.
  */
@@ -2951,12 +2612,12 @@ class ad_ir_emitter {
 
     public: explicit ad_ir_emitter();
 
-#line 5365 "source/reverse_ad.h2"
+#line 4676 "source/reverse_ad.h2"
     public: ad_ir_emitter(cpp2::impl::in<reverse_autodiff_context*> ctx_);
-#line 5365 "source/reverse_ad.h2"
+#line 4676 "source/reverse_ad.h2"
     public: auto operator=(cpp2::impl::in<reverse_autodiff_context*> ctx_) -> ad_ir_emitter& ;
 
-#line 5369 "source/reverse_ad.h2"
+#line 4680 "source/reverse_ad.h2"
     /*
       @brief Emit Cpp2 code for an IR expression.
       @param expr Expression IR.
@@ -2964,7 +2625,7 @@ class ad_ir_emitter {
      */
     public: [[nodiscard]] auto emit_expr(cpp2::impl::in<ad_expr> expr) const& -> std::string;
 
-#line 5523 "source/reverse_ad.h2"
+#line 4834 "source/reverse_ad.h2"
     /*
       @brief Emit Cpp2 code for a single IR statement.
       @param stmt Statement IR.
@@ -2973,7 +2634,7 @@ class ad_ir_emitter {
      */
     public: [[nodiscard]] auto emit_stmt(cpp2::impl::in<ad_stmt> stmt, cpp2::impl::in<int> indent = 0) const& -> std::string;
 
-#line 5669 "source/reverse_ad.h2"
+#line 4980 "source/reverse_ad.h2"
     /*
       @brief Emit the forward pass Cpp2 code.
       @param ir Function IR.
@@ -2981,7 +2642,7 @@ class ad_ir_emitter {
      */
     public: [[nodiscard]] auto emit_forward(cpp2::impl::in<ad_function_ir> ir) const& -> std::string;
 
-#line 5682 "source/reverse_ad.h2"
+#line 4993 "source/reverse_ad.h2"
     /*
       @brief Emit the reverse pass Cpp2 code in reverse order.
       @param ir Function IR.
@@ -2989,7 +2650,7 @@ class ad_ir_emitter {
      */
     public: [[nodiscard]] auto emit_reverse(cpp2::impl::in<ad_function_ir> ir) const& -> std::string;
 
-#line 5710 "source/reverse_ad.h2"
+#line 5021 "source/reverse_ad.h2"
     /*
       @brief Emit the complete reverse-mode function.
       @param ir Function IR.
@@ -3000,7 +2661,7 @@ class ad_ir_emitter {
     public: auto operator=(ad_ir_emitter const&) -> void = delete;
 
 
-#line 5770 "source/reverse_ad.h2"
+#line 5081 "source/reverse_ad.h2"
 };
 
 /*
@@ -3009,7 +2670,7 @@ class ad_ir_emitter {
  */
 auto ad_ir_builder_debug_dump(cpp2::impl::in<ad_ir_builder> builder) -> void;
 
-#line 5790 "source/reverse_ad.h2"
+#line 5101 "source/reverse_ad.h2"
 /*
   @brief Internal reverse-mode AD processing - transforms a type using IR pipeline.
  
@@ -3128,10 +2789,10 @@ auto ad_ir_builder_debug_dump(cpp2::impl::in<ad_ir_builder> builder) -> void;
  */
 auto autodiff_reverse_ir(meta::type_declaration& t, cpp2::impl::in<bool> debug) -> void;
 
-#line 5987 "source/reverse_ad.h2"
+#line 5293 "source/reverse_ad.h2"
 auto autodiff_impl(meta::type_declaration& t) -> void;
 
-#line 6100 "source/reverse_ad.h2"
+#line 5406 "source/reverse_ad.h2"
 }  // namespace meta
 
 }  // namespace cpp2
@@ -3168,6 +2829,141 @@ namespace meta {
             return base; 
         }
         return base + adj_suffix; 
+    }
+
+#line 92 "source/reverse_ad.h2"
+[[nodiscard]] auto make_value_name(cpp2::impl::in<std::string> original) -> std::string{
+    if (original == "_") {
+        return original; 
+    }
+    return original + "_val"; 
+}
+
+#line 104 "source/reverse_ad.h2"
+[[nodiscard]] auto make_adjoint_name(cpp2::impl::in<std::string> original) -> std::string{
+    if (original == "_") {
+        return original; 
+    }
+    return original + "_adj"; 
+}
+
+#line 125 "source/reverse_ad.h2"
+    template <typename MetaType, typename Metadata> ad_dual<MetaType,Metadata>::ad_dual(MetaType const& m, Metadata const& d)
+        : meta{ m }
+        , data{ d }{
+
+#line 128 "source/reverse_ad.h2"
+    }
+
+#line 135 "source/reverse_ad.h2"
+    template <typename MetaType, typename Metadata> [[nodiscard]] auto ad_dual<MetaType,Metadata>::wrap(cpp2::impl::in<MetaType> m) -> ad_dual<MetaType,Metadata>{
+        return ad_dual<MetaType,Metadata>(m, Metadata()); 
+    }
+
+#line 143 "source/reverse_ad.h2"
+    template <typename MetaType, typename Metadata> [[nodiscard]] auto ad_dual<MetaType,Metadata>::to_string() const& -> std::string{
+        return CPP2_UFCS(to_string)(meta); 
+    }
+
+#line 157 "source/reverse_ad.h2"
+    ad_expr_metadata::ad_expr_metadata(){}
+
+#line 160 "source/reverse_ad.h2"
+    ad_expr_metadata::ad_expr_metadata(ad_expr_metadata const& that)
+                                   : is_active{ that.is_active }{}
+#line 160 "source/reverse_ad.h2"
+    auto ad_expr_metadata::operator=(ad_expr_metadata const& that) -> ad_expr_metadata& {
+                                   is_active = that.is_active;
+                                   return *this; }
+#line 160 "source/reverse_ad.h2"
+    ad_expr_metadata::ad_expr_metadata(ad_expr_metadata&& that) noexcept
+                                   : is_active{ std::move(that).is_active }{}
+#line 160 "source/reverse_ad.h2"
+    auto ad_expr_metadata::operator=(ad_expr_metadata&& that) noexcept -> ad_expr_metadata& {
+                                   is_active = std::move(that).is_active;
+                                   return *this; }
+
+#line 172 "source/reverse_ad.h2"
+    ad_stmt_metadata::ad_stmt_metadata(){}
+
+#line 175 "source/reverse_ad.h2"
+    ad_stmt_metadata::ad_stmt_metadata(ad_stmt_metadata const& that)
+                                   : is_accumulation{ that.is_accumulation }{}
+#line 175 "source/reverse_ad.h2"
+    auto ad_stmt_metadata::operator=(ad_stmt_metadata const& that) -> ad_stmt_metadata& {
+                                   is_accumulation = that.is_accumulation;
+                                   return *this; }
+#line 175 "source/reverse_ad.h2"
+    ad_stmt_metadata::ad_stmt_metadata(ad_stmt_metadata&& that) noexcept
+                                   : is_accumulation{ std::move(that).is_accumulation }{}
+#line 175 "source/reverse_ad.h2"
+    auto ad_stmt_metadata::operator=(ad_stmt_metadata&& that) noexcept -> ad_stmt_metadata& {
+                                   is_accumulation = std::move(that).is_accumulation;
+                                   return *this; }
+
+#line 188 "source/reverse_ad.h2"
+    ad_string_substitution_context::ad_string_substitution_context(){}
+
+#line 191 "source/reverse_ad.h2"
+    ad_string_substitution_context::ad_string_substitution_context(ad_string_substitution_context const& that)
+                                   : substitutions{ that.substitutions }{}
+#line 191 "source/reverse_ad.h2"
+    auto ad_string_substitution_context::operator=(ad_string_substitution_context const& that) -> ad_string_substitution_context& {
+                                   substitutions = that.substitutions;
+                                   return *this; }
+#line 191 "source/reverse_ad.h2"
+    ad_string_substitution_context::ad_string_substitution_context(ad_string_substitution_context&& that) noexcept
+                                   : substitutions{ std::move(that).substitutions }{}
+#line 191 "source/reverse_ad.h2"
+    auto ad_string_substitution_context::operator=(ad_string_substitution_context&& that) noexcept -> ad_string_substitution_context& {
+                                   substitutions = std::move(that).substitutions;
+                                   return *this; }
+
+#line 198 "source/reverse_ad.h2"
+    auto ad_string_substitution_context::add(cpp2::impl::in<std::string> name, cpp2::impl::in<std::string> replacement) & -> void{
+        CPP2_ASSERT_IN_BOUNDS(substitutions, name) = replacement;
+    }
+
+#line 211 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_string_substitution_context::apply(cpp2::impl::in<std::string> text) const& -> std::string{
+        std::string result {text}; 
+        for ( auto const& sub : substitutions ) {
+            auto name {sub.first}; 
+            auto replacement {sub.second}; 
+            // Simple word-boundary replacement
+            size_t pos {0}; 
+            while( true ) {
+                pos = CPP2_UFCS(find)(result, name, pos);
+                if (pos == std::string::npos) {
+                    break;
+                }
+                // Check word boundaries
+                auto before_ok {pos == 0 || !(std::isalnum(CPP2_ASSERT_IN_BOUNDS(result, pos - 1))) && CPP2_ASSERT_IN_BOUNDS(result, pos - 1) != '_'}; 
+                auto end_pos {pos + CPP2_UFCS(size)(name)}; 
+                auto after_ok {cpp2::impl::cmp_greater_eq(end_pos,CPP2_UFCS(size)(result)) || !(std::isalnum(CPP2_ASSERT_IN_BOUNDS(result, end_pos))) && CPP2_ASSERT_IN_BOUNDS(result, end_pos) != '_'}; 
+                if (cpp2::move(before_ok) && cpp2::move(after_ok)) {
+                    result = CPP2_UFCS(substr)(result, 0, pos) + replacement + CPP2_UFCS(substr)(result, cpp2::move(end_pos));
+                    pos += CPP2_UFCS(size)(replacement);
+                }else {
+                    ++pos;
+                }
+            }
+        }
+        return result; 
+    }
+
+#line 243 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_string_substitution_context::has(cpp2::impl::in<std::string> name) const& -> bool{
+        return CPP2_UFCS(find)(substitutions, name) != CPP2_UFCS(end)(substitutions); 
+    }
+
+#line 252 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_string_substitution_context::get(cpp2::impl::in<std::string> name) const& -> std::string{
+        auto it {CPP2_UFCS(find)(substitutions, name)}; 
+        if (it != CPP2_UFCS(end)(substitutions)) {
+            return (*cpp2::impl::assert_not_null(cpp2::move(it))).second; 
+        }
+        return ""; 
     }
 
 
@@ -3270,17 +3066,17 @@ return ad_type_kind::auto_;
 [[nodiscard]] auto ad_type_kind::from_code(cpp2::impl::in<std::string_view> s) -> ad_type_kind{
 std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::move(str), "ad_type_kind::", "")); }
 
-#line 133 "source/reverse_ad.h2"
+#line 316 "source/reverse_ad.h2"
     ad_type::ad_type(){}
 
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     ad_type::ad_type(ad_type const& that)
                                    : kind{ that.kind }
                                    , name{ that.name }
                                    , inner_type{ that.inner_type }
                                    , type_args{ that.type_args }
                                    , array_size{ that.array_size }{}
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     auto ad_type::operator=(ad_type const& that) -> ad_type& {
                                    kind = that.kind;
                                    name = that.name;
@@ -3288,14 +3084,14 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    type_args = that.type_args;
                                    array_size = that.array_size;
                                    return *this; }
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     ad_type::ad_type(ad_type&& that) noexcept
                                    : kind{ std::move(that).kind }
                                    , name{ std::move(that).name }
                                    , inner_type{ std::move(that).inner_type }
                                    , type_args{ std::move(that).type_args }
                                    , array_size{ std::move(that).array_size }{}
-#line 136 "source/reverse_ad.h2"
+#line 319 "source/reverse_ad.h2"
     auto ad_type::operator=(ad_type&& that) noexcept -> ad_type& {
                                    kind = std::move(that).kind;
                                    name = std::move(that).name;
@@ -3304,63 +3100,63 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    array_size = std::move(that).array_size;
                                    return *this; }
 
-#line 144 "source/reverse_ad.h2"
+#line 327 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_auto() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::auto_;
         return t; 
     }
 
-#line 154 "source/reverse_ad.h2"
+#line 337 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_void() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::void_;
         return t; 
     }
 
-#line 164 "source/reverse_ad.h2"
+#line 347 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_int() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::int_;
         return t; 
     }
 
-#line 174 "source/reverse_ad.h2"
+#line 357 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_size_t() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::size_t_;
         return t; 
     }
 
-#line 184 "source/reverse_ad.h2"
+#line 367 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_double() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::double_;
         return t; 
     }
 
-#line 194 "source/reverse_ad.h2"
+#line 377 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_float() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::float_;
         return t; 
     }
 
-#line 204 "source/reverse_ad.h2"
+#line 387 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_bool() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::bool_;
         return t; 
     }
 
-#line 214 "source/reverse_ad.h2"
+#line 397 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_char() -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::char_;
         return t; 
     }
 
-#line 227 "source/reverse_ad.h2"
+#line 410 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_named(cpp2::impl::in<std::string> type_name) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::named;
@@ -3368,7 +3164,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 239 "source/reverse_ad.h2"
+#line 422 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_const(cpp2::impl::in<ad_type> inner) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::const_;
@@ -3376,7 +3172,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 251 "source/reverse_ad.h2"
+#line 434 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_ref(cpp2::impl::in<ad_type> inner) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::ref;
@@ -3384,7 +3180,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 263 "source/reverse_ad.h2"
+#line 446 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_rvalue_ref(cpp2::impl::in<ad_type> inner) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::rvalue_ref;
@@ -3392,7 +3188,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 275 "source/reverse_ad.h2"
+#line 458 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_pointer(cpp2::impl::in<ad_type> inner) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::pointer;
@@ -3400,7 +3196,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 288 "source/reverse_ad.h2"
+#line 471 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_array(cpp2::impl::in<ad_type> inner, cpp2::impl::in<int> size) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::array;
@@ -3409,7 +3205,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 302 "source/reverse_ad.h2"
+#line 485 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_template(cpp2::impl::in<std::string> template_name, cpp2::impl::in<std::vector<ad_type>> args) -> ad_type{
         ad_type t {}; 
         t.kind = ad_type_kind::template_;
@@ -3418,34 +3214,34 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return t; 
     }
 
-#line 317 "source/reverse_ad.h2"
+#line 500 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_const_ref(cpp2::impl::in<ad_type> inner) -> ad_type{
         return make_const(make_ref(inner)); 
     }
 
-#line 326 "source/reverse_ad.h2"
+#line 509 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::make_std_vector(cpp2::impl::in<ad_type> elem) -> ad_type{
         std::vector<ad_type> args {}; 
         CPP2_UFCS(push_back)(args, elem);
         return make_template("std::vector", cpp2::move(args)); 
     }
 
-#line 338 "source/reverse_ad.h2"
+#line 521 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::is_const() const& -> bool{
         return kind == ad_type_kind::const_; 
     }
 
-#line 346 "source/reverse_ad.h2"
+#line 529 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::is_reference() const& -> bool{
         return kind == ad_type_kind::ref || kind == ad_type_kind::rvalue_ref; 
     }
 
-#line 354 "source/reverse_ad.h2"
+#line 537 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::is_pointer() const& -> bool{
         return kind == ad_type_kind::pointer; 
     }
 
-#line 362 "source/reverse_ad.h2"
+#line 545 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_type::get_base_type() const& -> ad_type{
         if (inner_type != nullptr) {
             return CPP2_UFCS(get_base_type)((*cpp2::impl::assert_not_null(inner_type))); 
@@ -3453,7 +3249,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return (*this); 
     }
 
-#line 375 "source/reverse_ad.h2"
+#line 558 "source/reverse_ad.h2"
 [[nodiscard]] auto ad_type_to_string(cpp2::impl::in<ad_type> t) -> std::string{
     if (t.kind == ad_type_kind::auto_)    { return "auto"; }
     if (t.kind == ad_type_kind::void_)    { return "void"; }
@@ -3499,18 +3295,18 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return "[]"; 
     }
     if (t.kind == ad_type_kind::template_) {
-        auto result {t.name + "<"}; 
+        std::string result {t.name + "<"}; 
 {
-auto first{true};
+bool first{true};
 
-#line 422 "source/reverse_ad.h2"
+#line 605 "source/reverse_ad.h2"
         for ( auto const& arg : t.type_args ) {
             if (!(first)) {result += ", "; }
             first = false;
             result += ad_type_to_string(arg);
         }
 }
-#line 427 "source/reverse_ad.h2"
+#line 610 "source/reverse_ad.h2"
         result += ">";
         return result; 
     }
@@ -3947,10 +3743,10 @@ return ad_stmt_kind::decl;
 [[nodiscard]] auto ad_stmt_kind::from_code(cpp2::impl::in<std::string_view> s) -> ad_stmt_kind{
 std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::move(str), "ad_stmt_kind::", "")); }
 
-#line 621 "source/reverse_ad.h2"
+#line 804 "source/reverse_ad.h2"
     ad_expr::ad_expr(){}
 
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     ad_expr::ad_expr(ad_expr const& that)
                                    : kind{ that.kind }
                                    , type_name{ that.type_name }
@@ -3963,7 +3759,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    , cast_type{ that.cast_type }
                                    , lambda_params{ that.lambda_params }
                                    , lambda_body{ that.lambda_body }{}
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     auto ad_expr::operator=(ad_expr const& that) -> ad_expr& {
                                    kind = that.kind;
                                    type_name = that.type_name;
@@ -3977,7 +3773,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    lambda_params = that.lambda_params;
                                    lambda_body = that.lambda_body;
                                    return *this; }
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     ad_expr::ad_expr(ad_expr&& that) noexcept
                                    : kind{ std::move(that).kind }
                                    , type_name{ std::move(that).type_name }
@@ -3990,7 +3786,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    , cast_type{ std::move(that).cast_type }
                                    , lambda_params{ std::move(that).lambda_params }
                                    , lambda_body{ std::move(that).lambda_body }{}
-#line 624 "source/reverse_ad.h2"
+#line 807 "source/reverse_ad.h2"
     auto ad_expr::operator=(ad_expr&& that) noexcept -> ad_expr& {
                                    kind = std::move(that).kind;
                                    type_name = std::move(that).type_name;
@@ -4005,7 +3801,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    lambda_body = std::move(that).lambda_body;
                                    return *this; }
 
-#line 634 "source/reverse_ad.h2"
+#line 817 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_literal(cpp2::impl::in<std::string> value, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::literal;
@@ -4015,7 +3811,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 649 "source/reverse_ad.h2"
+#line 832 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_literal_typed(cpp2::impl::in<std::string> value, cpp2::impl::in<ad_type> t) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::literal;
@@ -4026,7 +3822,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 665 "source/reverse_ad.h2"
+#line 848 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_identifier(cpp2::impl::in<std::string> name_, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::identifier;
@@ -4036,7 +3832,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 680 "source/reverse_ad.h2"
+#line 863 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_identifier_typed(cpp2::impl::in<std::string> name_, cpp2::impl::in<ad_type> t) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::identifier;
@@ -4047,7 +3843,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 699 "source/reverse_ad.h2"
+#line 882 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_unary(cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<ad_expr> operand, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::unary;
@@ -4057,7 +3853,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 716 "source/reverse_ad.h2"
+#line 899 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_binary(cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::binary;
@@ -4068,7 +3864,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 734 "source/reverse_ad.h2"
+#line 917 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_ternary(cpp2::impl::in<ad_expr> condition, cpp2::impl::in<ad_expr> then_expr, cpp2::impl::in<ad_expr> else_expr, 
                    cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
@@ -4080,7 +3876,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 755 "source/reverse_ad.h2"
+#line 938 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_member(cpp2::impl::in<ad_expr> object, cpp2::impl::in<std::string> member, cpp2::impl::in<bool> is_arrow, 
                   cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
@@ -4093,7 +3889,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 774 "source/reverse_ad.h2"
+#line 957 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_subscript(cpp2::impl::in<ad_expr> array, cpp2::impl::in<ad_expr> index, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::subscript;
@@ -4103,7 +3899,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 793 "source/reverse_ad.h2"
+#line 976 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_call(cpp2::impl::in<std::string> func_name, cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<std::vector<ad_expr>> call_args, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::call;
@@ -4114,7 +3910,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 811 "source/reverse_ad.h2"
+#line 994 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_template_call(cpp2::impl::in<std::string> func_name, cpp2::impl::in<std::vector<ad_expr>> call_args, 
                          cpp2::impl::in<std::vector<ad_type>> template_args, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
@@ -4127,7 +3923,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 831 "source/reverse_ad.h2"
+#line 1014 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_method_call(cpp2::impl::in<ad_expr> object, cpp2::impl::in<std::string> method_name, 
                        cpp2::impl::in<std::vector<ad_expr>> call_args, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
@@ -4142,7 +3938,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 855 "source/reverse_ad.h2"
+#line 1038 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_cast(cpp2::impl::in<std::string> cast_kind, cpp2::impl::in<ad_type> target_type, cpp2::impl::in<ad_expr> expr, 
                 cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
@@ -4154,7 +3950,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 872 "source/reverse_ad.h2"
+#line 1055 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_construct(cpp2::impl::in<std::string> type_name_, cpp2::impl::in<std::vector<ad_expr>> construct_args) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::construct;
@@ -4164,7 +3960,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 888 "source/reverse_ad.h2"
+#line 1071 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_paren(cpp2::impl::in<ad_expr> inner) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::paren;
@@ -4173,7 +3969,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 902 "source/reverse_ad.h2"
+#line 1085 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_initializer_list(cpp2::impl::in<std::vector<ad_expr>> elements, cpp2::impl::in<std::string> type_name_) -> ad_expr{
         ad_expr e {}; 
         e.kind = ad_expr_kind::initializer_list;
@@ -4182,26 +3978,26 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return e; 
     }
 
-#line 917 "source/reverse_ad.h2"
+#line 1100 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_int_literal(cpp2::impl::in<int> value) -> ad_expr{
         return make_literal(std::to_string(value), "int"); 
     }
 
-#line 926 "source/reverse_ad.h2"
+#line 1109 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_double_literal(cpp2::impl::in<double> value) -> ad_expr{
         return make_literal(std::to_string(value), "double"); 
     }
 
-#line 935 "source/reverse_ad.h2"
+#line 1118 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_expr::make_bool_literal(cpp2::impl::in<bool> value) -> ad_expr{
         if (value) {return make_literal("true", "bool"); }
         return make_literal("false", "bool"); 
     }
 
-#line 985 "source/reverse_ad.h2"
+#line 1168 "source/reverse_ad.h2"
     ad_stmt::ad_stmt(){}
 
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     ad_stmt::ad_stmt(ad_stmt const& that)
                                    : kind{ that.kind }
                                    , target{ that.target }
@@ -4219,7 +4015,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    , catch_var{ that.catch_var }
                                    , catch_type{ that.catch_type }
                                    , catch_stmts{ that.catch_stmts }{}
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     auto ad_stmt::operator=(ad_stmt const& that) -> ad_stmt& {
                                    kind = that.kind;
                                    target = that.target;
@@ -4238,7 +4034,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    catch_type = that.catch_type;
                                    catch_stmts = that.catch_stmts;
                                    return *this; }
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     ad_stmt::ad_stmt(ad_stmt&& that) noexcept
                                    : kind{ std::move(that).kind }
                                    , target{ std::move(that).target }
@@ -4256,7 +4052,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    , catch_var{ std::move(that).catch_var }
                                    , catch_type{ std::move(that).catch_type }
                                    , catch_stmts{ std::move(that).catch_stmts }{}
-#line 988 "source/reverse_ad.h2"
+#line 1171 "source/reverse_ad.h2"
     auto ad_stmt::operator=(ad_stmt&& that) noexcept -> ad_stmt& {
                                    kind = std::move(that).kind;
                                    target = std::move(that).target;
@@ -4276,7 +4072,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    catch_stmts = std::move(that).catch_stmts;
                                    return *this; }
 
-#line 999 "source/reverse_ad.h2"
+#line 1182 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_decl(cpp2::impl::in<std::string> name, cpp2::impl::in<std::string> type_name_, cpp2::impl::in<ad_expr> init) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::decl;
@@ -4286,7 +4082,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1015 "source/reverse_ad.h2"
+#line 1198 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_decl_typed(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_type> t, cpp2::impl::in<ad_expr> init) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::decl;
@@ -4297,7 +4093,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1031 "source/reverse_ad.h2"
+#line 1214 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_assign(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::assign;
@@ -4306,7 +4102,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1046 "source/reverse_ad.h2"
+#line 1229 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_compound_assign(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_op_kind> op_, cpp2::impl::in<ad_expr> value) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::compound_assign;
@@ -4316,7 +4112,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1062 "source/reverse_ad.h2"
+#line 1245 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_assign_add(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::assign_add;
@@ -4325,22 +4121,22 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1076 "source/reverse_ad.h2"
+#line 1259 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_assign_sub(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt{
         return make_compound_assign(name, ad_op_kind::assign_sub, value); 
     }
 
-#line 1086 "source/reverse_ad.h2"
+#line 1269 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_assign_mul(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt{
         return make_compound_assign(name, ad_op_kind::assign_mul, value); 
     }
 
-#line 1096 "source/reverse_ad.h2"
+#line 1279 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_assign_div(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> value) -> ad_stmt{
         return make_compound_assign(name, ad_op_kind::assign_div, value); 
     }
 
-#line 1107 "source/reverse_ad.h2"
+#line 1290 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_expr(cpp2::impl::in<ad_expr> e) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::expr;
@@ -4348,7 +4144,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1119 "source/reverse_ad.h2"
+#line 1302 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_return(cpp2::impl::in<ad_expr> value) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::return_;
@@ -4356,7 +4152,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1133 "source/reverse_ad.h2"
+#line 1316 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_compound(cpp2::impl::in<std::vector<ad_stmt>> nested) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::compound;
@@ -4364,7 +4160,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1147 "source/reverse_ad.h2"
+#line 1330 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_if(cpp2::impl::in<ad_expr> condition, cpp2::impl::in<std::vector<ad_stmt>> then_body, 
               cpp2::impl::in<std::vector<ad_stmt>> else_body) -> ad_stmt{
         ad_stmt s {}; 
@@ -4375,7 +4171,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1165 "source/reverse_ad.h2"
+#line 1348 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_for(cpp2::impl::in<ad_stmt> init, cpp2::impl::in<ad_expr> condition, cpp2::impl::in<ad_expr> increment, 
                cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
         ad_stmt s {}; 
@@ -4387,7 +4183,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1184 "source/reverse_ad.h2"
+#line 1367 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_foreach(cpp2::impl::in<std::string> var_name, cpp2::impl::in<std::string> var_type, 
                    cpp2::impl::in<ad_expr> range, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
         ad_stmt s {}; 
@@ -4399,7 +4195,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1201 "source/reverse_ad.h2"
+#line 1384 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_while(cpp2::impl::in<ad_expr> condition, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::while_stmt;
@@ -4408,7 +4204,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1215 "source/reverse_ad.h2"
+#line 1398 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_do_while(cpp2::impl::in<std::vector<ad_stmt>> body, cpp2::impl::in<ad_expr> condition) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::do_while_stmt;
@@ -4417,21 +4213,21 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1229 "source/reverse_ad.h2"
+#line 1412 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_break() -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::break_stmt;
         return s; 
     }
 
-#line 1239 "source/reverse_ad.h2"
+#line 1422 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_continue() -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::continue_stmt;
         return s; 
     }
 
-#line 1254 "source/reverse_ad.h2"
+#line 1437 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_switch(cpp2::impl::in<ad_expr> switch_expr, 
                   cpp2::impl::in<std::vector<std::pair<ad_expr,std::vector<ad_stmt>>>> cases, 
                   cpp2::impl::in<std::vector<ad_stmt>> default_body) -> ad_stmt{
@@ -4443,7 +4239,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1275 "source/reverse_ad.h2"
+#line 1458 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_try_catch(cpp2::impl::in<std::vector<ad_stmt>> try_body, 
                      cpp2::impl::in<std::string> catch_type_, cpp2::impl::in<std::string> catch_var_, 
                      cpp2::impl::in<std::vector<ad_stmt>> catch_body) -> ad_stmt{
@@ -4456,7 +4252,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1292 "source/reverse_ad.h2"
+#line 1475 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_throw(cpp2::impl::in<ad_expr> throw_expr) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::throw_stmt;
@@ -4464,7 +4260,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1307 "source/reverse_ad.h2"
+#line 1490 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_stmt::make_raw_code(cpp2::impl::in<std::string> code) -> ad_stmt{
         ad_stmt s {}; 
         s.kind = ad_stmt_kind::raw_code;
@@ -4472,29 +4268,29 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return s; 
     }
 
-#line 1327 "source/reverse_ad.h2"
+#line 1510 "source/reverse_ad.h2"
     ad_param::ad_param(){}
 
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     ad_param::ad_param(ad_param const& that)
                                    : name{ that.name }
                                    , type_name{ that.type_name }
                                    , pass{ that.pass }
                                    , is_active{ that.is_active }{}
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     auto ad_param::operator=(ad_param const& that) -> ad_param& {
                                    name = that.name;
                                    type_name = that.type_name;
                                    pass = that.pass;
                                    is_active = that.is_active;
                                    return *this; }
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     ad_param::ad_param(ad_param&& that) noexcept
                                    : name{ std::move(that).name }
                                    , type_name{ std::move(that).type_name }
                                    , pass{ std::move(that).pass }
                                    , is_active{ std::move(that).is_active }{}
-#line 1330 "source/reverse_ad.h2"
+#line 1513 "source/reverse_ad.h2"
     auto ad_param::operator=(ad_param&& that) noexcept -> ad_param& {
                                    name = std::move(that).name;
                                    type_name = std::move(that).type_name;
@@ -4502,7 +4298,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    is_active = std::move(that).is_active;
                                    return *this; }
 
-#line 1340 "source/reverse_ad.h2"
+#line 1523 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_param::make(cpp2::impl::in<std::string> name_, cpp2::impl::in<std::string> type_name_, cpp2::impl::in<passing_style> pass_, cpp2::impl::in<bool> is_active_) -> ad_param{
         ad_param p {}; 
         p.name = name_;
@@ -4512,17 +4308,17 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
         return p; 
     }
 
-#line 1365 "source/reverse_ad.h2"
+#line 1548 "source/reverse_ad.h2"
     ad_function_ir::ad_function_ir(){}
 
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     ad_function_ir::ad_function_ir(ad_function_ir const& that)
                                    : name{ that.name }
                                    , params{ that.params }
                                    , returns{ that.returns }
                                    , forward{ that.forward }
                                    , reverse{ that.reverse }{}
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     auto ad_function_ir::operator=(ad_function_ir const& that) -> ad_function_ir& {
                                    name = that.name;
                                    params = that.params;
@@ -4530,14 +4326,14 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    forward = that.forward;
                                    reverse = that.reverse;
                                    return *this; }
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     ad_function_ir::ad_function_ir(ad_function_ir&& that) noexcept
                                    : name{ std::move(that).name }
                                    , params{ std::move(that).params }
                                    , returns{ std::move(that).returns }
                                    , forward{ std::move(that).forward }
                                    , reverse{ std::move(that).reverse }{}
-#line 1368 "source/reverse_ad.h2"
+#line 1551 "source/reverse_ad.h2"
     auto ad_function_ir::operator=(ad_function_ir&& that) noexcept -> ad_function_ir& {
                                    name = std::move(that).name;
                                    params = std::move(that).params;
@@ -4546,422 +4342,7 @@ std::string str {s}; return from_string(cpp2::string_util::replace_all(cpp2::mov
                                    reverse = std::move(that).reverse;
                                    return *this; }
 
-#line 1383 "source/reverse_ad.h2"
-namespace ad_types {
-
-#line 1390 "source/reverse_ad.h2"
-    [[nodiscard]] auto double_() -> ad_type{
-        return ad_type::make_double(); 
-    }
-
-#line 1397 "source/reverse_ad.h2"
-    [[nodiscard]] auto int_() -> ad_type{
-        return ad_type::make_int(); 
-    }
-
-#line 1404 "source/reverse_ad.h2"
-    [[nodiscard]] auto size_t_() -> ad_type{
-        return ad_type::make_size_t(); 
-    }
-
-#line 1411 "source/reverse_ad.h2"
-    [[nodiscard]] auto bool_() -> ad_type{
-        return ad_type::make_bool(); 
-    }
-
-#line 1418 "source/reverse_ad.h2"
-    [[nodiscard]] auto void_() -> ad_type{
-        return ad_type::make_void(); 
-    }
-
-#line 1425 "source/reverse_ad.h2"
-    [[nodiscard]] auto auto_() -> ad_type{
-        return ad_type::make_auto(); 
-    }
-
-#line 1434 "source/reverse_ad.h2"
-    [[nodiscard]] auto const_double() -> ad_type{
-        return ad_type::make_const(ad_type::make_double()); 
-    }
-
-#line 1441 "source/reverse_ad.h2"
-    [[nodiscard]] auto double_ref() -> ad_type{
-        return ad_type::make_ref(ad_type::make_double()); 
-    }
-
-#line 1448 "source/reverse_ad.h2"
-    [[nodiscard]] auto const_double_ref() -> ad_type{
-        return ad_type::make_const(ad_type::make_ref(ad_type::make_double())); 
-    }
-
-#line 1455 "source/reverse_ad.h2"
-    [[nodiscard]] auto int_ref() -> ad_type{
-        return ad_type::make_ref(ad_type::make_int()); 
-    }
-
-#line 1462 "source/reverse_ad.h2"
-    [[nodiscard]] auto const_int_ref() -> ad_type{
-        return ad_type::make_const(ad_type::make_ref(ad_type::make_int())); 
-    }
-
-#line 1472 "source/reverse_ad.h2"
-    [[nodiscard]] auto std_vector(cpp2::impl::in<ad_type> elem) -> ad_type{
-        return ad_type::make_std_vector(elem); 
-    }
-
-#line 1479 "source/reverse_ad.h2"
-    [[nodiscard]] auto vector_double() -> ad_type{
-        return ad_type::make_std_vector(ad_type::make_double()); 
-    }
-
-#line 1486 "source/reverse_ad.h2"
-    [[nodiscard]] auto vector_int() -> ad_type{
-        return ad_type::make_std_vector(ad_type::make_int()); 
-    }
-
-#line 1493 "source/reverse_ad.h2"
-    [[nodiscard]] auto const_vector_double_ref() -> ad_type{
-        return ad_type::make_const(ad_type::make_ref(ad_type::make_std_vector(ad_type::make_double()))); 
-    }
-
-#line 1503 "source/reverse_ad.h2"
-    [[nodiscard]] auto named(cpp2::impl::in<std::string> name) -> ad_type{
-        return ad_type::make_named(name); 
-    }
-
-#line 1512 "source/reverse_ad.h2"
-    [[nodiscard]] auto template_(cpp2::impl::in<std::string> name, cpp2::impl::in<std::vector<ad_type>> args) -> ad_type{
-        return ad_type::make_template(name, args); 
-    }
-}
-
-#line 1522 "source/reverse_ad.h2"
-namespace ad_exprs {
-
-#line 1530 "source/reverse_ad.h2"
-    [[nodiscard]] auto var(cpp2::impl::in<std::string> name) -> ad_expr{
-        return ad_expr::make_identifier(name, "double"); 
-    }
-
-#line 1539 "source/reverse_ad.h2"
-    [[nodiscard]] auto var_typed(cpp2::impl::in<std::string> name, cpp2::impl::in<std::string> type_name) -> ad_expr{
-        return ad_expr::make_identifier(name, type_name); 
-    }
-
-#line 1547 "source/reverse_ad.h2"
-    [[nodiscard]] auto lit(cpp2::impl::in<double> value) -> ad_expr{
-        return ad_expr::make_literal(std::to_string(value), "double"); 
-    }
-
-#line 1555 "source/reverse_ad.h2"
-    [[nodiscard]] auto lit_str(cpp2::impl::in<std::string> value) -> ad_expr{
-        return ad_expr::make_literal(value, "double"); 
-    }
-
-#line 1563 "source/reverse_ad.h2"
-    [[nodiscard]] auto lit_int(cpp2::impl::in<int> value) -> ad_expr{
-        return ad_expr::make_int_literal(value); 
-    }
-
-#line 1571 "source/reverse_ad.h2"
-    [[nodiscard]] auto lit_bool(cpp2::impl::in<bool> value) -> ad_expr{
-        return ad_expr::make_bool_literal(value); 
-    }
-
-#line 1578 "source/reverse_ad.h2"
-    [[nodiscard]] auto zero() -> ad_expr{
-        return ad_expr::make_literal("0.0", "double"); 
-    }
-
-#line 1585 "source/reverse_ad.h2"
-    [[nodiscard]] auto one() -> ad_expr{
-        return ad_expr::make_literal("1.0", "double"); 
-    }
-
-#line 1594 "source/reverse_ad.h2"
-    [[nodiscard]] auto add(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::add, lhs, rhs, "double"); 
-    }
-
-#line 1601 "source/reverse_ad.h2"
-    [[nodiscard]] auto sub(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::sub, lhs, rhs, "double"); 
-    }
-
-#line 1608 "source/reverse_ad.h2"
-    [[nodiscard]] auto mul(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::mul, lhs, rhs, "double"); 
-    }
-
-#line 1615 "source/reverse_ad.h2"
-    [[nodiscard]] auto div(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::div, lhs, rhs, "double"); 
-    }
-
-#line 1622 "source/reverse_ad.h2"
-    [[nodiscard]] auto neg(cpp2::impl::in<ad_expr> operand) -> ad_expr{
-        return ad_expr::make_unary(ad_op_kind::neg, operand, "double"); 
-    }
-
-#line 1631 "source/reverse_ad.h2"
-    [[nodiscard]] auto lt(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::lt, lhs, rhs, "bool"); 
-    }
-
-#line 1638 "source/reverse_ad.h2"
-    [[nodiscard]] auto gt(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::gt, lhs, rhs, "bool"); 
-    }
-
-#line 1645 "source/reverse_ad.h2"
-    [[nodiscard]] auto le(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::le, lhs, rhs, "bool"); 
-    }
-
-#line 1652 "source/reverse_ad.h2"
-    [[nodiscard]] auto ge(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::ge, lhs, rhs, "bool"); 
-    }
-
-#line 1659 "source/reverse_ad.h2"
-    [[nodiscard]] auto eq(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::eq, lhs, rhs, "bool"); 
-    }
-
-#line 1666 "source/reverse_ad.h2"
-    [[nodiscard]] auto ne(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::ne, lhs, rhs, "bool"); 
-    }
-
-#line 1675 "source/reverse_ad.h2"
-    [[nodiscard]] auto land(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::land, lhs, rhs, "bool"); 
-    }
-
-#line 1682 "source/reverse_ad.h2"
-    [[nodiscard]] auto lor(cpp2::impl::in<ad_expr> lhs, cpp2::impl::in<ad_expr> rhs) -> ad_expr{
-        return ad_expr::make_binary(ad_op_kind::lor, lhs, rhs, "bool"); 
-    }
-
-#line 1689 "source/reverse_ad.h2"
-    [[nodiscard]] auto lnot(cpp2::impl::in<ad_expr> operand) -> ad_expr{
-        return ad_expr::make_unary(ad_op_kind::lnot, operand, "bool"); 
-    }
-
-#line 1698 "source/reverse_ad.h2"
-    [[nodiscard]] auto pre_inc(cpp2::impl::in<ad_expr> operand) -> ad_expr{
-        return ad_expr::make_unary(ad_op_kind::pre_inc, operand, operand.type_name); 
-    }
-
-#line 1705 "source/reverse_ad.h2"
-    [[nodiscard]] auto pre_dec(cpp2::impl::in<ad_expr> operand) -> ad_expr{
-        return ad_expr::make_unary(ad_op_kind::pre_dec, operand, operand.type_name); 
-    }
-
-#line 1712 "source/reverse_ad.h2"
-    [[nodiscard]] auto post_inc(cpp2::impl::in<ad_expr> operand) -> ad_expr{
-        return ad_expr::make_unary(ad_op_kind::post_inc, operand, operand.type_name); 
-    }
-
-#line 1719 "source/reverse_ad.h2"
-    [[nodiscard]] auto post_dec(cpp2::impl::in<ad_expr> operand) -> ad_expr{
-        return ad_expr::make_unary(ad_op_kind::post_dec, operand, operand.type_name); 
-    }
-
-#line 1728 "source/reverse_ad.h2"
-    [[nodiscard]] auto member(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> member_name) -> ad_expr{
-        return ad_expr::make_member(obj, member_name, false, "auto"); 
-    }
-
-#line 1735 "source/reverse_ad.h2"
-    [[nodiscard]] auto arrow(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> member_name) -> ad_expr{
-        return ad_expr::make_member(obj, member_name, true, "auto"); 
-    }
-
-#line 1742 "source/reverse_ad.h2"
-    [[nodiscard]] auto subscript(cpp2::impl::in<ad_expr> arr, cpp2::impl::in<ad_expr> index) -> ad_expr{
-        return ad_expr::make_subscript(arr, index, "auto"); 
-    }
-
-#line 1749 "source/reverse_ad.h2"
-    [[nodiscard]] auto at(cpp2::impl::in<ad_expr> arr, cpp2::impl::in<int> index) -> ad_expr{
-        return ad_expr::make_subscript(arr, ad_expr::make_int_literal(index), "auto"); 
-    }
-
-#line 1760 "source/reverse_ad.h2"
-    [[nodiscard]] auto call(cpp2::impl::in<std::string> fn, cpp2::impl::in<std::vector<ad_expr>> args) -> ad_expr{
-        return ad_expr::make_call(fn, ad_op_kind::call, args, "double"); 
-    }
-
-#line 1770 "source/reverse_ad.h2"
-    [[nodiscard]] auto method(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> method_name, cpp2::impl::in<std::vector<ad_expr>> args) -> ad_expr{
-        return ad_expr::make_method_call(obj, method_name, args, "auto"); 
-    }
-
-#line 1777 "source/reverse_ad.h2"
-    [[nodiscard]] auto method0(cpp2::impl::in<ad_expr> obj, cpp2::impl::in<std::string> method_name) -> ad_expr{
-        std::vector<ad_expr> empty_args {}; 
-        return ad_expr::make_method_call(obj, method_name, cpp2::move(empty_args), "auto"); 
-    }
-
-#line 1787 "source/reverse_ad.h2"
-    [[nodiscard]] auto sin(cpp2::impl::in<ad_expr> x) -> ad_expr{
-        std::vector<ad_expr> args {}; 
-        CPP2_UFCS(push_back)(args, x);
-        return ad_expr::make_call("std::sin", ad_op_kind::call, cpp2::move(args), "double"); 
-    }
-
-#line 1796 "source/reverse_ad.h2"
-    [[nodiscard]] auto cos(cpp2::impl::in<ad_expr> x) -> ad_expr{
-        std::vector<ad_expr> args {}; 
-        CPP2_UFCS(push_back)(args, x);
-        return ad_expr::make_call("std::cos", ad_op_kind::call, cpp2::move(args), "double"); 
-    }
-
-#line 1805 "source/reverse_ad.h2"
-    [[nodiscard]] auto exp(cpp2::impl::in<ad_expr> x) -> ad_expr{
-        std::vector<ad_expr> args {}; 
-        CPP2_UFCS(push_back)(args, x);
-        return ad_expr::make_call("std::exp", ad_op_kind::call, cpp2::move(args), "double"); 
-    }
-
-#line 1814 "source/reverse_ad.h2"
-    [[nodiscard]] auto log(cpp2::impl::in<ad_expr> x) -> ad_expr{
-        std::vector<ad_expr> args {}; 
-        CPP2_UFCS(push_back)(args, x);
-        return ad_expr::make_call("std::log", ad_op_kind::call, cpp2::move(args), "double"); 
-    }
-
-#line 1823 "source/reverse_ad.h2"
-    [[nodiscard]] auto sqrt(cpp2::impl::in<ad_expr> x) -> ad_expr{
-        std::vector<ad_expr> args {}; 
-        CPP2_UFCS(push_back)(args, x);
-        return ad_expr::make_call("std::sqrt", ad_op_kind::call, cpp2::move(args), "double"); 
-    }
-
-#line 1832 "source/reverse_ad.h2"
-    [[nodiscard]] auto pow(cpp2::impl::in<ad_expr> x, cpp2::impl::in<ad_expr> y) -> ad_expr{
-        std::vector<ad_expr> args {}; 
-        CPP2_UFCS(push_back)(args, x);
-        CPP2_UFCS(push_back)(args, y);
-        return ad_expr::make_call("std::pow", ad_op_kind::call, cpp2::move(args), "double"); 
-    }
-
-#line 1844 "source/reverse_ad.h2"
-    [[nodiscard]] auto ternary(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<ad_expr> then_expr, cpp2::impl::in<ad_expr> else_expr) -> ad_expr{
-        return ad_expr::make_ternary(cond, then_expr, else_expr, then_expr.type_name); 
-    }
-
-#line 1851 "source/reverse_ad.h2"
-    [[nodiscard]] auto paren(cpp2::impl::in<ad_expr> inner) -> ad_expr{
-        return ad_expr::make_paren(inner); 
-    }
-}
-
-#line 1861 "source/reverse_ad.h2"
-namespace ad_stmts {
-
-#line 1868 "source/reverse_ad.h2"
-    [[nodiscard]] auto decl_init(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> init) -> ad_stmt{
-        return ad_stmt::make_decl(name, init.type_name, init); 
-    }
-
-#line 1875 "source/reverse_ad.h2"
-    [[nodiscard]] auto decl_double(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> init) -> ad_stmt{
-        return ad_stmt::make_decl(name, "double", init); 
-    }
-
-#line 1882 "source/reverse_ad.h2"
-    [[nodiscard]] auto decl_int(cpp2::impl::in<std::string> name, cpp2::impl::in<ad_expr> init) -> ad_stmt{
-        return ad_stmt::make_decl(name, "int", init); 
-    }
-
-#line 1889 "source/reverse_ad.h2"
-    [[nodiscard]] auto decl_zero(cpp2::impl::in<std::string> name) -> ad_stmt{
-        return ad_stmt::make_decl(name, "double", ad_exprs::zero()); 
-    }
-
-#line 1898 "source/reverse_ad.h2"
-    [[nodiscard]] auto assign(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt{
-        return ad_stmt::make_assign(target, value); 
-    }
-
-#line 1905 "source/reverse_ad.h2"
-    [[nodiscard]] auto assign_add(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt{
-        return ad_stmt::make_assign_add(target, value); 
-    }
-
-#line 1912 "source/reverse_ad.h2"
-    [[nodiscard]] auto assign_sub(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt{
-        return ad_stmt::make_assign_sub(target, value); 
-    }
-
-#line 1919 "source/reverse_ad.h2"
-    [[nodiscard]] auto assign_mul(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt{
-        return ad_stmt::make_assign_mul(target, value); 
-    }
-
-#line 1926 "source/reverse_ad.h2"
-    [[nodiscard]] auto assign_div(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value) -> ad_stmt{
-        return ad_stmt::make_assign_div(target, value); 
-    }
-
-#line 1935 "source/reverse_ad.h2"
-    [[nodiscard]] auto if_then(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
-        std::vector<ad_stmt> empty {}; 
-        return ad_stmt::make_if(cond, body, cpp2::move(empty)); 
-    }
-
-#line 1943 "source/reverse_ad.h2"
-    [[nodiscard]] auto if_else(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<std::vector<ad_stmt>> then_body, cpp2::impl::in<std::vector<ad_stmt>> else_body) -> ad_stmt{
-        return ad_stmt::make_if(cond, then_body, else_body); 
-    }
-
-#line 1954 "source/reverse_ad.h2"
-    [[nodiscard]] auto for_range(cpp2::impl::in<std::string> var, cpp2::impl::in<int> start, cpp2::impl::in<ad_expr> end_exclusive, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
-        auto init {ad_stmt::make_decl(var, "int", ad_expr::make_int_literal(start))}; 
-        auto cond {ad_exprs::lt(ad_exprs::var_typed(var, "int"), end_exclusive)}; 
-        auto incr {ad_exprs::post_inc(ad_exprs::var_typed(var, "int"))}; 
-        return ad_stmt::make_for(cpp2::move(init), cpp2::move(cond), cpp2::move(incr), body); 
-    }
-
-#line 1964 "source/reverse_ad.h2"
-    [[nodiscard]] auto while_(cpp2::impl::in<ad_expr> cond, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
-        return ad_stmt::make_while(cond, body); 
-    }
-
-#line 1971 "source/reverse_ad.h2"
-    [[nodiscard]] auto foreach(cpp2::impl::in<std::string> var, cpp2::impl::in<ad_expr> range, cpp2::impl::in<std::vector<ad_stmt>> body) -> ad_stmt{
-        return ad_stmt::make_foreach(var, "auto", range, body); 
-    }
-
-#line 1980 "source/reverse_ad.h2"
-    [[nodiscard]] auto return_(cpp2::impl::in<ad_expr> value) -> ad_stmt{
-        return ad_stmt::make_return(value); 
-    }
-
-#line 1987 "source/reverse_ad.h2"
-    [[nodiscard]] auto break_() -> ad_stmt{
-        return ad_stmt::make_break(); 
-    }
-
-#line 1994 "source/reverse_ad.h2"
-    [[nodiscard]] auto continue_() -> ad_stmt{
-        return ad_stmt::make_continue(); 
-    }
-
-#line 2003 "source/reverse_ad.h2"
-    [[nodiscard]] auto expr(cpp2::impl::in<ad_expr> e) -> ad_stmt{
-        return ad_stmt::make_expr(e); 
-    }
-
-#line 2010 "source/reverse_ad.h2"
-    [[nodiscard]] auto block(cpp2::impl::in<std::vector<ad_stmt>> stmts) -> ad_stmt{
-        return ad_stmt::make_compound(stmts); 
-    }
-}
-
-#line 2026 "source/reverse_ad.h2"
+#line 1565 "source/reverse_ad.h2"
 [[nodiscard]] auto ad_op_kind_to_string(cpp2::impl::in<ad_op_kind> op) -> std::string{
     // Arithmetic
     if (op == ad_op_kind::add)        { return "add"; }
@@ -5029,341 +4410,30 @@ namespace ad_stmts {
     return "unknown"; 
 }
 
-#line 2098 "source/reverse_ad.h2"
-[[nodiscard]] auto ad_expr_kind_to_string(cpp2::impl::in<ad_expr_kind> kind) -> std::string{
-    if (kind == ad_expr_kind::literal)         { return "literal"; }
-    if (kind == ad_expr_kind::identifier)      { return "identifier"; }
-    if (kind == ad_expr_kind::unary)           { return "unary"; }
-    if (kind == ad_expr_kind::binary)          { return "binary"; }
-    if (kind == ad_expr_kind::ternary)         { return "ternary"; }
-    if (kind == ad_expr_kind::member)          { return "member"; }
-    if (kind == ad_expr_kind::subscript)       { return "subscript"; }
-    if (kind == ad_expr_kind::call)            { return "call"; }
-    if (kind == ad_expr_kind::method_call)     { return "method_call"; }
-    if (kind == ad_expr_kind::cast)            { return "cast"; }
-    if (kind == ad_expr_kind::construct)       { return "construct"; }
-    if (kind == ad_expr_kind::paren)           { return "paren"; }
-    if (kind == ad_expr_kind::lambda)          { return "lambda"; }
-    if (kind == ad_expr_kind::initializer_list) {return "initializer_list"; }
-    return "unknown"; 
-}
-
-#line 2121 "source/reverse_ad.h2"
-[[nodiscard]] auto ad_stmt_kind_to_string(cpp2::impl::in<ad_stmt_kind> kind) -> std::string{
-    if (kind == ad_stmt_kind::decl)           { return "decl"; }
-    if (kind == ad_stmt_kind::assign)         { return "assign"; }
-    if (kind == ad_stmt_kind::compound_assign) {return "compound_assign"; }
-    if (kind == ad_stmt_kind::assign_add)     { return "assign_add"; }
-    if (kind == ad_stmt_kind::if_stmt)        { return "if_stmt"; }
-    if (kind == ad_stmt_kind::for_stmt)       { return "for_stmt"; }
-    if (kind == ad_stmt_kind::foreach_stmt)   { return "foreach_stmt"; }
-    if (kind == ad_stmt_kind::while_stmt)     { return "while_stmt"; }
-    if (kind == ad_stmt_kind::do_while_stmt)  { return "do_while_stmt"; }
-    if (kind == ad_stmt_kind::switch_stmt)    { return "switch_stmt"; }
-    if (kind == ad_stmt_kind::return_)        { return "return"; }
-    if (kind == ad_stmt_kind::break_stmt)     { return "break_stmt"; }
-    if (kind == ad_stmt_kind::continue_stmt)  { return "continue_stmt"; }
-    if (kind == ad_stmt_kind::compound)       { return "compound"; }
-    if (kind == ad_stmt_kind::expr_stmt)      { return "expr_stmt"; }
-    if (kind == ad_stmt_kind::expr)           { return "expr"; }
-    if (kind == ad_stmt_kind::raw_code)       { return "raw_code"; }
-    if (kind == ad_stmt_kind::try_catch)      { return "try_catch"; }
-    if (kind == ad_stmt_kind::throw_stmt)     { return "throw_stmt"; }
-    return "unknown"; 
-}
-
-#line 2148 "source/reverse_ad.h2"
-auto ad_ir_print_indent(cpp2::impl::in<cpp2::i32> indent) -> void{
-    auto i {0}; 
-    for( ; cpp2::impl::cmp_less(i,indent); ++i ) {
-        std::cout << "  ";
-    }
-}
-
-#line 2160 "source/reverse_ad.h2"
-auto ad_ir_debug_dump_expr(cpp2::impl::in<ad_expr> e, cpp2::impl::in<cpp2::i32> indent) -> void{
-    ad_ir_print_indent(indent);
-    std::cout << "expr(" << ad_expr_kind_to_string(e.kind) << ")";
-
-    if (e.kind == ad_expr_kind::literal) {
-        std::cout << " value=" << e.name << " type=" << e.type_name << "\n";
-    }
-    else {if (e.kind == ad_expr_kind::identifier) {
-        std::cout << " name=" << e.name << " type=" << e.type_name << "\n";
-    }
-    else {if (e.kind == ad_expr_kind::unary) {
-        std::cout << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        for ( auto const& arg : e.args ) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {if (e.kind == ad_expr_kind::binary) {
-        std::cout << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        for ( auto const& arg : e.args ) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {if (e.kind == ad_expr_kind::ternary) {
-        std::cout << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(e.args),0)) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 0), indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "then:\n";
-        if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(e.args),1)) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 1), indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "else:\n";
-        if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(e.args),2)) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 2), indent + 2); }
-    }
-    else {if (e.kind == ad_expr_kind::member) {
-        std::cout << " member=" << e.member_name << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "object:\n";
-        if (!(CPP2_UFCS(empty)(e.args))) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 0), indent + 2); }
-    }
-    else {if (e.kind == ad_expr_kind::subscript) {
-        std::cout << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "array:\n";
-        if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(e.args),0)) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 0), indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "index:\n";
-        if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(e.args),1)) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 1), indent + 2); }
-    }
-    else {if (e.kind == ad_expr_kind::call) {
-        std::cout << " func=" << e.name << " op=" << ad_op_kind_to_string(e.op) << " type=" << e.type_name << "\n";
-        for ( auto const& arg : e.args ) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {if (e.kind == ad_expr_kind::method_call) {
-        std::cout << " method=" << e.name << " type=" << e.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "object:\n";
-        if (!(CPP2_UFCS(empty)(e.args))) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 0), indent + 2); }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "arguments:\n";
-        auto i {1}; 
-        for( ; cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(e.args)); ++i ) {
-            ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS(e.args, i), indent + 2);
-        }
-    }
-    else {if (e.kind == ad_expr_kind::cast) {
-        std::cout << " cast_kind=" << e.name << " type=" << e.type_name << "\n";
-        for ( auto const& arg : e.args ) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {if (e.kind == ad_expr_kind::construct) {
-        std::cout << " type=" << e.name << "\n";
-        for ( auto const& arg : e.args ) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {if (e.kind == ad_expr_kind::paren) {
-        std::cout << " type=" << e.type_name << "\n";
-        if (!(CPP2_UFCS(empty)(e.args))) {ad_ir_debug_dump_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(e.args, 0), indent + 1); }
-    }
-    else {if (e.kind == ad_expr_kind::initializer_list) {
-        std::cout << " type=" << e.type_name << " elements=" << CPP2_UFCS(ssize)(e.args) << "\n";
-        for ( auto const& arg : e.args ) {
-            ad_ir_debug_dump_expr(arg, indent + 1);
-        }
-    }
-    else {
-        std::cout << " type=" << e.type_name << "\n";
-    }}}}}}}}}}}}}
-}
-
-#line 2259 "source/reverse_ad.h2"
-auto ad_ir_debug_dump_stmt(cpp2::impl::in<ad_stmt> s, cpp2::impl::in<cpp2::i32> indent) -> void{
-    ad_ir_print_indent(indent);
-    std::cout << "stmt(" << ad_stmt_kind_to_string(s.kind) << ")";
-
-    if (s.kind == ad_stmt_kind::decl) {
-        std::cout << " target=" << s.target << " type=" << s.type_name << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::assign) {
-        std::cout << " target=" << s.target << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::compound_assign) {
-        std::cout << " target=" << s.target << " op=" << ad_op_kind_to_string(s.op) << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::assign_add) {
-        std::cout << " target=" << s.target << " (+=)\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::if_stmt) {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "then (" << CPP2_UFCS(ssize)(s.stmts) << " statements):\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-        if (!(CPP2_UFCS(empty)(s.else_stmts))) {
-            ad_ir_print_indent(indent + 1);
-            std::cout << "else (" << CPP2_UFCS(ssize)(s.else_stmts) << " statements):\n";
-            for ( auto const& nested : s.else_stmts ) {
-                ad_ir_debug_dump_stmt(nested, indent + 2);
-            }
-        }
-    }
-    else {if (s.kind == ad_stmt_kind::for_stmt) {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "init:\n";
-        if (s.init_stmt != nullptr) {
-            ad_ir_debug_dump_stmt(*cpp2::impl::assert_not_null(s.init_stmt), indent + 2);
-        }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "increment:\n";
-        ad_ir_debug_dump_expr(s.incr_expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << CPP2_UFCS(ssize)(s.stmts) << " statements):\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else {if (s.kind == ad_stmt_kind::foreach_stmt) {
-        std::cout << " var=" << s.target << " type=" << s.type_name << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "range:\n";
-        ad_ir_debug_dump_expr(s.range_expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << CPP2_UFCS(ssize)(s.stmts) << " statements):\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else {if (s.kind == ad_stmt_kind::while_stmt) {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << CPP2_UFCS(ssize)(s.stmts) << " statements):\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else {if (s.kind == ad_stmt_kind::do_while_stmt) {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "body (" << CPP2_UFCS(ssize)(s.stmts) << " statements):\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "condition:\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 2);
-    }
-    else {if (s.kind == ad_stmt_kind::break_stmt) {
-        std::cout << "\n";
-    }
-    else {if (s.kind == ad_stmt_kind::continue_stmt) {
-        std::cout << "\n";
-    }
-    else {if (s.kind == ad_stmt_kind::expr || s.kind == ad_stmt_kind::expr_stmt) {
-        std::cout << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::return_) {
-        std::cout << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::compound) {
-        std::cout << " (" << CPP2_UFCS(ssize)(s.stmts) << " statements)\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 1);
-        }
-    }
-    else {if (s.kind == ad_stmt_kind::try_catch) {
-        std::cout << "\n";
-        ad_ir_print_indent(indent + 1);
-        std::cout << "try (" << CPP2_UFCS(ssize)(s.stmts) << " statements):\n";
-        for ( auto const& nested : s.stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-        ad_ir_print_indent(indent + 1);
-        std::cout << "catch(" << s.catch_type << " " << s.catch_var << ") (" << CPP2_UFCS(ssize)(s.catch_stmts) << " statements):\n";
-        for ( auto const& nested : s.catch_stmts ) {
-            ad_ir_debug_dump_stmt(nested, indent + 2);
-        }
-    }
-    else {if (s.kind == ad_stmt_kind::throw_stmt) {
-        std::cout << "\n";
-        ad_ir_debug_dump_expr(s.expr, indent + 1);
-    }
-    else {if (s.kind == ad_stmt_kind::raw_code) {
-        std::cout << " code='" << s.target << "'\n";
-    }
-    else {
-        std::cout << "\n";
-    }}}}}}}}}}}}}}}}}
-}
-
-#line 2398 "source/reverse_ad.h2"
-auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
-    std::cout << "=== AD Function IR: " << ir.name << " ===\n";
-
-    std::cout << "Parameters:\n";
-    for ( auto const& p : ir.params ) {
-        std::cout << "  " << p.name << ": " << p.type_name 
-                  << " (active=" << p.is_active << ")\n";
-    }
-
-    std::cout << "Returns:\n";
-    for ( auto const& r : ir.returns ) {
-        std::cout << "  " << r.name << ": " << r.type_name 
-                  << " (active=" << r.is_active << ")\n";
-    }
-
-    std::cout << "Forward pass (" << CPP2_UFCS(ssize)(ir.forward) << " statements):\n";
-    for ( auto const& s : ir.forward ) {
-        ad_ir_debug_dump_stmt(s, 1);
-    }
-
-    std::cout << "Reverse pass (" << CPP2_UFCS(ssize)(ir.reverse) << " statements):\n";
-    for ( auto const& s : ir.reverse ) {
-        ad_ir_debug_dump_stmt(s, 1);
-    }
-
-    std::cout << "=== End AD Function IR ===\n";
-}
-
-#line 2442 "source/reverse_ad.h2"
+#line 1648 "source/reverse_ad.h2"
     ad_substitution_context::ad_substitution_context(){}
 
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     ad_substitution_context::ad_substitution_context(ad_substitution_context const& that)
                                    : substitutions{ that.substitutions }{}
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     auto ad_substitution_context::operator=(ad_substitution_context const& that) -> ad_substitution_context& {
                                    substitutions = that.substitutions;
                                    return *this; }
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     ad_substitution_context::ad_substitution_context(ad_substitution_context&& that) noexcept
                                    : substitutions{ std::move(that).substitutions }{}
-#line 2445 "source/reverse_ad.h2"
+#line 1651 "source/reverse_ad.h2"
     auto ad_substitution_context::operator=(ad_substitution_context&& that) noexcept -> ad_substitution_context& {
                                    substitutions = std::move(that).substitutions;
                                    return *this; }
 
-#line 2452 "source/reverse_ad.h2"
+#line 1658 "source/reverse_ad.h2"
     auto ad_substitution_context::add(cpp2::impl::in<std::string> param_name, cpp2::impl::in<ad_expr> expr) & -> void{
         CPP2_UFCS(push_back)(substitutions, std::make_pair(param_name, expr));
     }
 
-#line 2462 "source/reverse_ad.h2"
+#line 1668 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_substitution_context::find(cpp2::impl::in<std::string> name, ad_expr& result) const& -> bool{
         for ( auto const& sub : substitutions ) {
             if (sub.first == name) {
@@ -5374,7 +4444,7 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return false; 
     }
 
-#line 2477 "source/reverse_ad.h2"
+#line 1683 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_substitution_context::has(cpp2::impl::in<std::string> name) const& -> bool{
         for ( auto const& sub : substitutions ) {
             if (sub.first == name) {
@@ -5384,12 +4454,12 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return false; 
     }
 
-#line 2490 "source/reverse_ad.h2"
+#line 1696 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_substitution_context::size() const& -> int{
         return CPP2_UFCS(ssize)(substitutions); 
     }
 
-#line 2505 "source/reverse_ad.h2"
+#line 1711 "source/reverse_ad.h2"
 [[nodiscard]] auto substitute_expr_params(cpp2::impl::in<ad_expr> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_expr{
     // Check if this is an identifier that should be substituted
     if (expr.kind == ad_expr_kind::identifier) {
@@ -5408,7 +4478,7 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     // For unary expressions, substitute in the operand
     if (expr.kind == ad_expr_kind::unary) {
         if (!(CPP2_UFCS(empty)(expr.args))) {
-            auto new_operand {substitute_expr_params(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0), ctx)}; 
+            ad_expr new_operand {substitute_expr_params(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0), ctx)}; 
             return ad_expr::make_unary(expr.op, cpp2::move(new_operand), expr.type_name); 
         }
         return expr; 
@@ -5417,8 +4487,8 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     // For binary expressions, substitute in both operands
     if (expr.kind == ad_expr_kind::binary) {
         if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),2)) {
-            auto new_lhs {substitute_expr_params(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0), ctx)}; 
-            auto new_rhs {substitute_expr_params(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1), ctx)}; 
+            ad_expr new_lhs {substitute_expr_params(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0), ctx)}; 
+            ad_expr new_rhs {substitute_expr_params(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1), ctx)}; 
             return ad_expr::make_binary(expr.op, cpp2::move(new_lhs), cpp2::move(new_rhs), expr.type_name); 
         }
         return expr; 
@@ -5436,13 +4506,13 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     return expr; 
 }
 
-#line 2561 "source/reverse_ad.h2"
+#line 1767 "source/reverse_ad.h2"
 [[nodiscard]] auto substitute_stmt_params(cpp2::impl::in<ad_stmt> stmt, cpp2::impl::in<ad_substitution_context> ctx) -> ad_stmt{
     if (stmt.kind == ad_stmt_kind::decl) {
         // Substitute in the initializer expression
-        auto new_init {substitute_expr_params(stmt.expr, ctx)}; 
+        ad_expr new_init {substitute_expr_params(stmt.expr, ctx)}; 
         // Also check if the target name should be substituted
-        auto new_target {stmt.target}; 
+        std::string new_target {stmt.target}; 
         ad_expr target_expr {}; 
         if (CPP2_UFCS(find)(ctx, stmt.target, target_expr) && target_expr.kind == ad_expr_kind::identifier) {
             new_target = cpp2::move(target_expr).name;
@@ -5451,9 +4521,9 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     }
 
     if (stmt.kind == ad_stmt_kind::assign) {
-        auto new_value {substitute_expr_params(stmt.expr, ctx)}; 
+        ad_expr new_value {substitute_expr_params(stmt.expr, ctx)}; 
         // Check if target should be substituted
-        auto new_target {stmt.target}; 
+        std::string new_target {stmt.target}; 
         ad_expr target_expr {}; 
         if (CPP2_UFCS(find)(ctx, stmt.target, target_expr) && target_expr.kind == ad_expr_kind::identifier) {
             new_target = cpp2::move(target_expr).name;
@@ -5462,9 +4532,9 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     }
 
     if (stmt.kind == ad_stmt_kind::assign_add) {
-        auto new_value {substitute_expr_params(stmt.expr, ctx)}; 
+        ad_expr new_value {substitute_expr_params(stmt.expr, ctx)}; 
         // Check if target should be substituted
-        auto new_target {stmt.target}; 
+        std::string new_target {stmt.target}; 
         ad_expr target_expr {}; 
         if (CPP2_UFCS(find)(ctx, stmt.target, target_expr) && target_expr.kind == ad_expr_kind::identifier) {
             new_target = cpp2::move(target_expr).name;
@@ -5473,12 +4543,12 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     }
 
     if (stmt.kind == ad_stmt_kind::expr) {
-        auto new_expr {substitute_expr_params(stmt.expr, ctx)}; 
+        ad_expr new_expr {substitute_expr_params(stmt.expr, ctx)}; 
         return ad_stmt::make_expr(cpp2::move(new_expr)); 
     }
 
     if (stmt.kind == ad_stmt_kind::return_) {
-        auto new_value {substitute_expr_params(stmt.expr, ctx)}; 
+        ad_expr new_value {substitute_expr_params(stmt.expr, ctx)}; 
         return ad_stmt::make_return(cpp2::move(new_value)); 
     }
 
@@ -5491,7 +4561,7 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     }
 
     if (stmt.kind == ad_stmt_kind::if_stmt) {
-        auto new_cond {substitute_expr_params(stmt.expr, ctx)}; 
+        ad_expr new_cond {substitute_expr_params(stmt.expr, ctx)}; 
         std::vector<ad_stmt> new_then {}; 
         for ( auto const& s : stmt.stmts ) {
             CPP2_UFCS(push_back)(new_then, substitute_stmt_params(s, ctx));
@@ -5507,10 +4577,10 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
     return stmt; 
 }
 
-#line 2663 "source/reverse_ad.h2"
+#line 1864 "source/reverse_ad.h2"
     ad_rule_meta::ad_rule_meta(){}
 
-#line 2669 "source/reverse_ad.h2"
+#line 1870 "source/reverse_ad.h2"
     ad_rule_meta::ad_rule_meta(ad_rule_meta&& that) noexcept
         : name{ cpp2::move(that).name }
         , n_args{ cpp2::move(that).n_args }
@@ -5519,14 +4589,12 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         , forward_body{ cpp2::move(that).forward_body }
         , reverse_body{ cpp2::move(that).reverse_body }
         , reverse_body_stmts{ cpp2::move(that).reverse_body_stmts }
-        , has_reverse_body_stmts{ cpp2::move(that).has_reverse_body_stmts }
-        , reverse_body_str{ cpp2::move(that).reverse_body_str }
-        , has_reverse_body{ cpp2::move(that).has_reverse_body }{
+        , has_reverse_body_stmts{ cpp2::move(that).has_reverse_body_stmts }{
 
-#line 2680 "source/reverse_ad.h2"
+#line 1879 "source/reverse_ad.h2"
     }
 
-#line 2690 "source/reverse_ad.h2"
+#line 1889 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_rule_meta::make(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_, cpp2::impl::in<std::string> rule_type_) -> ad_rule_meta{
         ad_rule_meta r {}; 
         r.name = name_;
@@ -5536,16 +4604,16 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return r; 
     }
 
-#line 2714 "source/reverse_ad.h2"
+#line 1913 "source/reverse_ad.h2"
     ad_reverse_rule_result::ad_reverse_rule_result(){}
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     ad_reverse_rule_result::ad_reverse_rule_result(ad_reverse_rule_result const& that)
                                    : found{ that.found }
                                    , ir_stmts{ that.ir_stmts }
                                    , ir_success{ that.ir_success }
                                    , rule_type{ that.rule_type }
                                    , error_message{ that.error_message }{}
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     auto ad_reverse_rule_result::operator=(ad_reverse_rule_result const& that) -> ad_reverse_rule_result& {
                                    found = that.found;
                                    ir_stmts = that.ir_stmts;
@@ -5553,14 +4621,14 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
                                    rule_type = that.rule_type;
                                    error_message = that.error_message;
                                    return *this; }
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     ad_reverse_rule_result::ad_reverse_rule_result(ad_reverse_rule_result&& that) noexcept
                                    : found{ std::move(that).found }
                                    , ir_stmts{ std::move(that).ir_stmts }
                                    , ir_success{ std::move(that).ir_success }
                                    , rule_type{ std::move(that).rule_type }
                                    , error_message{ std::move(that).error_message }{}
-#line 2715 "source/reverse_ad.h2"
+#line 1914 "source/reverse_ad.h2"
     auto ad_reverse_rule_result::operator=(ad_reverse_rule_result&& that) noexcept -> ad_reverse_rule_result& {
                                    found = std::move(that).found;
                                    ir_stmts = std::move(that).ir_stmts;
@@ -5569,13 +4637,13 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
                                    error_message = std::move(that).error_message;
                                    return *this; }
 
-#line 2717 "source/reverse_ad.h2"
+#line 1916 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_reverse_rule_result::make_not_found() -> ad_reverse_rule_result{
         ad_reverse_rule_result r {}; 
         return r; 
     }
 
-#line 2722 "source/reverse_ad.h2"
+#line 1921 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_reverse_rule_result::make_success(cpp2::impl::in<std::vector<ad_stmt>> stmts, cpp2::impl::in<std::string> rule_type_) -> ad_reverse_rule_result{
         ad_reverse_rule_result r {}; 
         r.found = true;
@@ -5585,7 +4653,7 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return r; 
     }
 
-#line 2731 "source/reverse_ad.h2"
+#line 1930 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_reverse_rule_result::make_parse_error(cpp2::impl::in<std::string> rule_type_, cpp2::impl::in<std::string> error_msg) -> ad_reverse_rule_result{
         ad_reverse_rule_result r {}; 
         r.found = true;           // Rule was found
@@ -5595,15 +4663,15 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return r; 
     }
 
-#line 2752 "source/reverse_ad.h2"
+#line 1951 "source/reverse_ad.h2"
     ad_rule_registry::ad_rule_registry(){}
 
-#line 2758 "source/reverse_ad.h2"
+#line 1957 "source/reverse_ad.h2"
     auto ad_rule_registry::register_rule(ad_rule_meta&& rule) & -> void{
         CPP2_UFCS(push_back)(rules, cpp2::move(rule));
     }
 
-#line 2765 "source/reverse_ad.h2"
+#line 1964 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_rule_registry::has_rule(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_) const& -> bool{
         for ( auto const& r : rules ) {
             if (r.name == name_ && r.n_args == n_args_ && r.is_member == is_member_) {
@@ -5613,7 +4681,7 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return false; 
     }
 
-#line 2777 "source/reverse_ad.h2"
+#line 1976 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_rule_registry::get_rule_type(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_) const& -> std::string{
         for ( auto const& r : rules ) {
             if (r.name == name_ && r.n_args == n_args_ && r.is_member == is_member_) {
@@ -5623,7 +4691,7 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return ""; 
     }
 
-#line 2799 "source/reverse_ad.h2"
+#line 1998 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_rule_registry::apply_reverse_rule(cpp2::impl::in<std::string> name_, cpp2::impl::in<int> n_args_, cpp2::impl::in<bool> is_member_, 
                          cpp2::impl::in<ad_substitution_context> ctx) const& -> ad_reverse_rule_result{
         for ( auto const& r : rules ) {
@@ -5648,12 +4716,25 @@ auto ad_ir_debug_dump(cpp2::impl::in<ad_function_ir> ir) -> void{
         return ad_reverse_rule_result::make_not_found(); 
     }
 
-#line 2827 "source/reverse_ad.h2"
+#line 2026 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_rule_registry::size() const& -> int{
         return CPP2_UFCS(ssize)(rules); 
     }
 
-#line 2836 "source/reverse_ad.h2"
+#line 2039 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_rule_registry::has_operator_rule(cpp2::impl::in<std::string> op_name) const& -> bool{
+        // Operators are binary (n_args=2) and not member functions
+        return has_rule(op_name, 2, false); 
+    }
+
+#line 2054 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_rule_registry::apply_operator_rule(cpp2::impl::in<std::string> op_name, 
+                          cpp2::impl::in<ad_substitution_context> ctx) const& -> ad_reverse_rule_result{
+        // Operators are binary (n_args=2) and not member functions
+        return apply_reverse_rule(op_name, 2, false, ctx); 
+    }
+
+#line 2065 "source/reverse_ad.h2"
 auto ad_rule_debug_dump(cpp2::impl::in<ad_rule_meta> rule) -> void{
     std::cout << "  rule: name=" << rule.name 
               << " n_args=" << rule.n_args 
@@ -5661,7 +4742,7 @@ auto ad_rule_debug_dump(cpp2::impl::in<ad_rule_meta> rule) -> void{
               << " type=" << rule.rule_type << "\n";
 }
 
-#line 2847 "source/reverse_ad.h2"
+#line 2076 "source/reverse_ad.h2"
 auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
     std::cout << "=== AD Rule Registry (" << CPP2_UFCS(size)(reg) << " rules) ===\n";
     for ( auto const& r : reg.rules ) {
@@ -5670,12 +4751,12 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
     std::cout << "=== End AD Rule Registry ===\n";
 }
 
-#line 2867 "source/reverse_ad.h2"
+#line 2096 "source/reverse_ad.h2"
 [[nodiscard]] auto is_ad_rule_type(cpp2::impl::in<meta::type_declaration> member_type) -> bool{
-    auto has_name {false}; 
-    auto has_n_args {false}; 
-    auto has_forward {false}; 
-    auto has_reverse {false}; 
+    bool has_name {false}; 
+    bool has_n_args {false}; 
+    bool has_forward {false}; 
+    bool has_reverse {false}; 
 
     // Check member objects for name and n_args
     for ( auto const& obj : CPP2_UFCS(get_member_objects)(member_type) ) {
@@ -5700,7 +4781,7 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
     return cpp2::move(has_name) && cpp2::move(has_n_args) && cpp2::move(has_forward) && cpp2::move(has_reverse); 
 }
 
-#line 2905 "source/reverse_ad.h2"
+#line 2134 "source/reverse_ad.h2"
 [[nodiscard]] auto extract_ad_rule_meta(cpp2::impl::in<meta::type_declaration*> member_type) -> ad_rule_meta{
     ad_rule_meta rule {}; 
     rule.rule_type = cpp2::impl::as_<std::string>(CPP2_UFCS(name)((*cpp2::impl::assert_not_null(member_type))));
@@ -5719,7 +4800,7 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
         }
         if (CPP2_UFCS(name)(obj) == "n_args") {
             if (CPP2_UFCS(has_initializer)(obj)) {
-                auto init_str {CPP2_UFCS(to_string)(CPP2_UFCS(initializer)(obj))}; 
+                std::string init_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(CPP2_UFCS(initializer)(obj)))}; 
                 int val {0}; 
                 if (string_util::string_to_int(cpp2::move(init_str), val)) {
                     rule.n_args = cpp2::move(val);
@@ -5728,7 +4809,7 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
         }
         if (CPP2_UFCS(name)(obj) == "is_member") {
             if (CPP2_UFCS(has_initializer)(obj)) {
-                auto init_str {CPP2_UFCS(to_string)(CPP2_UFCS(initializer)(obj))}; 
+                std::string_view init_str {CPP2_UFCS(to_string)(CPP2_UFCS(initializer)(obj))}; 
                 rule.is_member = { cpp2::move(init_str) == "true" };
             }
         }
@@ -5738,7 +4819,7 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
     // Extract the reverse() function body for later inlining
     for ( auto const& func : CPP2_UFCS(get_member_functions)((*cpp2::impl::assert_not_null(member_type))) ) {
         if (CPP2_UFCS(name)(func) == "reverse" && CPP2_UFCS(has_compound_body)(func)) {
-            auto body {CPP2_UFCS(get_compound_body)(func)}; 
+            meta::compound_statement body {CPP2_UFCS(get_compound_body)(func)}; 
 
             // NEW: Store the AST statements for IR-based parsing
             for ( auto&& stmt : CPP2_UFCS(get_statements)(body) ) {
@@ -5751,10 +4832,10 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
             // DEPRECATED: Also build the string representation for backward compatibility
             std::string body_stmts {""}; 
             for ( auto const& stmt : CPP2_UFCS(get_statements)(cpp2::move(body)) ) {
-                auto stmt_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(stmt))}; 
+                std::string stmt_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(stmt))}; 
 
                 // BUG FIX: Trim trailing whitespace before checking last character
-                auto trimmed {cpp2::move(stmt_str)}; 
+                std::string trimmed {cpp2::move(stmt_str)}; 
                 while( !(CPP2_UFCS(empty)(trimmed)) && std::isspace(cpp2::impl::as_<int>(CPP2_UFCS(back)(trimmed))) != 0 ) {
                     CPP2_UFCS(pop_back)(trimmed);
                 }
@@ -5766,26 +4847,24 @@ auto ad_rule_registry_debug_dump(cpp2::impl::in<ad_rule_registry> reg) -> void{
                     body_stmts += cpp2::move(trimmed) + "\n";
                 }}
             }
-            rule.reverse_body_str = cpp2::move(body_stmts);
-            rule.has_reverse_body = true;
-            std::cout << "AD: Extracted reverse() body for '" << rule.name << "': " << rule.reverse_body_str << "\n";
+            static_cast<void>(cpp2::move(body_stmts));// TODO: Remove after IR-based rule inlining is complete
         }
     }
 
     return rule; 
 }
 
-#line 2988 "source/reverse_ad.h2"
+#line 2215 "source/reverse_ad.h2"
 auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registry& out) -> void{
     std::cout << "AD: Discovering rules in type " << CPP2_UFCS(name)(t) << "\n";
 
     // 1. Nested types inside the @autodiff type (highest priority)
     for ( auto& member_type : CPP2_UFCS(get_member_types)(t) ) {
-        auto type_name {CPP2_UFCS(name)(member_type)}; 
+        std::string_view type_name {CPP2_UFCS(name)(member_type)}; 
         std::cout << "AD: Checking nested type: " << cpp2::move(type_name) << "\n";
 
         if (is_ad_rule_type(member_type)) {
-            auto rule {extract_ad_rule_meta(&member_type)}; 
+            ad_rule_meta rule {extract_ad_rule_meta(&member_type)}; 
             std::cout << "AD: Found nested rule: " << rule.name << " (n_args=" << rule.n_args << ")\n";
             CPP2_UFCS(register_rule)(out, cpp2::move(rule));
         }
@@ -5808,11 +4887,11 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
 
         for ( auto const& m : cpp2::move(members) ) {
             if (CPP2_UFCS(is_type)(m) && !(CPP2_UFCS(is_same)(m, t))) {
-                auto type_name {cpp2::impl::as_<std::string>(CPP2_UFCS(name)(m))}; 
+                std::string type_name {cpp2::impl::as_<std::string>(CPP2_UFCS(name)(m))}; 
                 if (CPP2_UFCS(starts_with)(cpp2::move(type_name), "ad_rule_")) {
-                    auto sibling_type {CPP2_UFCS(as_type)(m)}; 
+                    meta::type_declaration sibling_type {CPP2_UFCS(as_type)(m)}; 
                     if (is_ad_rule_type(sibling_type)) {
-                        auto rule {extract_ad_rule_meta(&sibling_type)}; 
+                        ad_rule_meta rule {extract_ad_rule_meta(&sibling_type)}; 
                         std::cout << "AD: Found sibling rule: " << rule.name << " (n_args=" << rule.n_args << ")\n";
                         CPP2_UFCS(register_rule)(out, cpp2::move(rule));
                     }
@@ -5822,28 +4901,28 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     }
 }
 
-#line 3047 "source/reverse_ad.h2"
+#line 2274 "source/reverse_ad.h2"
     ad_rule_body_result::ad_rule_body_result(){}
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     ad_rule_body_result::ad_rule_body_result(ad_rule_body_result const& that)
                                    : ok{ that.ok }
                                    , body_str{ that.body_str }{}
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     auto ad_rule_body_result::operator=(ad_rule_body_result const& that) -> ad_rule_body_result& {
                                    ok = that.ok;
                                    body_str = that.body_str;
                                    return *this; }
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     ad_rule_body_result::ad_rule_body_result(ad_rule_body_result&& that) noexcept
                                    : ok{ std::move(that).ok }
                                    , body_str{ std::move(that).body_str }{}
-#line 3048 "source/reverse_ad.h2"
+#line 2275 "source/reverse_ad.h2"
     auto ad_rule_body_result::operator=(ad_rule_body_result&& that) noexcept -> ad_rule_body_result& {
                                    ok = std::move(that).ok;
                                    body_str = std::move(that).body_str;
                                    return *this; }
 
-#line 3050 "source/reverse_ad.h2"
+#line 2277 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_rule_body_result::make(cpp2::impl::in<bool> ok_, cpp2::impl::in<std::string> body_) -> ad_rule_body_result{
         ad_rule_body_result r {}; 
         r.ok = ok_;
@@ -5851,36 +4930,28 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         return r; 
     }
 
-#line 3066 "source/reverse_ad.h2"
-[[nodiscard]] auto extract_rule_reverse_body(cpp2::impl::in<ad_rule_meta> rule) -> ad_rule_body_result{
-    if (rule.has_reverse_body) {
-        return ad_rule_body_result::make(true, rule.reverse_body_str); 
-    }
-    return ad_rule_body_result::make(false, ""); 
-}
-
-#line 3086 "source/reverse_ad.h2"
+#line 2298 "source/reverse_ad.h2"
     ad_parse_expr_result::ad_parse_expr_result(){}
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     ad_parse_expr_result::ad_parse_expr_result(ad_parse_expr_result const& that)
                                    : ok{ that.ok }
                                    , expr{ that.expr }{}
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     auto ad_parse_expr_result::operator=(ad_parse_expr_result const& that) -> ad_parse_expr_result& {
                                    ok = that.ok;
                                    expr = that.expr;
                                    return *this; }
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     ad_parse_expr_result::ad_parse_expr_result(ad_parse_expr_result&& that) noexcept
                                    : ok{ std::move(that).ok }
                                    , expr{ std::move(that).expr }{}
-#line 3087 "source/reverse_ad.h2"
+#line 2299 "source/reverse_ad.h2"
     auto ad_parse_expr_result::operator=(ad_parse_expr_result&& that) noexcept -> ad_parse_expr_result& {
                                    ok = std::move(that).ok;
                                    expr = std::move(that).expr;
                                    return *this; }
 
-#line 3089 "source/reverse_ad.h2"
+#line 2301 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_parse_expr_result::make(cpp2::impl::in<bool> ok_, cpp2::impl::in<ad_expr> expr_) -> ad_parse_expr_result{
         ad_parse_expr_result r {}; 
         r.ok = ok_;
@@ -5888,35 +4959,35 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         return r; 
     }
 
-#line 3096 "source/reverse_ad.h2"
+#line 2308 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_parse_expr_result::make_fail() -> ad_parse_expr_result{
         ad_parse_expr_result r {}; 
         r.ok = false;
         return r; 
     }
 
-#line 3110 "source/reverse_ad.h2"
+#line 2322 "source/reverse_ad.h2"
     ad_parse_stmt_result::ad_parse_stmt_result(){}
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     ad_parse_stmt_result::ad_parse_stmt_result(ad_parse_stmt_result const& that)
                                    : ok{ that.ok }
                                    , stmt{ that.stmt }{}
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     auto ad_parse_stmt_result::operator=(ad_parse_stmt_result const& that) -> ad_parse_stmt_result& {
                                    ok = that.ok;
                                    stmt = that.stmt;
                                    return *this; }
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     ad_parse_stmt_result::ad_parse_stmt_result(ad_parse_stmt_result&& that) noexcept
                                    : ok{ std::move(that).ok }
                                    , stmt{ std::move(that).stmt }{}
-#line 3111 "source/reverse_ad.h2"
+#line 2323 "source/reverse_ad.h2"
     auto ad_parse_stmt_result::operator=(ad_parse_stmt_result&& that) noexcept -> ad_parse_stmt_result& {
                                    ok = std::move(that).ok;
                                    stmt = std::move(that).stmt;
                                    return *this; }
 
-#line 3113 "source/reverse_ad.h2"
+#line 2325 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_parse_stmt_result::make(cpp2::impl::in<bool> ok_, cpp2::impl::in<ad_stmt> stmt_) -> ad_parse_stmt_result{
         ad_parse_stmt_result r {}; 
         r.ok = ok_;
@@ -5924,14 +4995,14 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         return r; 
     }
 
-#line 3120 "source/reverse_ad.h2"
+#line 2332 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_parse_stmt_result::make_fail() -> ad_parse_stmt_result{
         ad_parse_stmt_result r {}; 
         r.ok = false;
         return r; 
     }
 
-#line 3142 "source/reverse_ad.h2"
+#line 2354 "source/reverse_ad.h2"
 [[nodiscard]] auto map_op_string(cpp2::impl::in<std::string> op) -> ad_op_kind{
     if (op == "+") {return ad_op_kind::add; }
     if (op == "-") {return ad_op_kind::sub; }
@@ -5954,7 +5025,7 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_op_kind::add; // Default
 }
 
-#line 3165 "source/reverse_ad.h2"
+#line 2377 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_assignment_expr(cpp2::impl::in<meta::assignment_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {
@@ -5969,7 +5040,7 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return parse_logical_or_expr(CPP2_UFCS(get_term)(CPP2_UFCS(back)(cpp2::move(terms))), ctx); 
 }
 
-#line 3180 "source/reverse_ad.h2"
+#line 2392 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_logical_or_expr(cpp2::impl::in<meta::logical_or_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
@@ -5977,13 +5048,13 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         return parse_logical_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
     // LHS is first term (with empty operator)
-    auto lhs_result {parse_logical_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_logical_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
     // Process remaining terms (which have actual operators)
-    auto i {1}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_logical_and_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_logical_and_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::lor, result, cpp2::move(rhs_result).expr, "bool");
         ++i;
@@ -5991,19 +5062,19 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3202 "source/reverse_ad.h2"
+#line 2414 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_logical_and_expr(cpp2::impl::in<meta::logical_and_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_bit_or_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_bit_or_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_bit_or_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_bit_or_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_bit_or_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::land, result, cpp2::move(rhs_result).expr, "bool");
         ++i;
@@ -6011,19 +5082,19 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3222 "source/reverse_ad.h2"
+#line 2434 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_bit_or_expr(cpp2::impl::in<meta::bit_or_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_bit_xor_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_bit_xor_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_bit_xor_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_bit_xor_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_bit_xor_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::bor, result, cpp2::move(rhs_result).expr, "int");
         ++i;
@@ -6031,19 +5102,19 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3242 "source/reverse_ad.h2"
+#line 2454 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_bit_xor_expr(cpp2::impl::in<meta::bit_xor_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_bit_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_bit_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_bit_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_bit_and_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_bit_and_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::bxor, result, cpp2::move(rhs_result).expr, "int");
         ++i;
@@ -6051,19 +5122,19 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3262 "source/reverse_ad.h2"
+#line 2474 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_bit_and_expr(cpp2::impl::in<meta::bit_and_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_equality_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_equality_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_equality_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_equality_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_equality_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::band, result, cpp2::move(rhs_result).expr, "int");
         ++i;
@@ -6071,61 +5142,61 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3282 "source/reverse_ad.h2"
+#line 2494 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_equality_expr(cpp2::impl::in<meta::equality_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_relational_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_relational_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_relational_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_relational_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_relational_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
-        auto op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
+        ad_op_kind op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
         result = ad_expr::make_binary(cpp2::move(op_kind), result, cpp2::move(rhs_result).expr, "bool");
         ++i;
     }
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3303 "source/reverse_ad.h2"
+#line 2515 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_relational_expr(cpp2::impl::in<meta::relational_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_compare_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_compare_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_compare_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_compare_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_compare_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
-        auto op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
+        ad_op_kind op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
         result = ad_expr::make_binary(cpp2::move(op_kind), result, cpp2::move(rhs_result).expr, "bool");
         ++i;
     }
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3324 "source/reverse_ad.h2"
+#line 2536 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_compare_expr(cpp2::impl::in<meta::compare_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_shift_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_shift_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_shift_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_shift_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_shift_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         result = ad_expr::make_binary(ad_op_kind::spaceship, result, cpp2::move(rhs_result).expr, "auto");
         ++i;
@@ -6133,49 +5204,49 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3344 "source/reverse_ad.h2"
+#line 2556 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_shift_expr(cpp2::impl::in<meta::shift_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_additive_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_additive_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_additive_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_additive_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_additive_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
-        auto op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
+        ad_op_kind op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
         result = ad_expr::make_binary(cpp2::move(op_kind), result, cpp2::move(rhs_result).expr, "int");
         ++i;
     }
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3365 "source/reverse_ad.h2"
+#line 2577 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_additive_expr(cpp2::impl::in<meta::additive_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     if (CPP2_UFCS(empty)(terms)) {return ad_parse_expr_result::make_fail(); }
     if (CPP2_UFCS(ssize)(terms) == 1) {
         return parse_multiplicative_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx); 
     }
-    auto lhs_result {parse_multiplicative_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_multiplicative_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms)), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
-    auto i {1}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
-        auto rhs_result {parse_multiplicative_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_multiplicative_expr(CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS(terms, i)), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
-        auto op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
+        ad_op_kind op_kind {map_op_string(CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS(terms, i)))}; 
         result = ad_expr::make_binary(cpp2::move(op_kind), result, cpp2::move(rhs_result).expr, "double");
         ++i;
     }
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3386 "source/reverse_ad.h2"
+#line 2598 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_multiplicative_expr(cpp2::impl::in<meta::multiplicative_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     auto terms {CPP2_UFCS(get_terms)(expr)}; 
     std::cout << "AD: multiplicative terms.ssize() = " << CPP2_UFCS(ssize)(terms) << "\n";
@@ -6193,39 +5264,39 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     auto lhs_is_as {CPP2_UFCS(get_term)(CPP2_UFCS(front)(terms))}; 
     auto lhs_pf_expr {CPP2_UFCS(get_expression)(cpp2::move(lhs_is_as))}; 
     auto lhs_pf {CPP2_UFCS(get_postfix_expression)(cpp2::move(lhs_pf_expr))}; 
-    auto lhs_result {parse_postfix_expr(cpp2::move(lhs_pf), ctx)}; 
+    ad_parse_expr_result lhs_result {parse_postfix_expr(cpp2::move(lhs_pf), ctx)}; 
     if (!(lhs_result.ok)) {return lhs_result; }
-    auto result {cpp2::move(lhs_result).expr}; 
+    ad_expr result {cpp2::move(lhs_result).expr}; 
     // Process remaining terms (which have actual operators)
-    auto i {1}; 
+    cpp2::i64 i {1}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(terms)) ) {
         auto term {CPP2_ASSERT_IN_BOUNDS(terms, i)}; 
         auto rhs_is_as {CPP2_UFCS(get_term)(term)}; 
         auto rhs_pf_expr {CPP2_UFCS(get_expression)(cpp2::move(rhs_is_as))}; 
         auto rhs_pf {CPP2_UFCS(get_postfix_expression)(cpp2::move(rhs_pf_expr))}; 
-        auto rhs_result {parse_postfix_expr(cpp2::move(rhs_pf), ctx)}; 
+        ad_parse_expr_result rhs_result {parse_postfix_expr(cpp2::move(rhs_pf), ctx)}; 
         if (!(rhs_result.ok)) {return rhs_result; }
         auto op_str {CPP2_UFCS(get_op)(cpp2::move(term))}; 
         std::cout << "AD: multiplicative op = '" << op_str << "'\n";
-        auto op_kind {map_op_string(cpp2::move(op_str))}; 
+        ad_op_kind op_kind {map_op_string(cpp2::move(op_str))}; 
         result = ad_expr::make_binary(cpp2::move(op_kind), result, cpp2::move(rhs_result).expr, "double");
         ++i;
     }
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3425 "source/reverse_ad.h2"
+#line 2637 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_prefix_expr(cpp2::impl::in<meta::prefix_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
-    auto ops {CPP2_UFCS(get_ops)(expr)}; 
-    auto pf {CPP2_UFCS(get_postfix_expression)(expr)}; 
-    auto inner_result {parse_postfix_expr(cpp2::move(pf), ctx)}; 
+    std::vector<std::string> ops {CPP2_UFCS(get_ops)(expr)}; 
+    meta::postfix_expression pf {CPP2_UFCS(get_postfix_expression)(expr)}; 
+    ad_parse_expr_result inner_result {parse_postfix_expr(cpp2::move(pf), ctx)}; 
     if (!(inner_result.ok)) {return inner_result; }
 
     // Apply prefix operators from right to left
-    auto result {cpp2::move(inner_result).expr}; 
-    auto i {CPP2_UFCS(ssize)(ops) - 1}; 
+    ad_expr result {cpp2::move(inner_result).expr}; 
+    cpp2::i64 i {CPP2_UFCS(ssize)(ops) - 1}; 
     while( cpp2::impl::cmp_greater_eq(i,0) ) {
-        auto op_str {CPP2_ASSERT_IN_BOUNDS(ops, i)}; 
+        std::string op_str {CPP2_ASSERT_IN_BOUNDS(ops, i)}; 
         if (op_str == "-") {
             result = ad_expr::make_unary(ad_op_kind::neg, result, "double");
         }else {if (op_str == "!") {
@@ -6242,13 +5313,13 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make(true, cpp2::move(result)); 
 }
 
-#line 3453 "source/reverse_ad.h2"
+#line 2665 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_postfix_expr(cpp2::impl::in<meta::postfix_expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     std::cout << "AD: parse_postfix_expr: '" << CPP2_UFCS(to_string)(expr) << "'\n";
 
     // Check if it's a simple identifier
     if (CPP2_UFCS(is_identifier)(expr)) {
-        auto id_name {CPP2_UFCS(as_identifier)(expr)}; 
+        std::string id_name {CPP2_UFCS(as_identifier)(expr)}; 
         ad_expr substituted {}; 
         if (CPP2_UFCS(find)(ctx, id_name, substituted)) {
             return ad_parse_expr_result::make(true, cpp2::move(substituted)); 
@@ -6263,17 +5334,17 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
 
     // For function calls and other postfix operations, use the string representation for now
     // TODO: Properly handle function calls via get_terms()
-    auto expr_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(expr))}; 
+    std::string expr_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(expr))}; 
     return ad_parse_expr_result::make(true, ad_expr::make_identifier(cpp2::move(expr_str), "double")); 
 }
 
-#line 3481 "source/reverse_ad.h2"
+#line 2693 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_rule_expr(cpp2::impl::in<meta::expression> expr, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_expr_result{
     std::cout << "AD: parse_rule_expr: '" << CPP2_UFCS(to_string)(expr) << "'\n";
 
     // Check for simple cases first
     if (CPP2_UFCS(is_identifier)(expr)) {
-        auto id_name {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(expr))}; 
+        std::string id_name {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(expr))}; 
         ad_expr substituted {}; 
         if (CPP2_UFCS(find)(ctx, id_name, substituted)) {
             return ad_parse_expr_result::make(true, cpp2::move(substituted)); 
@@ -6294,18 +5365,18 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_expr_result::make_fail(); 
 }
 
-#line 3522 "source/reverse_ad.h2"
+#line 2734 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_rule_stmt(cpp2::impl::in<meta::statement> stmt, cpp2::impl::in<ad_substitution_context> ctx) -> ad_parse_stmt_result{
-    auto stmt_str {string_util::trim_copy(CPP2_UFCS(to_string)(stmt))}; 
+    std::string stmt_str {string_util::trim_copy(CPP2_UFCS(to_string)(stmt))}; 
 
     std::cout << "AD: parse_rule_stmt: '" << stmt_str << "'\n";
 
     // Check for compound statement
     if (CPP2_UFCS(is_compound_statement)(stmt)) {
-        auto compound {CPP2_UFCS(as_compound_statement)(stmt)}; 
+        meta::compound_statement compound {CPP2_UFCS(as_compound_statement)(stmt)}; 
         std::vector<ad_stmt> nested_stmts {}; 
         for ( auto const& s : CPP2_UFCS(get_statements)(cpp2::move(compound)) ) {
-            auto nested_result {parse_rule_stmt(s, ctx)}; 
+            ad_parse_stmt_result nested_result {parse_rule_stmt(s, ctx)}; 
             if (!(nested_result.ok)) {
                 std::cout << "AD: Failed to parse nested statement in compound\n";
                 return ad_parse_stmt_result::make_fail(); 
@@ -6317,20 +5388,20 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
 
     // Check for selection (if) statement
     if (CPP2_UFCS(is_selection_statement)(stmt)) {
-        auto sel {CPP2_UFCS(as_selection_statement)(stmt)}; 
+        meta::selection_statement sel {CPP2_UFCS(as_selection_statement)(stmt)}; 
         // Parse condition - need to convert logical_or_expression to expression
         // For now, use the string representation
-        auto cond_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(CPP2_UFCS(get_expression)(sel)))}; 
+        std::string cond_str {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(CPP2_UFCS(get_expression)(sel)))}; 
         std::cout << "AD: If condition string: '" << cond_str << "'\n";
 
         // Create a simple condition expression (for now just use the string)
-        auto cond_expr {ad_expr::make_identifier(cpp2::move(cond_str), "bool")}; 
+        ad_expr cond_expr {ad_expr::make_identifier(cpp2::move(cond_str), "bool")}; 
 
         // Parse then branch
-        auto then_compound {CPP2_UFCS(get_true_branch)(sel)}; 
+        meta::compound_statement then_compound {CPP2_UFCS(get_true_branch)(sel)}; 
         std::vector<ad_stmt> then_stmts {}; 
         for ( auto const& s : CPP2_UFCS(get_statements)(cpp2::move(then_compound)) ) {
-            auto then_result {parse_rule_stmt(s, ctx)}; 
+            ad_parse_stmt_result then_result {parse_rule_stmt(s, ctx)}; 
             if (!(then_result.ok)) {
                 std::cout << "AD: Failed to parse if then-branch\n";
                 return ad_parse_stmt_result::make_fail(); 
@@ -6341,9 +5412,9 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         // Parse else branch if present
         std::vector<ad_stmt> else_stmts {}; 
         if (CPP2_UFCS(has_false_branch)(sel)) {
-            auto else_compound {CPP2_UFCS(get_false_branch)(cpp2::move(sel))}; 
+            meta::compound_statement else_compound {CPP2_UFCS(get_false_branch)(cpp2::move(sel))}; 
             for ( auto const& s : CPP2_UFCS(get_statements)(cpp2::move(else_compound)) ) {
-                auto else_result {parse_rule_stmt(s, ctx)}; 
+                ad_parse_stmt_result else_result {parse_rule_stmt(s, ctx)}; 
                 if (else_result.ok) {
                     CPP2_UFCS(push_back)(else_stmts, cpp2::move(else_result).stmt);
                 }
@@ -6359,127 +5430,86 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     if (CPP2_UFCS(is_expression_statement)(stmt)) {
         auto expr_stmt {CPP2_UFCS(as_expression_statement)(stmt)}; 
         auto expr {CPP2_UFCS(get_expression)(cpp2::move(expr_stmt))}; 
-        auto expr_str2 {cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(expr))}; 
 
-        std::cout << "AD: Expression statement: '" << expr_str2 << "'\n";
+        std::cout << "AD: Expression statement: '" << CPP2_UFCS(to_string)(expr) << "'\n";
 
-        // Check for assignment-add (+=)
-        // Format: target += value
-        auto plus_eq_pos {CPP2_UFCS(find)(expr_str2, "+=")}; 
-        if (plus_eq_pos != std::string::npos) {
-            auto target_str {string_util::trim_copy(CPP2_UFCS(substr)(expr_str2, 0, plus_eq_pos))}; 
-            auto value_str {string_util::trim_copy(CPP2_UFCS(substr)(expr_str2, cpp2::move(plus_eq_pos) + 2))}; 
-            // Remove trailing semicolon if present
-            while( !(CPP2_UFCS(empty)(value_str)) && CPP2_UFCS(back)(value_str) == ';' ) {
-                CPP2_UFCS(pop_back)(value_str);
-            }
-            value_str = string_util::trim_copy(value_str);
+        // Use structural analysis via meta type methods
+        // Assignment expressions have terms: [LHS (empty op), RHS (with operator)]
+        if (CPP2_UFCS(is_assignment_expression)(expr)) {
+            auto assign_expr {CPP2_UFCS(as_assignment_expression)(expr)}; 
+            auto terms {CPP2_UFCS(get_terms)(cpp2::move(assign_expr))}; 
+            std::cout << "AD DEBUG: assignment_expression has " << CPP2_UFCS(ssize)(terms) << " terms\n";
 
-            std::cout << "AD: Assignment-add: target='" << target_str << "' value='" << value_str << "'\n";
+            if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(terms),2)) {
+                // Extract LHS target structurally
+                auto lhs_term {CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS_LITERAL(terms, 0))}; 
+                std::string target_str {string_util::trim_copy(cpp2::impl::as_<std::string>(CPP2_UFCS(to_string)(cpp2::move(lhs_term))))}; 
 
-            // DEBUG: Check what the expression actually is
-            std::cout << "AD DEBUG: expr.is_assignment_expression() = " << CPP2_UFCS(is_assignment_expression)(expr) << "\n";
-            std::cout << "AD DEBUG: expr.is_expression_list() = " << CPP2_UFCS(is_expression_list)(expr) << "\n";
-            std::cout << "AD DEBUG: expr.is_identifier() = " << CPP2_UFCS(is_identifier)(expr) << "\n";
+                // Get the operator structurally
+                auto op_str {CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS_LITERAL(terms, 1))}; 
+                std::cout << "AD DEBUG: operator is '" << op_str << "'\n";
 
-            // Substitute the target if needed
-            auto new_target {target_str}; 
-            ad_expr target_expr {}; 
-            if (CPP2_UFCS(find)(ctx, cpp2::move(target_str), target_expr) && target_expr.kind == ad_expr_kind::identifier) {
-                new_target = cpp2::move(target_expr).name;
-            }
-
-            // For assignment expressions, use get_terms() to get the operator and RHS
-            // terms[0] is LHS with empty operator, terms[1] has the actual operator and RHS
-            if (CPP2_UFCS(is_assignment_expression)(expr)) {
-                auto assign_expr {CPP2_UFCS(as_assignment_expression)(expr)}; 
-                auto terms {CPP2_UFCS(get_terms)(cpp2::move(assign_expr))}; 
-                std::cout << "AD DEBUG: assignment_expression has " << CPP2_UFCS(ssize)(terms) << " terms\n";
-
-                if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(terms),2)) {
-                    // terms[0] = LHS (empty op), terms[1] = RHS (with operator like +=)
-                    auto op_str {CPP2_UFCS(get_op)(CPP2_ASSERT_IN_BOUNDS_LITERAL(terms, 1))}; 
-                    std::cout << "AD DEBUG: operator is '" << op_str << "'\n";
-
-                    if (cpp2::move(op_str) == "+=") {
-                        // Get the RHS term (logical_or_expression)
-                        auto rhs_term {CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS_LITERAL(cpp2::move(terms), 1))}; 
-                        std::cout << "AD DEBUG: RHS term is '" << CPP2_UFCS(to_string)(rhs_term) << "'\n";
-
-                        // Parse the RHS expression using proper AST traversal
-                        auto rhs_result {parse_logical_or_expr(cpp2::move(rhs_term), ctx)}; 
-                        if (rhs_result.ok) {
-                            return ad_parse_stmt_result::make(true, 
-                                ad_stmt::make_assign_add(new_target, cpp2::move(rhs_result).expr)); 
-                        }
-                        std::cout << "AD DEBUG: Failed to parse RHS expression\n";
-                    }
-                }
-            }
-
-            // Try to substitute the value string directly
-            ad_expr subst_val {}; 
-            if (CPP2_UFCS(find)(ctx, value_str, subst_val)) {
-                return ad_parse_stmt_result::make(true, 
-                    ad_stmt::make_assign_add(cpp2::move(new_target), cpp2::move(subst_val))); 
-            }
-
-            // Could not parse RHS of += expression
-            std::cout << "AD: ERROR - Could not parse += RHS value: '" << cpp2::move(value_str) << "'\n";
-            return ad_parse_stmt_result::make_fail(); 
-        }
-
-        // Check for regular assignment (=)
-        auto eq_pos {CPP2_UFCS(find)(expr_str2, '=')}; 
-        if (eq_pos != std::string::npos && (eq_pos == 0 || CPP2_ASSERT_IN_BOUNDS(expr_str2, eq_pos - 1) != '+')) {
-            // Make sure it's not +=, -=, etc.
-            if (cpp2::impl::cmp_greater(eq_pos,0uz) && (CPP2_ASSERT_IN_BOUNDS(expr_str2, eq_pos - 1) == '-' || CPP2_ASSERT_IN_BOUNDS(expr_str2, eq_pos - 1) == '*' || CPP2_ASSERT_IN_BOUNDS(expr_str2, eq_pos - 1) == '/')) {
-                // Skip compound assignment
-            }else {
-                auto target_str {string_util::trim_copy(CPP2_UFCS(substr)(expr_str2, 0, eq_pos))}; 
-                auto value_str {string_util::trim_copy(CPP2_UFCS(substr)(cpp2::move(expr_str2), cpp2::move(eq_pos) + 1))}; 
-                // Remove trailing semicolon if present
-                while( !(CPP2_UFCS(empty)(value_str)) && CPP2_UFCS(back)(value_str) == ';' ) {
-                    CPP2_UFCS(pop_back)(value_str);
-                }
-                value_str = string_util::trim_copy(value_str);
-
-                // Substitute target if needed
-                auto new_target {target_str}; 
+                // Substitute the target if needed
+                std::string new_target {target_str}; 
                 ad_expr target_expr {}; 
                 if (CPP2_UFCS(find)(ctx, cpp2::move(target_str), target_expr) && target_expr.kind == ad_expr_kind::identifier) {
                     new_target = cpp2::move(target_expr).name;
                 }
 
-                // For simple assignment, get the RHS via expression list
-                if (CPP2_UFCS(is_expression_list)(expr)) {
-                    auto exp_list {CPP2_UFCS(as_expression_list)(expr)}; 
-                    auto sub_exprs {CPP2_UFCS(get_expressions)(cpp2::move(exp_list))}; 
-                    // The second expression should be the RHS
-                    if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(sub_exprs),2)) {
-                        auto rhs_result {parse_rule_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(cpp2::move(sub_exprs), 1), ctx)}; 
-                        if (rhs_result.ok) {
-                            return ad_parse_stmt_result::make(true, 
-                                ad_stmt::make_assign(new_target, cpp2::move(rhs_result).expr)); 
-                        }
+                // Get the RHS term structurally
+                auto rhs_term {CPP2_UFCS(get_term)(CPP2_ASSERT_IN_BOUNDS_LITERAL(cpp2::move(terms), 1))}; 
+                std::cout << "AD DEBUG: RHS term is '" << CPP2_UFCS(to_string)(rhs_term) << "'\n";
+
+                // Handle compound assignments (+=, -=, *=, /=)
+                if (op_str == "+=") {
+                    ad_parse_expr_result rhs_result {parse_logical_or_expr(cpp2::move(rhs_term), ctx)}; 
+                    if (rhs_result.ok) {
+                        return ad_parse_stmt_result::make(true, 
+                            ad_stmt::make_assign_add(cpp2::move(new_target), cpp2::move(rhs_result).expr)); 
+                    }
+                    std::cout << "AD DEBUG: Failed to parse += RHS expression\n";
+                }
+                else {if (op_str == "-=") {
+                    ad_parse_expr_result rhs_result {parse_logical_or_expr(cpp2::move(rhs_term), ctx)}; 
+                    if (rhs_result.ok) {
+                        return ad_parse_stmt_result::make(true, 
+                            ad_stmt::make_compound_assign(cpp2::move(new_target), ad_op_kind::assign_sub, cpp2::move(rhs_result).expr)); 
                     }
                 }
-
-                // Try to substitute the value string directly
-                ad_expr subst_val {}; 
-                if (CPP2_UFCS(find)(ctx, value_str, subst_val)) {
-                    return ad_parse_stmt_result::make(true, 
-                        ad_stmt::make_assign(cpp2::move(new_target), cpp2::move(subst_val))); 
+                else {if (op_str == "*=") {
+                    ad_parse_expr_result rhs_result {parse_logical_or_expr(cpp2::move(rhs_term), ctx)}; 
+                    if (rhs_result.ok) {
+                        return ad_parse_stmt_result::make(true, 
+                            ad_stmt::make_compound_assign(cpp2::move(new_target), ad_op_kind::assign_mul, cpp2::move(rhs_result).expr)); 
+                    }
                 }
-
-                // Could not parse RHS of assignment expression
-                std::cout << "AD: ERROR - Could not parse assignment RHS value: '" << cpp2::move(value_str) << "'\n";
-                return ad_parse_stmt_result::make_fail(); 
+                else {if (op_str == "/=") {
+                    ad_parse_expr_result rhs_result {parse_logical_or_expr(cpp2::move(rhs_term), ctx)}; 
+                    if (rhs_result.ok) {
+                        return ad_parse_stmt_result::make(true, 
+                            ad_stmt::make_compound_assign(cpp2::move(new_target), ad_op_kind::assign_div, cpp2::move(rhs_result).expr)); 
+                    }
+                }
+                else {if (op_str == "=") {
+                    // Simple assignment
+                    ad_parse_expr_result rhs_result {parse_logical_or_expr(cpp2::move(rhs_term), ctx)}; 
+                    if (rhs_result.ok) {
+                        return ad_parse_stmt_result::make(true, 
+                            ad_stmt::make_assign(cpp2::move(new_target), cpp2::move(rhs_result).expr)); 
+                    }
+                }
+                else {
+                    std::cout << "AD: Unknown assignment operator: '" << cpp2::move(op_str) << "'\n";
+                }}}}}
             }
+
+            // Assignment expression parsing failed
+            std::cout << "AD: ERROR - Could not parse assignment expression structurally\n";
+            return ad_parse_stmt_result::make_fail(); 
         }
 
         // General expression statement - just wrap the parsed expression
-        auto expr_result {parse_rule_expr(cpp2::move(expr), ctx)}; 
+        ad_parse_expr_result expr_result {parse_rule_expr(cpp2::move(expr), ctx)}; 
         if (expr_result.ok) {
             return ad_parse_stmt_result::make(true, ad_stmt::make_expr(cpp2::move(expr_result).expr)); 
         }
@@ -6489,13 +5519,13 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_parse_stmt_result::make_fail(); 
 }
 
-#line 3727 "source/reverse_ad.h2"
+#line 2898 "source/reverse_ad.h2"
 [[nodiscard]] auto parse_rule_body_stmts(cpp2::impl::in<std::vector<meta::statement>> stmts, cpp2::impl::in<ad_substitution_context> ctx, 
                         std::vector<ad_stmt>& out) -> bool{
     std::cout << "AD DEBUG: parse_rule_body_stmts called with " << CPP2_UFCS(ssize)(stmts) << " statements\n";
     for ( auto const& stmt : stmts ) {
         std::cout << "AD DEBUG: About to call parse_rule_stmt\n";
-        auto result {parse_rule_stmt(stmt, ctx)}; 
+        ad_parse_stmt_result result {parse_rule_stmt(stmt, ctx)}; 
         std::cout << "AD DEBUG: parse_rule_stmt returned ok=" << result.ok << "\n";
         if (!(result.ok)) {
             return false; 
@@ -6505,12 +5535,12 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return true; 
 }
 
-#line 3761 "source/reverse_ad.h2"
+#line 2932 "source/reverse_ad.h2"
 [[nodiscard]] auto is_identifier_char(cpp2::impl::in<char> c) -> bool{
     return std::isalnum(cpp2::impl::as_<int>(c)) != 0 || c == '_'; 
 }
 
-#line 3776 "source/reverse_ad.h2"
+#line 2947 "source/reverse_ad.h2"
 [[nodiscard]] auto replace_word(cpp2::impl::in<std::string> str, cpp2::impl::in<std::string> pattern, cpp2::impl::in<std::string> replacement) -> std::string{
     if (CPP2_UFCS(empty)(pattern)) {
         return str; 
@@ -6518,10 +5548,10 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
 
     std::string result {""}; 
     size_t pos {0}; 
-    auto pattern_len {CPP2_UFCS(size)(pattern)}; 
+    size_t pattern_len {CPP2_UFCS(size)(pattern)}; 
 
     while( cpp2::impl::cmp_less(pos,CPP2_UFCS(size)(str)) ) {
-        auto found {CPP2_UFCS(find)(str, pattern, pos)}; 
+        size_t found {CPP2_UFCS(find)(str, pattern, pos)}; 
         if (found == std::string::npos) {
             // No more matches, append rest of string
             result += CPP2_UFCS(substr)(str, pos);
@@ -6529,8 +5559,8 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         }
 
         // Check word boundaries
-        auto is_word_start {(found == 0) || !(is_identifier_char(CPP2_ASSERT_IN_BOUNDS(str, found - 1)))}; 
-        auto is_word_end {(cpp2::impl::cmp_greater_eq(found + pattern_len,CPP2_UFCS(size)(str))) || !(is_identifier_char(CPP2_ASSERT_IN_BOUNDS(str, found + pattern_len)))}; 
+        bool is_word_start {(found == 0) || !(is_identifier_char(CPP2_ASSERT_IN_BOUNDS(str, found - 1)))}; 
+        bool is_word_end {(cpp2::impl::cmp_greater_eq(found + pattern_len,CPP2_UFCS(size)(str))) || !(is_identifier_char(CPP2_ASSERT_IN_BOUNDS(str, found + pattern_len)))}; 
 
         if (cpp2::move(is_word_start) && cpp2::move(is_word_end)) {
             // It's a whole word match - do the replacement
@@ -6547,12 +5577,12 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return result; 
 }
 
-#line 3832 "source/reverse_ad.h2"
+#line 3003 "source/reverse_ad.h2"
 [[nodiscard]] auto substitute_rule_params(cpp2::impl::in<std::string> body_str, 
                          cpp2::impl::in<std::string> target_val, cpp2::impl::in<std::string> target_adj, 
                          cpp2::impl::in<std::vector<std::string>> arg_vals, 
                          cpp2::impl::in<std::vector<std::string>> arg_adjs) -> std::string{
-    auto result {body_str}; 
+    std::string result {body_str}; 
 
     // Substitute result value and adjoint using word-boundary-aware replacement
     result = replace_word(result, "res_val", target_val);
@@ -6561,10 +5591,10 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     // Substitute argument values and adjoints
     // BUG FIX: Check both arg_vals and arg_adjs sizes
     std::array<std::string,4> param_names {"x", "y", "z", "w"}; 
-    auto i {0}; 
+    cpp2::i64 i {0}; 
     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(param_names)) && cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(arg_vals)) && cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(arg_adjs)) ) {
-        auto val_param {CPP2_ASSERT_IN_BOUNDS(param_names, i) + "_val"}; 
-        auto adj_param {CPP2_ASSERT_IN_BOUNDS(param_names, i) + "_adj"}; 
+        std::string val_param {CPP2_ASSERT_IN_BOUNDS(param_names, i) + "_val"}; 
+        std::string adj_param {CPP2_ASSERT_IN_BOUNDS(param_names, i) + "_adj"}; 
 
         // Always substitute value params
         result = replace_word(result, cpp2::move(val_param), CPP2_ASSERT_IN_BOUNDS(arg_vals, i));
@@ -6589,28 +5619,28 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return result; 
 }
 
-#line 3886 "source/reverse_ad.h2"
+#line 3057 "source/reverse_ad.h2"
     ad_op_mapping_result::ad_op_mapping_result(){}
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     ad_op_mapping_result::ad_op_mapping_result(ad_op_mapping_result const& that)
                                    : ok{ that.ok }
                                    , kind{ that.kind }{}
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     auto ad_op_mapping_result::operator=(ad_op_mapping_result const& that) -> ad_op_mapping_result& {
                                    ok = that.ok;
                                    kind = that.kind;
                                    return *this; }
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     ad_op_mapping_result::ad_op_mapping_result(ad_op_mapping_result&& that) noexcept
                                    : ok{ std::move(that).ok }
                                    , kind{ std::move(that).kind }{}
-#line 3887 "source/reverse_ad.h2"
+#line 3058 "source/reverse_ad.h2"
     auto ad_op_mapping_result::operator=(ad_op_mapping_result&& that) noexcept -> ad_op_mapping_result& {
                                    ok = std::move(that).ok;
                                    kind = std::move(that).kind;
                                    return *this; }
 
-#line 3889 "source/reverse_ad.h2"
+#line 3060 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_op_mapping_result::make(cpp2::impl::in<bool> ok_, cpp2::impl::in<ad_op_kind> kind_) -> ad_op_mapping_result{
         ad_op_mapping_result r {}; 
         r.ok = ok_;
@@ -6618,7 +5648,7 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
         return r; 
     }
 
-#line 3906 "source/reverse_ad.h2"
+#line 3077 "source/reverse_ad.h2"
 [[nodiscard]] auto map_operator_token(cpp2::impl::in<std::string_view> op) -> ad_op_mapping_result{
     if (op == "+") {
         return ad_op_mapping_result::make(true, ad_op_kind::add); 
@@ -6635,14 +5665,14 @@ auto discover_ad_rules(cpp2::impl::in<meta::type_declaration> t, ad_rule_registr
     return ad_op_mapping_result::make(false, ad_op_kind::add); 
 }
 
-#line 3931 "source/reverse_ad.h2"
+#line 3102 "source/reverse_ad.h2"
 [[nodiscard]] auto map_function_to_op(cpp2::impl::in<std::string_view> name) -> ad_op_mapping_result{
     // All functions use ad_op_kind::call - differentiation is handled by
     // looking up ad_rule_* definitions in the rule registry by name
     return ad_op_mapping_result::make(true, ad_op_kind::call); 
 }
 
-#line 3943 "source/reverse_ad.h2"
+#line 3114 "source/reverse_ad.h2"
 auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<bool> ok, cpp2::impl::in<ad_op_kind> kind) -> void{
     std::cout << "AD: map_operator_token(\"" << op << "\") -> ";
     if (ok) {
@@ -6652,23 +5682,23 @@ auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<
     }
 }
 
-#line 3971 "source/reverse_ad.h2"
+#line 3142 "source/reverse_ad.h2"
     ad_ir_builder::ad_ir_builder()
         : ctx{ nullptr }
         , registry{ nullptr }{
 
-#line 3974 "source/reverse_ad.h2"
+#line 3145 "source/reverse_ad.h2"
     }
 
-#line 3977 "source/reverse_ad.h2"
+#line 3148 "source/reverse_ad.h2"
     ad_ir_builder::ad_ir_builder(cpp2::impl::in<reverse_autodiff_context*> ctx_, cpp2::impl::in<ad_rule_registry*> registry_)
         : ctx{ ctx_ }
         , registry{ registry_ }{
 
-#line 3980 "source/reverse_ad.h2"
+#line 3151 "source/reverse_ad.h2"
     }
 
-#line 3988 "source/reverse_ad.h2"
+#line 3159 "source/reverse_ad.h2"
     auto ad_ir_builder::report_error(cpp2::impl::in<std::string> msg, cpp2::impl::in<std::string> loc, cpp2::impl::in<std::string> context) & -> void{
         std::cerr << "AD IR Builder Error: " << msg;
         if (!(CPP2_UFCS(empty)(loc))) {std::cerr << " at " << loc; }
@@ -6677,15 +5707,15 @@ auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<
         if (cpp2::cpp2_default.is_active() && !(false && "AD IR Builder encountered a fatal error") ) { cpp2::cpp2_default.report_violation(""); }
     }
 
-#line 4001 "source/reverse_ad.h2"
+#line 3172 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::gen_temp_name(cpp2::impl::in<std::string> base) & -> std::string{
-        auto name {"" + cpp2::to_string(base) + "_t" + cpp2::to_string(temp_counter) + ""}; 
+        std::string name {"" + cpp2::to_string(base) + "_t" + cpp2::to_string(temp_counter) + ""}; 
         ++temp_counter;
         CPP2_UFCS(push_back)(temp_names, name);
         return name; 
     }
 
-#line 4016 "source/reverse_ad.h2"
+#line 3187 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::emit_expr(cpp2::impl::in<ad_expr> expr) const& -> std::string{
         if (expr.kind == ad_expr_kind::literal) {
             return expr.name; 
@@ -6695,7 +5725,7 @@ auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<
         }
         else {if (expr.kind == ad_expr_kind::unary) {
             if (!(CPP2_UFCS(empty)(expr.args))) {
-                auto operand {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string operand {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
                 // Handle different unary operators
                 if (expr.op == ad_op_kind::neg) {return "(-" + operand + ")"; }
                 if (expr.op == ad_op_kind::pos) {return "(+" + operand + ")"; }
@@ -6712,9 +5742,9 @@ auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<
         }
         else {if (expr.kind == ad_expr_kind::binary) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),2)) {
-                auto lhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto rhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
-                auto op_str {ad_op_kind_to_binary_str(expr.op)}; 
+                std::string lhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string rhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
+                std::string op_str {ad_op_kind_to_binary_str(expr.op)}; 
                 if (CPP2_UFCS(empty)(op_str)) {op_str = " ?? "; }
                 return "(" + cpp2::move(lhs) + cpp2::move(op_str) + cpp2::move(rhs) + ")"; 
             }
@@ -6722,17 +5752,17 @@ auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<
         }
         else {if (expr.kind == ad_expr_kind::ternary) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),3)) {
-                auto cond {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto then_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
-                auto else_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 2))}; 
+                std::string cond {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string then_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
+                std::string else_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 2))}; 
                 return "(" + cpp2::move(cond) + " ? " + cpp2::move(then_expr) + " : " + cpp2::move(else_expr) + ")"; 
             }
             return "(ternary)"; 
         }
         else {if (expr.kind == ad_expr_kind::member) {
             if (!(CPP2_UFCS(empty)(expr.args))) {
-                auto obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto op_str {"->"}; 
+                std::string obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string op_str {"->"}; 
                 if (expr.op != ad_op_kind::arrow) {op_str = "."; }
                 return cpp2::move(obj) + cpp2::move(op_str) + expr.member_name; 
             }
@@ -6740,53 +5770,53 @@ auto debug_operator_mapping(cpp2::impl::in<std::string_view> op, cpp2::impl::in<
         }
         else {if (expr.kind == ad_expr_kind::subscript) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),2)) {
-                auto arr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto idx {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
+                std::string arr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string idx {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
                 return cpp2::move(arr) + "[" + cpp2::move(idx) + "]"; 
             }
             return "(subscript)"; 
         }
         else {if (expr.kind == ad_expr_kind::call) {
-            auto result {expr.name}; 
+            std::string result {expr.name}; 
             // Add template args if present
             if (!(CPP2_UFCS(empty)(expr.type_args))) {
                 result += "<";
 {
-auto first{true};
+bool first{true};
 
-#line 4082 "source/reverse_ad.h2"
+#line 3253 "source/reverse_ad.h2"
                 for ( auto const& targ : expr.type_args ) {
                     if (!(first)) {result += ", "; }
                     first = false;
                     result += ad_type_to_string(targ);
                 }
 }
-#line 4087 "source/reverse_ad.h2"
+#line 3258 "source/reverse_ad.h2"
                 result += ">";
             }
             result += "(";
 {
-auto first{true};
+bool first{true};
 
-#line 4091 "source/reverse_ad.h2"
+#line 3262 "source/reverse_ad.h2"
             for ( auto const& arg : expr.args ) {
                 if (!(first)) {result += ", "; }
                 first = false;
                 result += emit_expr(arg);
             }
 }
-#line 4096 "source/reverse_ad.h2"
+#line 3267 "source/reverse_ad.h2"
             result += ")";
             return result; 
         }
         else {if (expr.kind == ad_expr_kind::method_call) {
             if (!(CPP2_UFCS(empty)(expr.args))) {
-                auto obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto result {cpp2::move(obj) + "." + expr.name + "("}; 
+                std::string obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string result {cpp2::move(obj) + "." + expr.name + "("}; 
                 // Skip first arg (the object), emit remaining args
                 if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(expr.args),1)) {
                     result += emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1));
-                    auto i {2}; 
+                    cpp2::i64 i {2}; 
                     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(expr.args)) ) {
                         result += ", ";
                         result += emit_expr(CPP2_ASSERT_IN_BOUNDS(expr.args, i));
@@ -6806,7 +5836,7 @@ auto first{true};
                 }else {
                     target_type = expr.type_name;
                 }
-                auto inner {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string inner {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
                 // C++ style cast
                 if (expr.name != "") {
                     return expr.name + "<" + target_type + ">(" + inner + ")"; 
@@ -6817,18 +5847,18 @@ auto first{true};
             return "(cast)"; 
         }
         else {if (expr.kind == ad_expr_kind::construct) {
-            auto result {expr.name + "("}; 
+            std::string result {expr.name + "("}; 
 {
-auto first{true};
+bool first{true};
 
-#line 4139 "source/reverse_ad.h2"
+#line 3310 "source/reverse_ad.h2"
             for ( auto const& arg : expr.args ) {
                 if (!(first)) {result += ", "; }
                 first = false;
                 result += emit_expr(arg);
             }
 }
-#line 4144 "source/reverse_ad.h2"
+#line 3315 "source/reverse_ad.h2"
             result += ")";
             return result; 
         }
@@ -6841,23 +5871,23 @@ auto first{true};
         else {if (expr.kind == ad_expr_kind::initializer_list) {
             std::string result {"{"}; 
 {
-auto first{true};
+bool first{true};
 
-#line 4156 "source/reverse_ad.h2"
+#line 3327 "source/reverse_ad.h2"
             for ( auto const& arg : expr.args ) {
                 if (!(first)) {result += ", "; }
                 first = false;
                 result += emit_expr(arg);
             }
 }
-#line 4161 "source/reverse_ad.h2"
+#line 3332 "source/reverse_ad.h2"
             result += "}";
             return result; 
         }}}}}}}}}}}}}
         return "(??)"; 
     }
 
-#line 4176 "source/reverse_ad.h2"
+#line 3347 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::derive_op_name(cpp2::impl::in<ad_op_kind> op, cpp2::impl::in<std::vector<ad_expr>> args) const& -> std::string{
         auto result {ad_op_kind_to_string(op)}; 
         for ( auto const& arg : args ) {
@@ -6868,7 +5898,7 @@ auto first{true};
         return result; 
     }
 
-#line 4194 "source/reverse_ad.h2"
+#line 3365 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_primary_expr(cpp2::impl::in<meta::primary_expression> primary) & -> ad_expr{
         if (CPP2_UFCS(is_identifier)(primary)) {
             auto name {CPP2_UFCS(as_identifier)(primary)}; 
@@ -6909,7 +5939,7 @@ auto first{true};
         }}}
     }
 
-#line 4242 "source/reverse_ad.h2"
+#line 3413 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_postfix_expr(cpp2::impl::in<meta::postfix_expression> postfix) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(postfix)}; 
 
@@ -6958,7 +5988,7 @@ auto first{true};
         return result; 
     }
 
-#line 4298 "source/reverse_ad.h2"
+#line 3469 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_prefix_expr(cpp2::impl::in<meta::prefix_expression> prefix) & -> ad_expr{
         auto ops {CPP2_UFCS(get_ops)(prefix)}; 
 
@@ -6997,7 +6027,7 @@ auto first{true};
         return result; 
     }
 
-#line 4344 "source/reverse_ad.h2"
+#line 3515 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_is_as_expr(cpp2::impl::in<meta::is_as_expression> isas) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(isas)}; 
 
@@ -7011,7 +6041,7 @@ auto first{true};
         return build_prefix_expr(CPP2_UFCS(get_expression)(isas)); 
     }
 
-#line 4365 "source/reverse_ad.h2"
+#line 3536 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_multiplicative_expr(cpp2::impl::in<meta::multiplicative_expression> binexpr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(binexpr)}; 
         if (cpp2::cpp2_default.is_active() && !(!(CPP2_UFCS(empty)(terms))) ) { cpp2::cpp2_default.report_violation(""); }
@@ -7048,7 +6078,7 @@ auto first{true};
         return result; 
     }
 
-#line 4409 "source/reverse_ad.h2"
+#line 3580 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_additive_expr(cpp2::impl::in<meta::additive_expression> binexpr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(binexpr)}; 
         if (cpp2::cpp2_default.is_active() && !(!(CPP2_UFCS(empty)(terms))) ) { cpp2::cpp2_default.report_violation(""); }
@@ -7085,7 +6115,7 @@ auto first{true};
         return result; 
     }
 
-#line 4454 "source/reverse_ad.h2"
+#line 3625 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::parse_call_args(cpp2::impl::in<meta::expression_list> expr_list) & -> std::vector<ad_expr>{
         std::vector<ad_expr> args {}; 
         for ( auto const& expr : CPP2_UFCS(get_expressions)(expr_list) ) {
@@ -7095,7 +6125,7 @@ auto first{true};
         return args; 
     }
 
-#line 4468 "source/reverse_ad.h2"
+#line 3639 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_expression(cpp2::impl::in<meta::expression> expr) & -> ad_expr{
         // For now, use string representation and try to identify patterns
         auto str {CPP2_UFCS(to_string)(expr)}; 
@@ -7125,7 +6155,7 @@ auto first{true};
         return ad_expr::make_literal("__ERROR__", "error"); 
     }
 
-#line 4502 "source/reverse_ad.h2"
+#line 3673 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_from_assignment(cpp2::impl::in<meta::assignment_expression> assign) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(assign)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7141,7 +6171,7 @@ auto first{true};
         return ad_expr::make_literal("__ERROR__", "error"); 
     }
 
-#line 4518 "source/reverse_ad.h2"
+#line 3689 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_logical_or_expr(cpp2::impl::in<meta::logical_or_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7151,7 +6181,7 @@ auto first{true};
         return build_logical_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4527 "source/reverse_ad.h2"
+#line 3698 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_logical_and_expr(cpp2::impl::in<meta::logical_and_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7161,7 +6191,7 @@ auto first{true};
         return build_bit_or_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4536 "source/reverse_ad.h2"
+#line 3707 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_bit_or_expr(cpp2::impl::in<meta::bit_or_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7171,7 +6201,7 @@ auto first{true};
         return build_bit_xor_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4545 "source/reverse_ad.h2"
+#line 3716 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_bit_xor_expr(cpp2::impl::in<meta::bit_xor_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7181,7 +6211,7 @@ auto first{true};
         return build_bit_and_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4554 "source/reverse_ad.h2"
+#line 3725 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_bit_and_expr(cpp2::impl::in<meta::bit_and_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7191,7 +6221,7 @@ auto first{true};
         return build_equality_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4563 "source/reverse_ad.h2"
+#line 3734 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_equality_expr(cpp2::impl::in<meta::equality_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7201,7 +6231,7 @@ auto first{true};
         return build_relational_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4572 "source/reverse_ad.h2"
+#line 3743 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_relational_expr(cpp2::impl::in<meta::relational_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7211,7 +6241,7 @@ auto first{true};
         return build_compare_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4581 "source/reverse_ad.h2"
+#line 3752 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_compare_expr(cpp2::impl::in<meta::compare_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7221,7 +6251,7 @@ auto first{true};
         return build_shift_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4590 "source/reverse_ad.h2"
+#line 3761 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_shift_expr(cpp2::impl::in<meta::shift_expression> expr) & -> ad_expr{
         auto terms {CPP2_UFCS(get_terms)(expr)}; 
         if (CPP2_UFCS(ssize)(terms) == 1) {
@@ -7231,7 +6261,7 @@ auto first{true};
         return build_additive_expr(CPP2_UFCS(get_term)(CPP2_UFCS(front)(cpp2::move(terms)))); 
     }
 
-#line 4613 "source/reverse_ad.h2"
+#line 3784 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::apply_rule_or_default(cpp2::impl::in<std::string> name, cpp2::impl::in<int> n_args, cpp2::impl::in<bool> is_member, cpp2::impl::in<std::vector<ad_expr>> args) & -> ad_rule_application_result
 
     {
@@ -7253,7 +6283,7 @@ auto first{true};
         return result; 
     }
 
-#line 4643 "source/reverse_ad.h2"
+#line 3814 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::is_active_ir_expr(cpp2::impl::in<ad_expr> expr) const& -> bool{
         // Literals are not active
         if (expr.kind == ad_expr_kind::literal) {
@@ -7289,7 +6319,7 @@ auto first{true};
         return false; 
     }
 
-#line 4688 "source/reverse_ad.h2"
+#line 3859 "source/reverse_ad.h2"
     auto ad_ir_builder::build_object_decl(cpp2::impl::in<meta::declaration> decl, 
                         std::vector<ad_stmt>& body_stmts, 
                         std::vector<ad_stmt>& reverse_stmts) & -> void{
@@ -7340,7 +6370,7 @@ auto first{true};
         }
     }
 
-#line 4745 "source/reverse_ad.h2"
+#line 3916 "source/reverse_ad.h2"
     auto ad_ir_builder::build_assignment(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> value_expr, 
                        std::vector<ad_stmt>& body_stmts, 
                        std::vector<ad_stmt>& reverse_stmts) & -> void{
@@ -7367,7 +6397,7 @@ auto first{true};
         }
     }
 
-#line 4776 "source/reverse_ad.h2"
+#line 3947 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::transform_expr_to_val(cpp2::impl::in<ad_expr> expr) & -> ad_expr{
         if (expr.kind == ad_expr_kind::identifier) {
             // Transform identifier to use _val suffix
@@ -7409,136 +6439,202 @@ auto first{true};
         return expr; 
     }
 
-#line 4823 "source/reverse_ad.h2"
+#line 3997 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_ir_builder::get_operator_rule_suffix(cpp2::impl::in<std::string> op_name) const& -> std::string{
+        if (op_name == "+") {return "add"; }
+        if (op_name == "-") {return "sub"; }
+        if (op_name == "*") {return "mul"; }
+        if (op_name == "/") {return "div"; }
+        if (op_name == "%") {return "mod"; }
+        return "unknown"; 
+    }
+
+#line 4021 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_ir_builder::get_lhs_derivative_contrib(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val, cpp2::impl::in<ad_expr> adj_ref) const& -> ad_expr{
+        if (op_name == "+" || op_name == "-") {
+            // d(x+y)/dx = 1, d(x-y)/dx = 1 -> contrib = res_adj
+            return adj_ref; 
+        }
+        if (op_name == "*") {
+            // d(x*y)/dx = y -> contrib = y_val * res_adj
+            return ad_expr::make_binary(ad_op_kind::mul, rhs_val, adj_ref, "double"); 
+        }
+        if (op_name == "/") {
+            // d(x/y)/dx = 1/y -> contrib = res_adj / y_val
+            return ad_expr::make_binary(ad_op_kind::div, adj_ref, rhs_val, "double"); 
+        }
+        // Default: just pass through adj_ref (treat like identity)
+        return adj_ref; 
+    }
+
+#line 4053 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_ir_builder::get_rhs_derivative_contrib(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val, cpp2::impl::in<ad_expr> adj_ref) const& -> ad_expr{
+        if (op_name == "+") {
+            // d(x+y)/dy = 1 -> contrib = res_adj
+            return adj_ref; 
+        }
+        if (op_name == "-") {
+            // d(x-y)/dy = -1 -> contrib = -res_adj
+            return ad_expr::make_unary(ad_op_kind::neg, adj_ref, "double"); 
+        }
+        if (op_name == "*") {
+            // d(x*y)/dy = x -> contrib = x_val * res_adj
+            return ad_expr::make_binary(ad_op_kind::mul, lhs_val, adj_ref, "double"); 
+        }
+        if (op_name == "/") {
+            // d(x/y)/dy = -x/y^2 -> contrib = -(x_val / (y_val * y_val)) * res_adj
+            auto rhs_sq {ad_expr::make_binary(ad_op_kind::mul, rhs_val, rhs_val, "double")}; 
+            auto quot {ad_expr::make_binary(ad_op_kind::div, lhs_val, cpp2::move(rhs_sq), "double")}; 
+            auto neg_quot {ad_expr::make_unary(ad_op_kind::neg, cpp2::move(quot), "double")}; 
+            return ad_expr::make_binary(ad_op_kind::mul, cpp2::move(neg_quot), adj_ref, "double"); 
+        }
+        // Default: just pass through adj_ref
+        return adj_ref; 
+    }
+
+#line 4088 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_ir_builder::get_lhs_derivative_scale(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val) const& -> ad_expr{
+        if (op_name == "+" || op_name == "-") {
+            // d(x+y)/dx = 1 -> scale = 1 (use literal)
+            return ad_expr::make_literal("1.0", "double"); 
+        }
+        if (op_name == "*") {
+            // d(x*y)/dx = y -> scale = y_val
+            return rhs_val; 
+        }
+        if (op_name == "/") {
+            // d(x/y)/dx = 1/y -> scale = 1/y_val
+            auto one {ad_expr::make_literal("1.0", "double")}; 
+            return ad_expr::make_binary(ad_op_kind::div, cpp2::move(one), rhs_val, "double"); 
+        }
+        return ad_expr::make_literal("1.0", "double"); 
+    }
+
+#line 4116 "source/reverse_ad.h2"
+    [[nodiscard]] auto ad_ir_builder::get_rhs_derivative_scale(cpp2::impl::in<std::string> op_name, cpp2::impl::in<ad_expr> lhs_val, cpp2::impl::in<ad_expr> rhs_val) const& -> ad_expr{
+        if (op_name == "+") {
+            // d(x+y)/dy = 1 -> scale = 1
+            return ad_expr::make_literal("1.0", "double"); 
+        }
+        if (op_name == "-") {
+            // d(x-y)/dy = -1 -> scale = -1
+            auto one {ad_expr::make_literal("1.0", "double")}; 
+            return ad_expr::make_unary(ad_op_kind::neg, cpp2::move(one), "double"); 
+        }
+        if (op_name == "*") {
+            // d(x*y)/dy = x -> scale = x_val
+            return lhs_val; 
+        }
+        if (op_name == "/") {
+            // d(x/y)/dy = -x/y^2 -> scale = -x_val / (y_val * y_val)
+            auto rhs_sq {ad_expr::make_binary(ad_op_kind::mul, rhs_val, rhs_val, "double")}; 
+            auto quot {ad_expr::make_binary(ad_op_kind::div, lhs_val, cpp2::move(rhs_sq), "double")}; 
+            return ad_expr::make_unary(ad_op_kind::neg, cpp2::move(quot), "double"); 
+        }
+        return ad_expr::make_literal("1.0", "double"); 
+    }
+
+#line 4145 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::generate_reverse_for_expr(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> expr) & -> ad_stmt{
         auto target_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), target)}; 
 
-        // For binary ops, generate partial derivative contributions
+        // For binary ops, look up the operator rule and apply partial derivatives
         if (expr.kind == ad_expr_kind::binary) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),2)) {
                 auto lhs {CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0)}; 
                 auto rhs {CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1)}; 
 
-                if (expr.op == ad_op_kind::add) {
-                    // d(a+b)/da = 1, d(a+b)/db = 1
-                    // Reverse: lhs_adj += target_adj; rhs_adj += target_adj
-                    std::vector<ad_stmt> compound {}; 
-                    if (lhs.kind == ad_expr_kind::identifier) {
-                        auto lhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(lhs).name)}; 
-                        auto adj_ref {ad_expr::make_identifier(target_adj, "double")}; 
-                        CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(lhs_adj), cpp2::move(adj_ref)));
+                // Get the operator symbol for rule lookup
+                auto op_name {ad_op_kind_to_rule_name(expr.op)}; 
+
+                // Priority 1: Check for user-defined operator rules
+                // Users can override built-in operator differentiation by defining
+                // ad_rule_add, ad_rule_mul, etc. in their @autodiff type
+                if (!(CPP2_UFCS(empty)(op_name)) && registry != nullptr && CPP2_UFCS(has_operator_rule)((*cpp2::impl::assert_not_null(registry)), op_name)) {
+                    // For simple cases (both operands are identifiers), use rule lookup directly
+                    if (lhs.kind == ad_expr_kind::identifier && rhs.kind == ad_expr_kind::identifier) {
+                        // Build substitution context for the rule body
+                        ad_substitution_context sub_ctx {}; 
+
+                        // Map rule parameters to actual expressions
+                        CPP2_UFCS(add)(sub_ctx, "x_val", ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), lhs.name), "double"));
+                        CPP2_UFCS(add)(sub_ctx, "y_val", ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), rhs.name), "double"));
+                        CPP2_UFCS(add)(sub_ctx, "x_adj", ad_expr::make_identifier(CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), lhs.name), "double"));
+                        CPP2_UFCS(add)(sub_ctx, "y_adj", ad_expr::make_identifier(CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), rhs.name), "double"));
+                        CPP2_UFCS(add)(sub_ctx, "res_adj", ad_expr::make_identifier(target_adj, "double"));
+                        CPP2_UFCS(add)(sub_ctx, "res_val", ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), target), "double"));
+
+                        // Apply the operator rule
+                        auto rule_result {CPP2_UFCS(apply_operator_rule)((*cpp2::impl::assert_not_null(registry)), op_name, cpp2::move(sub_ctx))}; 
+                        if (rule_result.ir_success) {
+                            return ad_stmt::make_compound(rule_result.ir_stmts); 
+                        }
+                        // Rule parsing failed - hard fail with compiler error
+                        if (!(CPP2_UFCS(empty)(rule_result.error_message))) {
+                            CPP2_UFCS(error)((*cpp2::impl::assert_not_null(ctx)).mf, "AD rule parsing failed: " + cpp2::move(rule_result).error_message);
+                        }
                     }
-                    if (rhs.kind == ad_expr_kind::identifier) {
-                        auto rhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(rhs).name)}; 
-                        auto adj_ref {ad_expr::make_identifier(cpp2::move(target_adj), "double")}; 
-                        CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(rhs_adj), cpp2::move(adj_ref)));
-                    }
-                    return ad_stmt::make_compound(cpp2::move(compound)); 
                 }
-                else {if (expr.op == ad_op_kind::sub) {
-                    // d(a-b)/da = 1, d(a-b)/db = -1
-                    std::vector<ad_stmt> compound {}; 
-                    if (lhs.kind == ad_expr_kind::identifier) {
-                        auto lhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(lhs).name)}; 
-                        auto adj_ref {ad_expr::make_identifier(target_adj, "double")}; 
-                        CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(lhs_adj), cpp2::move(adj_ref)));
-                    }
-                    if (rhs.kind == ad_expr_kind::identifier) {
-                        auto rhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(rhs).name)}; 
-                        auto adj_ref {ad_expr::make_identifier(cpp2::move(target_adj), "double")}; 
-                        auto neg_adj {ad_expr::make_unary(ad_op_kind::neg, cpp2::move(adj_ref), "double")}; 
-                        CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(rhs_adj), cpp2::move(neg_adj)));
-                    }
-                    return ad_stmt::make_compound(cpp2::move(compound)); 
-                }
-                else {if (expr.op == ad_op_kind::mul) {
-                    // d(a*b)/da = b, d(a*b)/db = a
+
+                // Priority 2: Use built-in operator differentiation
+                // These formulas match the ad_rule_* types defined in include/cpp2ad_rules.h2:
+                // - ad_rule_add: x_adj += res_adj; y_adj += res_adj
+                // - ad_rule_sub: x_adj += res_adj; y_adj -= res_adj
+                // - ad_rule_mul: x_adj += y_val * res_adj; y_adj += x_val * res_adj
+                // - ad_rule_div: x_adj += res_adj / y_val; y_adj -= x_val / (y_val * y_val) * res_adj
+                if (!(CPP2_UFCS(empty)(op_name))) {
                     std::vector<ad_stmt> compound {}; 
                     auto adj_ref {ad_expr::make_identifier(cpp2::move(target_adj), "double")}; 
 
-                    // Handle LHS (contribution to lhs_adj)
+                    // Get lhs and rhs values for derivative computation
+                    ad_expr lhs_val {}; 
+                    ad_expr rhs_val {}; 
                     if (lhs.kind == ad_expr_kind::identifier) {
-                        auto lhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), lhs.name)}; 
-                        // lhs_adj += rhs * target_adj
-                        // Need to get rhs value - could be identifier or call result
-                        ad_expr rhs_val {}; 
-                        if (rhs.kind == ad_expr_kind::identifier) {
-                            rhs_val = ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), rhs.name), "double");
-                        }else {if (rhs.kind == ad_expr_kind::call) {
-                            // Use the call expression itself as the value (forward pass computes it)
-                            rhs_val = rhs;
-                        }else {
-                            // For literals, binary expressions, etc. - use the expression directly
-                            rhs_val = rhs;
-                        }}
-                        auto contrib {ad_expr::make_binary(ad_op_kind::mul, cpp2::move(rhs_val), adj_ref, "double")}; 
+                        lhs_val = ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), lhs.name), "double");
+                    }else {
+                        lhs_val = lhs;
+                    }
+                    if (rhs.kind == ad_expr_kind::identifier) {
+                        rhs_val = ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), rhs.name), "double");
+                    }else {
+                        rhs_val = rhs;
+                    }
+
+                    // Apply derivative formulas from ad_rule_* types:
+                    // These partial derivative formulas are defined in ad_rule_add, ad_rule_sub, etc.
+                    // in include/cpp2ad_rules.h2 - we use them here via chain rule
+
+                    // Handle LHS contribution (d/d_lhs)
+                    if (lhs.kind == ad_expr_kind::identifier) {
+                        auto lhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(lhs).name)}; 
+                        // Get contribution expression based on operator rule
+                        auto contrib {get_lhs_derivative_contrib(op_name, lhs_val, rhs_val, adj_ref)}; 
                         CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(lhs_adj), cpp2::move(contrib)));
                     }
                     else {if (lhs.kind == ad_expr_kind::call) {
                         // LHS is a call - need chain rule through it
-                        // tmp_adj = rhs * target_adj, then apply call's reverse
-                        // For now, recursively generate reverse for the call
-                        // The call's arguments will receive contributions scaled by lhs_val * target_adj
-                        auto call_reverse {generate_reverse_for_call_with_scale(lhs, rhs, adj_ref)}; 
+                        // Scale factor comes from the derivative rule
+                        auto scale {get_lhs_derivative_scale(op_name, lhs_val, rhs_val)}; 
+                        auto call_reverse {generate_reverse_for_call_with_scale(cpp2::move(lhs), cpp2::move(scale), adj_ref)}; 
                         CPP2_UFCS(push_back)(compound, cpp2::move(call_reverse));
                     }}
 
-                    // Handle RHS (contribution to rhs_adj)
+                    // Handle RHS contribution (d/d_rhs)
                     if (rhs.kind == ad_expr_kind::identifier) {
                         auto rhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(rhs).name)}; 
-                        // rhs_adj += lhs * target_adj
-                        ad_expr lhs_val {}; 
-                        if (lhs.kind == ad_expr_kind::identifier) {
-                            lhs_val = ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(lhs).name), "double");
-                        }else {if (lhs.kind == ad_expr_kind::call) {
-                            lhs_val = cpp2::move(lhs);
-                        }else {
-                            lhs_val = cpp2::move(lhs);
-                        }}
-                        auto contrib {ad_expr::make_binary(ad_op_kind::mul, cpp2::move(lhs_val), cpp2::move(adj_ref), "double")}; 
+                        // Get contribution expression based on operator rule
+                        auto contrib {get_rhs_derivative_contrib(cpp2::move(op_name), cpp2::move(lhs_val), cpp2::move(rhs_val), cpp2::move(adj_ref))}; 
                         CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(rhs_adj), cpp2::move(contrib)));
                     }
                     else {if (rhs.kind == ad_expr_kind::call) {
                         // RHS is a call - need chain rule through it
-                        // The call's arguments receive: lhs_val * target_adj * d(call)/d(arg)
-                        ad_expr lhs_val {}; 
-                        if (lhs.kind == ad_expr_kind::identifier) {
-                            lhs_val = ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(lhs).name), "double");
-                        }else {
-                            lhs_val = cpp2::move(lhs);
-                        }
-                        auto call_reverse {generate_reverse_for_call_with_scale(cpp2::move(rhs), cpp2::move(lhs_val), cpp2::move(adj_ref))}; 
+                        auto scale {get_rhs_derivative_scale(cpp2::move(op_name), cpp2::move(lhs_val), cpp2::move(rhs_val))}; 
+                        auto call_reverse {generate_reverse_for_call_with_scale(cpp2::move(rhs), cpp2::move(scale), cpp2::move(adj_ref))}; 
                         CPP2_UFCS(push_back)(compound, cpp2::move(call_reverse));
                     }}
 
                     return ad_stmt::make_compound(cpp2::move(compound)); 
                 }
-                else {if (expr.op == ad_op_kind::div) {
-                    // d(a/b)/da = 1/b, d(a/b)/db = -a/b^2
-                    std::vector<ad_stmt> compound {}; 
-                    auto adj_ref {ad_expr::make_identifier(cpp2::move(target_adj), "double")}; 
-                    if (lhs.kind == ad_expr_kind::identifier) {
-                        auto lhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), lhs.name)}; 
-                        // lhs_adj += (1/rhs) * target_adj
-                        auto one {ad_expr::make_literal("1.0", "double")}; 
-                        auto rhs_val {ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), rhs.name), "double")}; 
-                        auto inv_rhs {ad_expr::make_binary(ad_op_kind::div, cpp2::move(one), cpp2::move(rhs_val), "double")}; 
-                        auto contrib {ad_expr::make_binary(ad_op_kind::mul, cpp2::move(inv_rhs), adj_ref, "double")}; 
-                        CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(lhs_adj), cpp2::move(contrib)));
-                    }
-                    if (rhs.kind == ad_expr_kind::identifier) {
-                        auto rhs_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), rhs.name)}; 
-                        // rhs_adj += (-lhs/rhs^2) * target_adj
-                        auto lhs_val {ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(lhs).name), "double")}; 
-                        auto rhs_val {ad_expr::make_identifier(CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), cpp2::move(rhs).name), "double")}; 
-                        auto neg_lhs {ad_expr::make_unary(ad_op_kind::neg, cpp2::move(lhs_val), "double")}; 
-                        auto rhs_sq {ad_expr::make_binary(ad_op_kind::mul, rhs_val, cpp2::move(rhs_val), "double")}; 
-                        auto quot {ad_expr::make_binary(ad_op_kind::div, cpp2::move(neg_lhs), cpp2::move(rhs_sq), "double")}; 
-                        auto contrib {ad_expr::make_binary(ad_op_kind::mul, cpp2::move(quot), cpp2::move(adj_ref), "double")}; 
-                        CPP2_UFCS(push_back)(compound, ad_stmt::make_assign_add(cpp2::move(rhs_adj), cpp2::move(contrib)));
-                    }
-                    return ad_stmt::make_compound(cpp2::move(compound)); 
-                }}}}
             }
         }
         else {if (expr.kind == ad_expr_kind::unary && expr.op == ad_op_kind::neg) {
@@ -7566,7 +6662,7 @@ auto first{true};
         return ad_stmt::make_compound(cpp2::move(empty)); 
     }
 
-#line 4990 "source/reverse_ad.h2"
+#line 4283 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::generate_reverse_for_call_with_scale(cpp2::impl::in<ad_expr> call_expr, cpp2::impl::in<ad_expr> scale_expr, cpp2::impl::in<ad_expr> adj_ref) & -> ad_stmt{
         std::vector<ad_stmt> compound {}; 
         auto func_name {call_expr.name}; 
@@ -7648,7 +6744,7 @@ auto first{true};
         return ad_stmt::make_compound({});  // Return empty compound (will never be reached due to error)
     }
 
-#line 5077 "source/reverse_ad.h2"
+#line 4370 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::generate_reverse_for_call(cpp2::impl::in<std::string> target, cpp2::impl::in<ad_expr> call_expr) & -> ad_stmt{
         std::vector<ad_stmt> compound {}; 
         auto target_adj {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), target)}; 
@@ -7720,7 +6816,7 @@ auto first{true};
         return ad_stmt::make_compound({});  // Return empty compound (will never be reached due to error)
     }
 
-#line 5159 "source/reverse_ad.h2"
+#line 4452 "source/reverse_ad.h2"
     auto ad_ir_builder::build_return(cpp2::impl::in<ad_expr> return_expr, cpp2::impl::in<std::string> return_name, 
                    std::vector<ad_stmt>& body_stmts, 
                    std::vector<ad_stmt>& reverse_stmts) & -> void{
@@ -7737,7 +6833,7 @@ auto first{true};
         }
     }
 
-#line 5184 "source/reverse_ad.h2"
+#line 4477 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_builder::build_function_ir(cpp2::impl::in<meta::function_declaration> mf) & -> ad_function_ir{
         ad_function_ir ir {}; 
         ir.name = cpp2::impl::as_<std::string>(CPP2_UFCS(name)(mf));
@@ -7793,7 +6889,7 @@ auto first{true};
         return ir; 
     }
 
-#line 5245 "source/reverse_ad.h2"
+#line 4538 "source/reverse_ad.h2"
     auto ad_ir_builder::process_statement(cpp2::impl::in<meta::statement> stmt, 
                         std::vector<ad_stmt>& forward_stmts, 
                         std::vector<ad_stmt>& reverse_stmts) & -> void{
@@ -7844,28 +6940,28 @@ auto first{true};
         }}}
     }
 
-#line 5303 "source/reverse_ad.h2"
+#line 4596 "source/reverse_ad.h2"
     ad_rule_application_result::ad_rule_application_result(){}
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     ad_rule_application_result::ad_rule_application_result(ad_rule_application_result const& that)
                                    : has_rule{ that.has_rule }
                                    , forward{ that.forward }{}
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     auto ad_rule_application_result::operator=(ad_rule_application_result const& that) -> ad_rule_application_result& {
                                    has_rule = that.has_rule;
                                    forward = that.forward;
                                    return *this; }
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     ad_rule_application_result::ad_rule_application_result(ad_rule_application_result&& that) noexcept
                                    : has_rule{ std::move(that).has_rule }
                                    , forward{ std::move(that).forward }{}
-#line 5304 "source/reverse_ad.h2"
+#line 4597 "source/reverse_ad.h2"
     auto ad_rule_application_result::operator=(ad_rule_application_result&& that) noexcept -> ad_rule_application_result& {
                                    has_rule = std::move(that).has_rule;
                                    forward = std::move(that).forward;
                                    return *this; }
 
-#line 5316 "source/reverse_ad.h2"
+#line 4609 "source/reverse_ad.h2"
 [[nodiscard]] auto ad_op_kind_to_binary_str(cpp2::impl::in<ad_op_kind> op) -> std::string{
     // Arithmetic
     if (op == ad_op_kind::add) {return " + "; }
@@ -7905,28 +7001,38 @@ auto first{true};
     return ""; 
 }
 
-#line 5361 "source/reverse_ad.h2"
+#line 4657 "source/reverse_ad.h2"
+[[nodiscard]] auto ad_op_kind_to_rule_name(cpp2::impl::in<ad_op_kind> op) -> std::string{
+    if (op == ad_op_kind::add) {return "+"; }
+    if (op == ad_op_kind::sub) {return "-"; }
+    if (op == ad_op_kind::mul) {return "*"; }
+    if (op == ad_op_kind::div) {return "/"; }
+    if (op == ad_op_kind::mod) {return "%"; }
+    return "";  // Other operators don't have AD rules
+}
+
+#line 4672 "source/reverse_ad.h2"
     ad_ir_emitter::ad_ir_emitter()
         : ctx{ nullptr }{
 
-#line 5363 "source/reverse_ad.h2"
+#line 4674 "source/reverse_ad.h2"
     }
 
-#line 5365 "source/reverse_ad.h2"
+#line 4676 "source/reverse_ad.h2"
     ad_ir_emitter::ad_ir_emitter(cpp2::impl::in<reverse_autodiff_context*> ctx_)
         : ctx{ ctx_ }{
 
-#line 5367 "source/reverse_ad.h2"
+#line 4678 "source/reverse_ad.h2"
     }
-#line 5365 "source/reverse_ad.h2"
+#line 4676 "source/reverse_ad.h2"
     auto ad_ir_emitter::operator=(cpp2::impl::in<reverse_autodiff_context*> ctx_) -> ad_ir_emitter& {
         ctx = ctx_;
         return *this;
 
-#line 5367 "source/reverse_ad.h2"
+#line 4678 "source/reverse_ad.h2"
     }
 
-#line 5374 "source/reverse_ad.h2"
+#line 4685 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_emitter::emit_expr(cpp2::impl::in<ad_expr> expr) const& -> std::string{
         if (expr.kind == ad_expr_kind::literal) {
             return expr.name; 
@@ -7936,7 +7042,7 @@ auto first{true};
         }
         else {if (expr.kind == ad_expr_kind::unary) {
             if (!(CPP2_UFCS(empty)(expr.args))) {
-                auto operand {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string operand {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
                 // Handle different unary operators
                 if (expr.op == ad_op_kind::neg) {return "(-" + operand + ")"; }
                 if (expr.op == ad_op_kind::pos) {return "(+" + operand + ")"; }
@@ -7953,9 +7059,9 @@ auto first{true};
         }
         else {if (expr.kind == ad_expr_kind::binary) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),2)) {
-                auto lhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto rhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
-                auto op_str {ad_op_kind_to_binary_str(expr.op)}; 
+                std::string lhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string rhs {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
+                std::string op_str {ad_op_kind_to_binary_str(expr.op)}; 
                 if (CPP2_UFCS(empty)(op_str)) {op_str = " ?? "; }
                 return "(" + cpp2::move(lhs) + cpp2::move(op_str) + cpp2::move(rhs) + ")"; 
             }
@@ -7963,17 +7069,17 @@ auto first{true};
         }
         else {if (expr.kind == ad_expr_kind::ternary) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),3)) {
-                auto cond {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto then_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
-                auto else_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 2))}; 
+                std::string cond {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string then_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
+                std::string else_expr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 2))}; 
                 return "(" + cpp2::move(cond) + " ? " + cpp2::move(then_expr) + " : " + cpp2::move(else_expr) + ")"; 
             }
             return "(ternary)"; 
         }
         else {if (expr.kind == ad_expr_kind::member) {
             if (!(CPP2_UFCS(empty)(expr.args))) {
-                auto obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto op_str {"->"}; 
+                std::string obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string op_str {"->"}; 
                 if (expr.op != ad_op_kind::arrow) {op_str = "."; }
                 return cpp2::move(obj) + cpp2::move(op_str) + expr.member_name; 
             }
@@ -7981,53 +7087,53 @@ auto first{true};
         }
         else {if (expr.kind == ad_expr_kind::subscript) {
             if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(expr.args),2)) {
-                auto arr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto idx {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
+                std::string arr {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string idx {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1))}; 
                 return cpp2::move(arr) + "[" + cpp2::move(idx) + "]"; 
             }
             return "(subscript)"; 
         }
         else {if (expr.kind == ad_expr_kind::call) {
-            auto result {expr.name}; 
+            std::string result {expr.name}; 
             // Add template args if present
             if (!(CPP2_UFCS(empty)(expr.type_args))) {
                 result += "<";
 {
-auto first{true};
+bool first{true};
 
-#line 5440 "source/reverse_ad.h2"
+#line 4751 "source/reverse_ad.h2"
                 for ( auto const& targ : expr.type_args ) {
                     if (!(first)) {result += ", "; }
                     first = false;
                     result += ad_type_to_string(targ);
                 }
 }
-#line 5445 "source/reverse_ad.h2"
+#line 4756 "source/reverse_ad.h2"
                 result += ">";
             }
             result += "(";
 {
-auto first{true};
+bool first{true};
 
-#line 5449 "source/reverse_ad.h2"
+#line 4760 "source/reverse_ad.h2"
             for ( auto const& arg : expr.args ) {
                 if (!(first)) {result += ", "; }
                 first = false;
                 result += emit_expr(arg);
             }
 }
-#line 5454 "source/reverse_ad.h2"
+#line 4765 "source/reverse_ad.h2"
             result += ")";
             return result; 
         }
         else {if (expr.kind == ad_expr_kind::method_call) {
             if (!(CPP2_UFCS(empty)(expr.args))) {
-                auto obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
-                auto result {cpp2::move(obj) + "." + expr.name + "("}; 
+                std::string obj {emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 0))}; 
+                std::string result {cpp2::move(obj) + "." + expr.name + "("}; 
                 // Skip first arg (the object), emit remaining args
                 if (cpp2::impl::cmp_greater(CPP2_UFCS(ssize)(expr.args),1)) {
                     result += emit_expr(CPP2_ASSERT_IN_BOUNDS_LITERAL(expr.args, 1));
-                    auto i {2}; 
+                    cpp2::i64 i {2}; 
                     while( cpp2::impl::cmp_less(i,CPP2_UFCS(ssize)(expr.args)) ) {
                         result += ", ";
                         result += emit_expr(CPP2_ASSERT_IN_BOUNDS(expr.args, i));
@@ -8056,18 +7162,18 @@ auto first{true};
             return "(cast)"; 
         }
         else {if (expr.kind == ad_expr_kind::construct) {
-            auto result {expr.name + "("}; 
+            std::string result {expr.name + "("}; 
 {
-auto first{true};
+bool first{true};
 
-#line 5495 "source/reverse_ad.h2"
+#line 4806 "source/reverse_ad.h2"
             for ( auto const& arg : expr.args ) {
                 if (!(first)) {result += ", "; }
                 first = false;
                 result += emit_expr(arg);
             }
 }
-#line 5500 "source/reverse_ad.h2"
+#line 4811 "source/reverse_ad.h2"
             result += ")";
             return result; 
         }
@@ -8080,25 +7186,25 @@ auto first{true};
         else {if (expr.kind == ad_expr_kind::initializer_list) {
             std::string result {"{"}; 
 {
-auto first{true};
+bool first{true};
 
-#line 5512 "source/reverse_ad.h2"
+#line 4823 "source/reverse_ad.h2"
             for ( auto const& arg : expr.args ) {
                 if (!(first)) {result += ", "; }
                 first = false;
                 result += emit_expr(arg);
             }
 }
-#line 5517 "source/reverse_ad.h2"
+#line 4828 "source/reverse_ad.h2"
             result += "}";
             return result; 
         }}}}}}}}}}}}}
         return "(unknown)"; 
     }
 
-#line 5529 "source/reverse_ad.h2"
+#line 4840 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_emitter::emit_stmt(cpp2::impl::in<ad_stmt> stmt, cpp2::impl::in<int> indent) const& -> std::string{
-        auto ind {std::string(indent * 4, ' ')}; 
+        std::string ind {std::string(indent * 4, ' ')}; 
 
         if (stmt.kind == ad_stmt_kind::decl) {
             // Declaration: name : type = expr;
@@ -8110,7 +7216,7 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::compound_assign) {
             // Compound assignment: name op= expr;
-            auto op_str {ad_op_kind_to_binary_str(stmt.op)}; 
+            std::string op_str {ad_op_kind_to_binary_str(stmt.op)}; 
             if (CPP2_UFCS(empty)(op_str)) {op_str = " ??= "; }
             return ind + stmt.target + cpp2::move(op_str) + emit_expr(stmt.expr) + ";\n"; 
         }
@@ -8142,7 +7248,7 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::if_stmt) {
             // If statement
-            auto result {ind + "if " + emit_expr(stmt.expr) + " {\n"}; 
+            std::string result {ind + "if " + emit_expr(stmt.expr) + " {\n"}; 
             for ( auto const& s : stmt.stmts ) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -8157,10 +7263,10 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::for_stmt) {
             // For loop - emit as Cpp2 style
-            auto result {ind + "for "}; 
+            std::string result {ind + "for "}; 
             // Init statement
             if (stmt.init_stmt != nullptr) {
-                auto init_code {emit_stmt(*cpp2::impl::assert_not_null(stmt.init_stmt), 0)}; 
+                std::string init_code {emit_stmt(*cpp2::impl::assert_not_null(stmt.init_stmt), 0)}; 
                 // Remove trailing newline and semicolon for init
                 if (CPP2_UFCS(ends_with)(init_code, ";\n")) {
                     init_code = CPP2_UFCS(substr)(init_code, 0, CPP2_UFCS(size)(init_code) - 2);
@@ -8169,7 +7275,7 @@ auto first{true};
             }
             result += "; " + emit_expr(stmt.expr) + " next ";
             // Increment - emit without semicolon
-            auto incr_code {emit_expr(stmt.incr_expr)}; 
+            std::string incr_code {emit_expr(stmt.incr_expr)}; 
             result += cpp2::move(incr_code) + " {\n";
             for ( auto const& s : stmt.stmts ) {
                 result += emit_stmt(s, indent + 1);
@@ -8179,7 +7285,7 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::foreach_stmt) {
             // Range-based for loop
-            auto result {ind + "for " + stmt.target}; 
+            std::string result {ind + "for " + stmt.target}; 
             if (stmt.type_name != "" && stmt.type_name != "auto") {
                 result += " : " + stmt.type_name;
             }
@@ -8192,7 +7298,7 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::while_stmt) {
             // While loop
-            auto result {ind + "while " + emit_expr(stmt.expr) + " {\n"}; 
+            std::string result {ind + "while " + emit_expr(stmt.expr) + " {\n"}; 
             for ( auto const& s : stmt.stmts ) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -8201,7 +7307,7 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::do_while_stmt) {
             // Do-while loop
-            auto result {ind + "do {\n"}; 
+            std::string result {ind + "do {\n"}; 
             for ( auto const& s : stmt.stmts ) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -8210,7 +7316,7 @@ auto first{true};
         }
         else {if (stmt.kind == ad_stmt_kind::try_catch) {
             // Try-catch block
-            auto result {ind + "try {\n"}; 
+            std::string result {ind + "try {\n"}; 
             for ( auto const& s : stmt.stmts ) {
                 result += emit_stmt(s, indent + 1);
             }
@@ -8237,7 +7343,7 @@ auto first{true};
         return cpp2::move(ind) + "// unknown statement\n"; 
     }
 
-#line 5674 "source/reverse_ad.h2"
+#line 4985 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_emitter::emit_forward(cpp2::impl::in<ad_function_ir> ir) const& -> std::string{
         std::string result {"// Forward pass\n"}; 
         for ( auto const& stmt : ir.forward ) {
@@ -8246,13 +7352,13 @@ auto first{true};
         return result; 
     }
 
-#line 5687 "source/reverse_ad.h2"
+#line 4998 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_emitter::emit_reverse(cpp2::impl::in<ad_function_ir> ir) const& -> std::string{
         std::string result {"// Reverse pass\n"}; 
 
         // Seed the output adjoint(s)
         for ( auto const& ret : ir.returns ) {
-            auto adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), ret.name)}; 
+            std::string adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), ret.name)}; 
             // Don't emit seed here - it's passed in as parameter
         }
 
@@ -8263,17 +7369,17 @@ auto first{true};
 
         // Reset adjoints to zero after use
         for ( auto const& ret : ir.returns ) {
-            auto adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), ret.name)}; 
+            std::string adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), ret.name)}; 
             result += std::string("    ") + cpp2::move(adj_name) + " = 0.0;\n";
         }
 
         return result; 
     }
 
-#line 5715 "source/reverse_ad.h2"
+#line 5026 "source/reverse_ad.h2"
     [[nodiscard]] auto ad_ir_emitter::emit_function(cpp2::impl::in<ad_function_ir> ir) const& -> std::string{
         // Build signature
-        auto result {ir.name + "_d: (\n"}; 
+        std::string result {ir.name + "_d: (\n"}; 
 
         // Input parameters with adjoints
         for ( auto const& p : ir.params ) {
@@ -8287,35 +7393,35 @@ auto first{true};
 
             result += std::string("    ") + cpp2::move(pass_str) + " " + p.name + ": " + p.type_name + ",\n";
             // Add adjoint parameter
-            auto adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), p.name)}; 
+            std::string adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), p.name)}; 
             result += std::string("    inout ") + cpp2::move(adj_name) + ": " + p.type_name + ",\n";
         }
 
         // Return adjoint parameter
         for ( auto const& r : ir.returns ) {
-            auto adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), r.name)}; 
+            std::string adj_name {CPP2_UFCS(make_adj_name)((*cpp2::impl::assert_not_null(ctx)), r.name)}; 
             result += std::string("    inout ") + cpp2::move(adj_name) + ": " + r.type_name + ",\n";
         }
 
         // Return type
         result += ") -> (";
 {
-auto first{true};
+bool first{true};
 
-#line 5744 "source/reverse_ad.h2"
+#line 5055 "source/reverse_ad.h2"
         for ( auto const& r : ir.returns ) {
             if (!(first)) {result += ", "; }
             first = false;
             result += std::string("out ") + r.name + ": " + r.type_name + " = 0.0";
         }
 }
-#line 5749 "source/reverse_ad.h2"
+#line 5060 "source/reverse_ad.h2"
         result += ") = {\n";
 
         // Create _val variables for input parameters
         result += "// Setup value variables\n";
         for ( auto const& p : ir.params ) {
-            auto val_name {CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), p.name)}; 
+            std::string val_name {CPP2_UFCS(make_value_name)((*cpp2::impl::assert_not_null(ctx)), p.name)}; 
             result += std::string("    ") + cpp2::move(val_name) + " := " + p.name + ";\n";
         }
 
@@ -8332,27 +7438,27 @@ auto first{true};
         return result; 
     }
 
-#line 5776 "source/reverse_ad.h2"
+#line 5087 "source/reverse_ad.h2"
 auto ad_ir_builder_debug_dump(cpp2::impl::in<ad_ir_builder> builder) -> void{
     std::cout << "=== AD IR Builder State ===\n";
     std::cout << "  temp_counter: " << builder.temp_counter << "\n";
     std::cout << "  temp_names: [";
 {
-auto first{true};
+bool first{true};
 
-#line 5781 "source/reverse_ad.h2"
+#line 5092 "source/reverse_ad.h2"
     for ( auto const& name : builder.temp_names ) {
         if (!(first)) {std::cout << ", "; }
         first = false;
         std::cout << name;
     }
 }
-#line 5786 "source/reverse_ad.h2"
+#line 5097 "source/reverse_ad.h2"
     std::cout << "]\n";
     std::cout << "=== End AD IR Builder State ===\n";
 }
 
-#line 5906 "source/reverse_ad.h2"
+#line 5217 "source/reverse_ad.h2"
 auto autodiff_reverse_ir(meta::type_declaration& t, cpp2::impl::in<bool> debug) -> void{
     if (debug) {
         std::cout << "\n";
@@ -8403,11 +7509,6 @@ auto autodiff_reverse_ir(meta::type_declaration& t, cpp2::impl::in<bool> debug) 
         auto func_ir {CPP2_UFCS(build_function_ir)(builder, mf)}; 
         static_cast<void>(cpp2::move(builder));// Explicitly discard modified builder
 
-        // Dump the function IR
-        if (debug) {
-            ad_ir_debug_dump(func_ir);
-        }
-
         // Emit complete function
         ad_ir_emitter emitter {&rc}; 
         auto func_code {CPP2_UFCS(emit_function)(cpp2::move(emitter), cpp2::move(func_ir))}; 
@@ -8434,7 +7535,7 @@ auto autodiff_reverse_ir(meta::type_declaration& t, cpp2::impl::in<bool> debug) 
     }
 }
 
-#line 5987 "source/reverse_ad.h2"
+#line 5293 "source/reverse_ad.h2"
 auto autodiff_impl(meta::type_declaration& t) -> void
 {
 

@@ -6,8 +6,38 @@
 #include <iostream>
 test_ns: namespace = {
 
-// Test type with reverse-mode autodiff and a custom ad_rule
+// Test type with reverse-mode autodiff and custom ad_rules
 test_ad_stages: @autodiff<"reverse"> @print type = {
+    // Rule for addition: d/dx (x + y) = 1, d/dy (x + y) = 1
+    ad_rule_add: type = {
+        name: std::string = "+";
+        n_args: int = 2;
+        is_member: bool = false;
+
+        forward: (x: double, y: double) -> double = x + y;
+        reverse: (res_val: double, res_adj: double,
+                  x_val: double, inout x_adj: double,
+                  y_val: double, inout y_adj: double) = {
+            x_adj += res_adj;
+            y_adj += res_adj;
+        }
+    }
+
+    // Rule for multiplication: d/dx (x * y) = y, d/dy (x * y) = x
+    ad_rule_mul: type = {
+        name: std::string = "*";
+        n_args: int = 2;
+        is_member: bool = false;
+
+        forward: (x: double, y: double) -> double = x * y;
+        reverse: (res_val: double, res_adj: double,
+                  x_val: double, inout x_adj: double,
+                  y_val: double, inout y_adj: double) = {
+            x_adj += y_val * res_adj;
+            y_adj += x_val * res_adj;
+        }
+    }
+
     // Custom ad_rule for log function
     ad_rule_log: type = {
         name: std::string = "log";
