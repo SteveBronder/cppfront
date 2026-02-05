@@ -1,0 +1,5 @@
+// Line 1: comment
+// Line 2: comment
+broken_type: type = {
+    value: int =    // Line 4: syntax error - missing value
+}

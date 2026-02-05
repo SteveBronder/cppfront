@@ -14,6 +14,7 @@
 #define CPP2_TO_CPP1_H
 
 #include "sema.h"
+#include "include_parser.h"
 #include <filesystem>
 
 namespace cpp2 {
@@ -1026,6 +1027,9 @@ class cppfront
     cpp2::parser parser;
     cpp2::sema   sema;
 
+    //  Include parser - must be kept alive to preserve token lifetime
+    std::unique_ptr<cpp2::include_parser> inc_parser;
+
     bool source_loaded                  = true;
     bool violates_bounds_safety         = false;
     bool violates_initialization_safety = false;
@@ -1230,6 +1234,27 @@ public:
                     }
                 }
 
+                //  Process .h2/.cpp2 includes
+                //
+                auto const& cpp2_includes = source.get_cpp2_includes();
+                if (!cpp2_includes.empty() && parser.get_parse_tree())
+                {
+                    // Set up include parser configuration
+                    include_config config;
+                    config.base_path = std::filesystem::path(sourcefile).parent_path();
+                    if (config.base_path.empty()) {
+                        config.base_path = std::filesystem::current_path();
+                    }
+                    config.warn_on_circular = true;
+
+                    // Create include parser as member to keep tokens alive
+                    inc_parser = std::make_unique<include_parser>(errors, includes, config);
+                    if (!inc_parser->process_includes(cpp2_includes, *parser.get_parse_tree())) {
+                        // Errors were added to errors vector, just return
+                        return;
+                    }
+                }
+
                 //  Sema
                 parser.visit(sema);
                 if (!sema.apply_local_rules()) {
@@ -1416,7 +1441,10 @@ public:
             auto decls = parser.get_parse_tree_declarations_in_range(section.second);
             for (auto& decl : decls) {
                 assert(decl);
-                emit(*decl);
+                // Skip declarations from .h2/.cpp2 includes (they're already in the .h files)
+                if (!decl->is_from_include) {
+                    emit(*decl);
+                }
             }
         }
 
@@ -1520,7 +1548,10 @@ public:
                         auto decls = parser.get_parse_tree_declarations_in_range(map_iter->second);
                         for (auto& decl : decls) {
                             assert(decl);
-                            emit(*decl);
+                            // Skip declarations from .h2/.cpp2 includes (they're already in the .h files)
+                            if (!decl->is_from_include) {
+                                emit(*decl);
+                            }
                         }
                         ++map_iter;
                     }
@@ -1594,7 +1625,10 @@ public:
             auto decls = parser.get_parse_tree_declarations_in_range(section.second);
             for (auto& decl : decls) {
                 assert(decl);
-                emit(*decl);
+                // Skip declarations from .h2/.cpp2 includes (they're already in the .h files)
+                if (!decl->is_from_include) {
+                    emit(*decl);
+                }
             }
         }
 

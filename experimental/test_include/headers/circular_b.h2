@@ -1,0 +1,5 @@
+#include "circular_a.h2"
+
+type_b: type = {
+    value: int = 2;
+}

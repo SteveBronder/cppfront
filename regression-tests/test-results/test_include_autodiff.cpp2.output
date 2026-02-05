@@ -1,0 +1,11 @@
+test_include_autodiff.cpp2...AD: Warning - reverse mode differentiation is very experimental
+
+test_include_autodiff.cpp2(9,13): error: while applying @autodiff - AD: Could not find function declaration for `double_it`.
+    If cpp2 function: this is an alpha limitation, please declare it befor the current declaration.
+    If cpp function: please add a special handling for this function.
+test_include_autodiff.cpp2(6,1): error: while applying @autodiff - parse failed - the source string is not a valid statement:
+    use_double_b: (in x : double, inout x_b : double, inout r_b : double , ) -> (out r : double = 0.0, ) = {r   = ;
+r_b = 0.0;
+}
+test_include_autodiff.cpp2(6,1): error: while applying @autodiff - the provided source string is not a valid statement
+

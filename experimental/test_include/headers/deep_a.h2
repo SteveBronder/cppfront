@@ -1,0 +1,10 @@
+#include "deep_b.h2"
+
+// Top level - includes deep_b.h2 (which includes deep_c.h2)
+deep_type_a: type = {
+    b: deep_type_b = ();
+    operator=: (out this) = { }
+    get_value: (this) -> int = 100;
+    get_b_value: (this) -> int = b.get_value();
+    get_c_value: (this) -> int = b.get_c_value();
+}

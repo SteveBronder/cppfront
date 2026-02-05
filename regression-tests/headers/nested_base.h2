@@ -1,0 +1,4 @@
+base_type: type = {
+    operator=: (out this) = { }
+    get_base_value: (this) -> int = 100;
+}

@@ -1,0 +1,6 @@
+#include "nested_base.h2"
+
+derived_type: type = {
+    base: base_type = ();
+    get_base_value: (this) -> int = base.get_base_value();
+}

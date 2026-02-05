@@ -1,0 +1,5 @@
+// A simple type that should be visible after include
+simple_included_type: type = {
+    value: int = 42;
+    get_value: (this) -> int = value;
+}

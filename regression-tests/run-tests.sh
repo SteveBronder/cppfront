@@ -164,13 +164,15 @@ else
         exec_out_dir="$expected_results_dir/clang-15"
     elif [[ "$compiler_version" == *"clang version 19.1"* ]]; then 
         exec_out_dir="$expected_results_dir/clang-19"
-    elif [[ "$compiler_version" == *"g++-10"* ]]; then
+    elif [[ "$compiler_version" == *"g++-10"* || "$compiler_version" == *"GCC) 10."* ]]; then
         exec_out_dir="$expected_results_dir/gcc-10"
     elif [[ "$compiler_version" == *"g++-12"* ||
-            "$compiler_version" == *"g++-13"*
+            "$compiler_version" == *"g++-13"* ||
+            "$compiler_version" == *"GCC) 12."* ||
+            "$compiler_version" == *"GCC) 13."*
          ]]; then
         exec_out_dir="$expected_results_dir/gcc-13"
-    elif [[ "$compiler_version" == *"g++-14"* ]]; then
+    elif [[ "$compiler_version" == *"g++-14"* || "$compiler_version" == *"GCC) 14."* ]]; then
         exec_out_dir="$expected_results_dir/gcc-14"
     else
         printf "Unhandled compiler version:\n$compiler_version\n\n"

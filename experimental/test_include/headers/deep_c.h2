@@ -1,0 +1,5 @@
+// Deepest level of nesting
+deep_type_c: type = {
+    operator=: (out this) = { }
+    get_value: (this) -> int = 300;
+}

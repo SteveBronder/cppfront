@@ -1,0 +1,13 @@
+#include "headers/circular_a.h2"
+
+main: () -> int = {
+    // If we get here, circular detection worked (file was only parsed once)
+    a: type_a = ();
+    b: type_b = ();
+
+    if a.value == 1 && b.value == 2 {
+        std::cout << "PASS: circular include handled\n";
+        return 0;
+    }
+    return 1;
+}

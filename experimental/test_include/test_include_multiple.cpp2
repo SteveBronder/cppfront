@@ -1,0 +1,14 @@
+#include "headers/simple_type.h2"
+#include "headers/ad_rules_basic.h2"
+
+main: () -> int = {
+    // Type from first include
+    obj: simple_included_type = ();
+
+    // Verify both are accessible
+    if obj.get_value() == 42 {
+        std::cout << "PASS: multiple includes\n";
+        return 0;
+    }
+    return 1;
+}

@@ -30,7 +30,7 @@ source/gen_version.bat
 build*/
 venv/*
 *.ifc
-
+source/cppfront
 # Visual Studio cache directory
 .vs/
 

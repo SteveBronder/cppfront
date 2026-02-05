@@ -843,6 +843,17 @@ class source
     bool                      cpp1_found = false;
     bool                      cpp2_found = false;
 
+public:
+    // Structure to track detected .h2/.cpp2 includes
+    struct cpp2_include_info {
+        std::string path;           // The path from the #include directive
+        lineno_t line;              // Line number where include appears
+        bool is_angle_bracket;      // true for <>, false for ""
+    };
+
+private:
+    std::vector<cpp2_include_info> cpp2_includes_;  // Detected .h2/.cpp2 includes
+
     static const int max_line_len = 90'000;
         //  do not reduce this - I encountered an 80,556-char
         //  line in real world code during testing
@@ -882,6 +893,14 @@ public:
 
 
     //-----------------------------------------------------------------------
+    //  get_cpp2_includes: Get all .h2/.cpp2 includes detected during load
+    //
+    auto get_cpp2_includes() const -> std::vector<cpp2_include_info> const& {
+        return cpp2_includes_;
+    }
+
+
+    //-----------------------------------------------------------------------
     //  load: Read a line-by-line view of 'filename', preserving line breaks
     //
     //  filename                the source file to be loaded
@@ -912,6 +931,29 @@ public:
 
         auto add_preprocessor_line = [&] {
             lines.push_back({ &buf[0], source_line::category::preprocessor });
+
+            // Detect .h2/.cpp2 includes
+            auto const& text = lines.back().text;
+            if (text.find("#include") != std::string::npos) {
+                // Extract the include path
+                auto start = text.find_first_of("\"<");
+                if (start != std::string::npos) {
+                    bool is_angle = text[start] == '<';
+                    auto end = text.find_first_of(is_angle ? ">" : "\"", start + 1);
+                    if (end != std::string::npos) {
+                        auto path = text.substr(start + 1, end - start - 1);
+                        // Check if it's a .h2 or .cpp2 file
+                        if (path.ends_with(".h2") || path.ends_with(".cpp2")) {
+                            cpp2_includes_.push_back({
+                                std::string(path),
+                                cpp2::unchecked_narrow<lineno_t>(std::ssize(lines)),
+                                is_angle
+                            });
+                        }
+                    }
+                }
+            }
+
             if (auto pre = starts_with_preprocessor_if_else_endif(lines.back().text);
                 pre != preprocessor_conditional::none
                 )

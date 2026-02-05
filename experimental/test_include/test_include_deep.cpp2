@@ -1,0 +1,19 @@
+#include "headers/deep_a.h2"
+
+main: () -> int = {
+    // TEST: Types from deep nested includes should all be visible
+    a: deep_type_a = ();
+    b: deep_type_b = ();
+    c: deep_type_c = ();
+
+    val_a := a.get_value();
+    val_b := a.get_b_value();
+    val_c := a.get_c_value();
+
+    if val_a == 100 && val_b == 200 && val_c == 300 {
+        std::cout << "PASS: deep recursive includes\n";
+        return 0;
+    }
+    std::cout << "FAIL: deep recursive includes\n";
+    return 1;
+}

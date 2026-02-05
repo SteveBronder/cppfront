@@ -1,0 +1,17 @@
+#include "headers/simple_type.h2"
+
+main: () -> int = {
+    // TEST: Type from include should be visible
+    obj: simple_included_type = ();
+
+    // TEST: Member access should work
+    result := obj.get_value();
+
+    // Verify expected behavior
+    if result == 42 {
+        std::cout << "PASS: basic include\n";
+        return 0;
+    }
+    std::cout << "FAIL: basic include - got " << result << "\n";
+    return 1;
+}

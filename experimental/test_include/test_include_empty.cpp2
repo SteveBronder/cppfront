@@ -1,0 +1,6 @@
+#include "headers/empty.h2"
+
+main: () -> int = {
+    std::cout << "PASS: empty include handled\n";
+    return 0;
+}

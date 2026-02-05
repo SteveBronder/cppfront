@@ -1,0 +1,18 @@
+#include "headers/nested_include.h2"
+
+main: () -> int = {
+    // TEST: Type from nested include chain should be visible
+    obj: derived_type = ();
+
+    // TEST: base_type (from nested_base.h2) should also be accessible
+    base_obj: base_type = ();
+
+    result := obj.get_base_value();
+
+    if result == 100 && base_obj.get_base_value() == 100 {
+        std::cout << "PASS: nested includes\n";
+        return 0;
+    }
+    std::cout << "FAIL: nested includes\n";
+    return 1;
+}

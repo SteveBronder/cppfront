@@ -1,0 +1,36 @@
+#include "headers/ad_rules_basic.h2"
+
+test_ns: namespace = {
+
+// Type using @autodiff should find ad_rule_double from include
+test_autodiff_include: @autodiff<"reverse"> type = {
+    // Function that uses the included rule
+    use_double: (x: double) -> (r: double) = {
+        r = double_it(x);
+    }
+}
+
+} // namespace test_ns
+
+main: () -> int = {
+    x := 3.0;
+    x_adj := 0.0;
+    r_adj := 1.0;
+
+    // Forward pass
+    result := test_ns::test_autodiff_include::use_double(x);
+
+    // Reverse pass - should use ad_rule_double from include
+    grad := test_ns::test_autodiff_include::use_double_d(x, x_adj, r_adj);
+
+    // Expected: x_adj = 2.0 (derivative of 2x)
+    expected := 2.0;
+    tolerance := 1e-10;
+
+    if (std::abs(x_adj - expected) < tolerance) {
+        std::cout << "PASS: autodiff with included rules\n";
+        return 0;
+    }
+    std::cout << "FAIL: autodiff - expected " << expected << ", got " << x_adj << "\n";
+    return 1;
+}

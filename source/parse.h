@@ -3574,6 +3574,7 @@ struct declaration_node
     bool is_a_template_parameter  = false;
     bool is_a_parameter           = false;
     bool is_a_statement_parameter = false;
+    bool is_from_include          = false;  // True if from .h2/.cpp2 include
 
     //  Constructor
     //
@@ -6759,6 +6760,14 @@ public:
     auto visit(auto& v) const -> void
     {
         parse_tree->visit(v, 0);
+    }
+
+
+    //-----------------------------------------------------------------------
+    //  get_parse_tree: Get the parse tree for include processing
+    //
+    auto get_parse_tree() -> translation_unit_node* {
+        return parse_tree.get();
     }
 
 private:

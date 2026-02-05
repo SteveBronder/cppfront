@@ -1,0 +1,266 @@
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+index d41c45e..c62033b 100644
+--- a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
++++ b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+@@ -1,21 +1,21 @@
+ In file included from mixed-bugfix-for-ufcs-non-local.cpp:6:
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:13:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:31:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:33:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+index d41c45e..c62033b 100644
+--- a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
++++ b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+@@ -1,21 +1,21 @@
+ In file included from mixed-bugfix-for-ufcs-non-local.cpp:6:
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:13:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:31:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:33:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/pure2-singleton-and-static.cpp.output b/regression-tests/test-results/gcc-14-c++2b/pure2-singleton-and-static.cpp.output
+new file mode 100644
+index 0000000..a2f540d
+--- /dev/null
++++ b/regression-tests/test-results/gcc-14-c++2b/pure2-singleton-and-static.cpp.output
+@@ -0,0 +1,6 @@
++pure2-singleton-and-static.cpp2: In function 'int main()':
++pure2-singleton-and-static.cpp2:8:21: warning: ignoring return value of 'main()::<lambda(Obj&&, Params&& ...)> [with Obj = test&; Params = {}; bool IsNothrow = false]', declared with attribute 'nodiscard' [-Wunused-result]
++In file included from pure2-singleton-and-static.cpp:7:
++../../../include/cpp2util.h:10059:1: note: declared here
++../../../include/cpp2util.h:10091:59: note: in expansion of macro 'CPP2_UFCS_'
++pure2-singleton-and-static.cpp2:8:5: note: in expansion of macro 'CPP2_UFCS'
+
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+index d41c45e..c62033b 100644
+--- a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
++++ b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+@@ -1,21 +1,21 @@
+ In file included from mixed-bugfix-for-ufcs-non-local.cpp:6:
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:13:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:31:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:33:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/pure2-singleton-and-static.cpp.output b/regression-tests/test-results/gcc-14-c++2b/pure2-singleton-and-static.cpp.output
+new file mode 100644
+index 0000000..a2f540d
+--- /dev/null
++++ b/regression-tests/test-results/gcc-14-c++2b/pure2-singleton-and-static.cpp.output
+@@ -0,0 +1,6 @@
++pure2-singleton-and-static.cpp2: In function 'int main()':
++pure2-singleton-and-static.cpp2:8:21: warning: ignoring return value of 'main()::<lambda(Obj&&, Params&& ...)> [with Obj = test&; Params = {}; bool IsNothrow = false]', declared with attribute 'nodiscard' [-Wunused-result]
++In file included from pure2-singleton-and-static.cpp:7:
++../../../include/cpp2util.h:10059:1: note: declared here
++../../../include/cpp2util.h:10091:59: note: in expansion of macro 'CPP2_UFCS_'
++pure2-singleton-and-static.cpp2:8:5: note: in expansion of macro 'CPP2_UFCS'
+
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+index d41c45e..c62033b 100644
+--- a/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
++++ b/regression-tests/test-results/gcc-14-c++2b/mixed-bugfix-for-ufcs-non-local.cpp.output
+@@ -1,21 +1,21 @@
+ In file included from mixed-bugfix-for-ufcs-non-local.cpp:6:
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:13:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:13:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:31:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:31:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:33:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:33:36: error: template argument 1 is invalid
+ ../../../include/cpp2util.h:10059:1: error: lambda-expression in template parameter type
+-../../../include/cpp2util.h:10096:59: note: in expansion of macro ‘CPP2_UFCS_’
+-mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro ‘CPP2_UFCS_NONLOCAL’
++../../../include/cpp2util.h:10096:59: note: in expansion of macro 'CPP2_UFCS_'
++mixed-bugfix-for-ufcs-non-local.cpp2:21:12: note: in expansion of macro 'CPP2_UFCS_NONLOCAL'
+ mixed-bugfix-for-ufcs-non-local.cpp2:21:36: error: template argument 1 is invalid
+
+
+diff --git a/regression-tests/test-results/test_include_autodiff.cpp2.output b/regression-tests/test-results/test_include_autodiff.cpp2.output
+new file mode 100644
+index 0000000..1f06ff4
+--- /dev/null
++++ b/regression-tests/test-results/test_include_autodiff.cpp2.output
+@@ -0,0 +1,11 @@
++test_include_autodiff.cpp2...AD: Warning - reverse mode differentiation is very experimental
++
++test_include_autodiff.cpp2(9,13): error: while applying @autodiff - AD: Could not find function declaration for `double_it`.
++    If cpp2 function: this is an alpha limitation, please declare it befor the current declaration.
++    If cpp function: please add a special handling for this function.
++test_include_autodiff.cpp2(6,1): error: while applying @autodiff - parse failed - the source string is not a valid statement:
++    use_double_b: (in x : double, inout x_b : double, inout r_b : double , ) -> (out r : double = 0.0, ) = {r   = ;
++r_b = 0.0;
++}
++test_include_autodiff.cpp2(6,1): error: while applying @autodiff - the provided source string is not a valid statement
++
+
+
+diff --git a/regression-tests/test-results/test_include_basic.cpp2.output b/regression-tests/test-results/test_include_basic.cpp2.output
+new file mode 100644
+index 0000000..48cc79f
+--- /dev/null
++++ b/regression-tests/test-results/test_include_basic.cpp2.output
+@@ -0,0 +1,2 @@
++test_include_basic.cpp2... ok (mixed Cpp1/Cpp2, Cpp2 code passes safety checks)
++
+
+
+diff --git a/regression-tests/test-results/test_include_basic.cpp b/regression-tests/test-results/test_include_basic.cpp
+new file mode 100644
+index 0000000..ea4a59b
+--- /dev/null
++++ b/regression-tests/test-results/test_include_basic.cpp
+@@ -0,0 +1,39 @@
++
++
++//=== Cpp2 type declarations ====================================================
++
++
++#include "cpp2util.h"
++
++#line 1 "test_include_basic.cpp2"
++
++
++//=== Cpp2 type definitions and function declarations ===========================
++
++#line 1 "test_include_basic.cpp2"
++#include "headers/simple_type.h"
++
++#line 3 "test_include_basic.cpp2"
++[[nodiscard]] auto main() -> int;
++
++//=== Cpp2 function definitions =================================================
++
++#line 1 "test_include_basic.cpp2"
++
++#line 3 "test_include_basic.cpp2"
++[[nodiscard]] auto main() -> int{
++    // TEST: Type from include should be visible
++    simple_included_type obj {}; 
++
++    // TEST: Member access should work
++    auto result {CPP2_UFCS(get_value)(cpp2::move(obj))}; 
++
++    // Verify expected behavior
++    if (result == 42) {
++        std::cout << "PASS: basic include\n";
++        return 0; 
++    }
++    std::cout << "FAIL: basic include - got " << cpp2::move(result) << "\n";
++    return 1; 
++}
++
+
+
+diff --git a/regression-tests/test-results/gcc-14-c++2b/test_include_basic.cpp.output b/regression-tests/test-results/gcc-14-c++2b/test_include_basic.cpp.output
+new file mode 100644
+index 0000000..a28c9a3
+--- /dev/null
++++ b/regression-tests/test-results/gcc-14-c++2b/test_include_basic.cpp.output
+@@ -0,0 +1,2 @@
++test_include_basic.cpp2:1:10: fatal error: headers/simple_type.h: No such file or directory
++compilation terminated.
+
