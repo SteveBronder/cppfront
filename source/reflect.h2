@@ -41,6 +41,7 @@ compiler_services: @polymorphic_base @copy_constructible type =
     metafunction_name    : std::string = ();
     metafunction_args    : std::vector<std::string> = ();
     metafunctions_used   : bool = false;
+    parse_tree_          : *cpp2::translation_unit_node;
 
     //  Constructor
     //
@@ -51,7 +52,8 @@ compiler_services: @polymorphic_base @copy_constructible type =
         extra_cpp1_      : *std::vector<std::string>,
         extra_build_     : *std::vector<std::string>,
         filename         : std::string,
-        generated_tokens_: *stable_vector<token>
+        generated_tokens_: *stable_vector<token>,
+        parse_tree_in    : *cpp2::translation_unit_node
     )
     = {
         errors               = errors_;
@@ -62,6 +64,7 @@ compiler_services: @polymorphic_base @copy_constructible type =
         errors_original_size = cpp2::unchecked_narrow<int>(std::ssize(errors*));
         generated_tokens     = generated_tokens_;
         parser               = (errors*, includes*, extra_cpp1*, extra_build*, file_name);
+        parse_tree_          = parse_tree_in;
     }
 
     //  Common API
@@ -90,6 +93,18 @@ compiler_services: @polymorphic_base @copy_constructible type =
     }
 
     arguments_were_used: (this) -> bool = metafunctions_used;
+
+    get_tu_declarations: (this)
+        -> std::vector<declaration>
+    = {
+        ret: std::vector<declaration> = ();
+        if parse_tree_ != nullptr {
+            for parse_tree_*.declarations do (decl) {
+                _ = ret.emplace_back( decl.get(), this );
+            }
+        }
+        return ret;
+    }
 
     protected parse_statement: (
         inout this,
@@ -8608,6 +8623,101 @@ regex_gen: (inout t: meta::type_declaration) =
 
 //-----------------------------------------------------------------------
 //
+//  register_autodiff - validates that a type has the required members
+//  for use as an autodiff rule (name, n_args).
+//
+register_autodiff: (inout t: meta::type_declaration) =
+{
+    has_name_member := false;
+    has_n_args_member := false;
+
+    for t.get_member_objects() do (obj) {
+        if obj.name() == "name"   { has_name_member = true; }
+        if obj.name() == "n_args" { has_n_args_member = true; }
+    }
+
+    t.require(has_name_member,
+        "a @register_autodiff type must have a 'name: std::string' member");
+    t.require(has_n_args_member,
+        "a @register_autodiff type must have an 'n_args: int' member");
+}
+
+
+//-----------------------------------------------------------------------
+//
+//  find_ad_rules - discovers types in the meta::ad namespace from included
+//  .h2 files via get_tu_declarations(), then inlines their "forward"
+//  member function as a new member of the target type.
+//
+find_ad_rules: (inout t: meta::type_declaration) =
+{
+    rule_count := 0;
+
+    // Walk TU-level declarations to find "meta" namespace
+    for t.get_tu_declarations() do (tu_decl) {
+        if tu_decl.is_namespace() && tu_decl.name() == "meta" {
+            meta_ns := tu_decl.as_nonglobal_namespace();
+
+            // Find "ad" namespace inside "meta"
+            for meta_ns.get_members() do (meta_member) {
+                if meta_member.is_namespace() && meta_member.name() == "ad" {
+                    ad_ns := meta_member.as_nonglobal_namespace();
+
+                    // Iterate types inside meta::ad
+                    for ad_ns.get_members() do (rule_decl) {
+                        if rule_decl.is_type() {
+                            rule_type := rule_decl.as_type();
+
+                            // Read the "name" member to get the function name
+                            rule_name: std::string = "";
+                            n_args_val: std::string = "";
+                            for rule_type.get_member_objects() do (obj) {
+                                if obj.name() == "name"   { rule_name = obj.initializer(); }
+                                if obj.name() == "n_args" { n_args_val = obj.initializer(); }
+                            }
+
+                            // Look for a "forward" member function and inline it
+                            for rule_type.get_member_functions() do (func) {
+                                if func.name() == "forward" {
+                                    fwd_decl := func.print();
+
+                                    // Strip quotes from initializer string
+                                    clean_name: std::string = rule_name;
+                                    if clean_name.ssize() >= 2
+                                        && clean_name[0] == '"'
+                                        && clean_name[clean_name.ssize()-1] == '"'
+                                    {
+                                        clean_name = clean_name.substr(1, clean_name.ssize() - 2);
+                                    }
+
+                                    // Replace "forward" with the clean function name
+                                    new_decl: std::string = fwd_decl;
+                                    pos := new_decl.find("forward");
+                                    if pos != new_decl.npos {
+                                        new_decl.replace(pos, 7, clean_name);
+                                    }
+
+                                    t.add_member(new_decl);
+                                }
+                            }
+
+                            rule_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if rule_count == 0 {
+        t.error("find_ad_rules: could not find any types in meta::ad namespace. "
+                "Ensure you #include a .h2 file that defines types in meta::ad.");
+    }
+}
+
+
+//-----------------------------------------------------------------------
+//
 //  apply_metafunctions
 //
 apply_metafunctions: (
@@ -8732,6 +8842,12 @@ apply_metafunctions: (
         }
         else if name == "sample_traverser" {
             sample_traverser( rtype );
+        }
+        else if name == "find_ad_rules" {
+            find_ad_rules( rtype );
+        }
+        else if name == "register_autodiff" {
+            register_autodiff( rtype );
         }
         else {
             error( "unrecognized metafunction name: " + name );

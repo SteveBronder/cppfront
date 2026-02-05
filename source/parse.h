@@ -4009,11 +4009,12 @@ public:
         { return  parent_declaration && parent_declaration->is_polymorphic(); }
 
     enum which : u8 {
-        functions = 1,
-        objects   = 2,
-        types     = 4,
-        aliases   = 8,
-        all       = functions|objects|types|aliases
+        functions  = 1,
+        objects    = 2,
+        types      = 4,
+        aliases    = 8,
+        namespaces = 16,
+        all        = functions|objects|types|aliases|namespaces
     };
 
 private:
@@ -4044,10 +4045,11 @@ private:
             if (decl)
             {
                 if (
-                    (w & functions  && decl->is_function())
-                    || (w & objects && decl->is_object()  )
-                    || (w & types   && decl->is_type()    )
-                    || (w & aliases && decl->is_alias()   )
+                    (w & functions   && decl->is_function() )
+                    || (w & objects  && decl->is_object()   )
+                    || (w & types    && decl->is_type()     )
+                    || (w & aliases  && decl->is_alias()    )
+                    || (w & namespaces && decl->is_namespace())
                     )
                 {
                     ret.push_back(decl);
