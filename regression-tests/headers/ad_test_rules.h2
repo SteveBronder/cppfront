@@ -1,0 +1,20 @@
+
+
+meta: namespace = {
+ad: namespace = {
+
+subtract: @register_autodiff type = {
+    name: std::string = "subtract";
+    n_args: int = 2;
+    is_member: bool = false;
+    forward: (x0: double, x1: double) -> double = {
+      return x0 - x1;
+    }
+}
+my_binary: @register_autodiff type = {
+    name: std::string = "my_binary";
+    n_args: int = 2;
+    is_member: bool = false;
+}
+}
+}

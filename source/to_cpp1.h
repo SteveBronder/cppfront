@@ -1219,6 +1219,28 @@ public:
             //
             tokens.lex(source.get_lines());
 
+            //  Process .h2/.cpp2 includes before parsing the main file
+            //  so that metafunctions can see declarations from includes
+            //
+            auto const& cpp2_includes = source.get_cpp2_includes();
+            if (!cpp2_includes.empty() && parser.get_parse_tree())
+            {
+                // Set up include parser configuration
+                include_config config;
+                config.base_path = std::filesystem::path(sourcefile).parent_path();
+                if (config.base_path.empty()) {
+                    config.base_path = std::filesystem::current_path();
+                }
+                config.warn_on_circular = true;
+
+                // Create include parser as member to keep tokens alive
+                inc_parser = std::make_unique<include_parser>(errors, includes, config);
+                if (!inc_parser->process_includes(cpp2_includes, *parser.get_parse_tree())) {
+                    // Errors were added to errors vector, just return
+                    return;
+                }
+            }
+
             //  Parse
             //
             try
@@ -1231,27 +1253,6 @@ public:
                             false,
                             true    // a noisy fallback error message
                         );
-                    }
-                }
-
-                //  Process .h2/.cpp2 includes
-                //
-                auto const& cpp2_includes = source.get_cpp2_includes();
-                if (!cpp2_includes.empty() && parser.get_parse_tree())
-                {
-                    // Set up include parser configuration
-                    include_config config;
-                    config.base_path = std::filesystem::path(sourcefile).parent_path();
-                    if (config.base_path.empty()) {
-                        config.base_path = std::filesystem::current_path();
-                    }
-                    config.warn_on_circular = true;
-
-                    // Create include parser as member to keep tokens alive
-                    inc_parser = std::make_unique<include_parser>(errors, includes, config);
-                    if (!inc_parser->process_includes(cpp2_includes, *parser.get_parse_tree())) {
-                        // Errors were added to errors vector, just return
-                        return;
                     }
                 }
 

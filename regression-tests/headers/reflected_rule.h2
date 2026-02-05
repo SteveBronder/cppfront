@@ -1,0 +1,5 @@
+// A type that should be discoverable via reflection from an including file
+reflected_rule: type = {
+    rule_name: std::string = "test_rule";
+    rule_arity: int = 2;
+}

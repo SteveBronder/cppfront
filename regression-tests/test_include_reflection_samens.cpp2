@@ -1,0 +1,22 @@
+// Control test: verify reflection works when the type is in the SAME namespace
+// (not from an include). This should PASS because sibling types in a namespace
+// are visible through get_parent().get_members().
+
+test_ns: namespace = {
+
+reflected_rule: type = {
+    rule_name: std::string = "test_rule";
+    rule_arity: int = 2;
+}
+
+test_type: @find_included_type type = {
+    data: int = 0;
+}
+
+} // namespace test_ns
+
+main: () -> int = {
+    obj: test_ns::test_type = ();
+    std::cout << "PASS: reflection can see same-namespace types\n";
+    return 0;
+}

@@ -1,0 +1,22 @@
+#include "headers/ad_test_rules.h2"
+
+test_ns: namespace = {
+
+// @find_ad_rules searches for the ad_rules namespace from the include,
+// iterates its ad_rule_* types, and reads their name/n_args members.
+// This only passes if reflection can see types from included .h2 files.
+test_type: @find_ad_rules type = {
+    data: int = 0;
+    subsub: (x0: double, x1: double) -> double = {
+      return subtract(x0, x1);
+    }
+}
+
+} // namespace test_ns
+
+main: () -> int = {
+    obj: test_ns::test_type = ();
+
+    std::cout << "PASS: reflection found ad_rule_* types from include\n";
+    return 0;
+}
