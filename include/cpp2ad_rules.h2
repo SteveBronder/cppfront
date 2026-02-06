@@ -1,14 +1,11 @@
 // =============================================================================
-// Standard Autodiff Rules for Reverse-Mode Automatic Differentiation
+// Standard Autodiff Rules for Reverse-Mode AD
 // =============================================================================
 //
-// Rules live in meta::ad namespace so that @autodiff<"reverse"> discovers them
-// via get_tu_declarations() (path 3 in discover_ad_rules).
+// Rules in meta::ad are discovered by @autodiff<"reverse"> via
+// get_tu_declarations(). Each uses @register_autodiff for validation.
 //
-// Each rule uses @register_autodiff which validates name, n_args, forward(),
-// and reverse() at metafunction application time.
-//
-// Parameter naming convention in reverse(): x, y, z, w for 1st-4th args.
+// Reverse parameter convention: x, y, z, w for 1st-4th args.
 // =============================================================================
 
 meta: namespace = {

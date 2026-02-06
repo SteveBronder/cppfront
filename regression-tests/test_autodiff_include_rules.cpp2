@@ -1,8 +1,7 @@
 #include "headers/ad_test_rules.h2"
 
-// Free function wrapper so the user code can call subtract(x, y) directly.
-// The @autodiff metafunction resolves the rule by matching the function name "subtract"
-// in the ad_rule_registry (populated from the included header's meta::ad namespace).
+// Wrapper so user code can call subtract(x, y) directly.
+// @autodiff resolves the rule by matching "subtract" in the ad_rule_registry.
 subtract: (x: double, y: double) -> double = {
     return meta::ad::subtract::forward(x, y);
 }

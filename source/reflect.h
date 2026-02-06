@@ -213,7 +213,7 @@ class special_range_token;
 #line 8403 "source/reflect.h2"
 template<typename Error_out> class regex_generator;
 
-#line 8811 "source/reflect.h2"
+#line 8787 "source/reflect.h2"
 }
 
 }
@@ -3216,31 +3216,20 @@ auto regex_gen(meta::type_declaration& t) -> void;
 #line 8534 "source/reflect.h2"
 //-----------------------------------------------------------------------
 //
-//  register_autodiff - validates that a type has the required members
-//  for use as an autodiff rule (name, n_args, forward, reverse).
-//
-//  NOTE: This validation is mirrored by is_ad_rule_type() in reverse_ad.h2,
-//  which performs the same structural check as a bool predicate for duck-typing
-//  discovery. If you change the required members here, update that function too.
+//  register_autodiff - validates required members: name, n_args, forward, reverse.
+//  See also: is_ad_rule_type() in reverse_ad.h2 (duck-typing predicate).
 //
 auto register_autodiff(meta::type_declaration& t) -> void;
 
-#line 8582 "source/reflect.h2"
+#line 8572 "source/reflect.h2"
 //-----------------------------------------------------------------------
 //
-//  find_ad_rules - LEGACY metafunction for forward-mode rule inlining.
-//
-//  NOTE: For reverse-mode AD, rule discovery is now handled by
-//  discover_ad_rules() in reverse_ad.h2, which uses the same
-//  get_tu_declarations() walk but also validates rules via is_ad_rule_type()
-//  and extracts reverse() bodies for IR-based inlining.
-//
-//  This metafunction only inlines forward() functions and does not check
-//  for reverse(). It is retained for forward-mode / non-@autodiff use cases.
+//  find_ad_rules - forward-mode rule inlining from meta::ad namespace.
+//  For reverse-mode, see discover_ad_rules() in reverse_ad.h2.
 //
 auto find_ad_rules(meta::type_declaration& t) -> void;
 
-#line 8664 "source/reflect.h2"
+#line 8640 "source/reflect.h2"
 //-----------------------------------------------------------------------
 //
 //  apply_metafunctions
@@ -3251,7 +3240,7 @@ auto find_ad_rules(meta::type_declaration& t) -> void;
     auto const& error
     ) -> bool;
 
-#line 8811 "source/reflect.h2"
+#line 8787 "source/reflect.h2"
 }
 
 }
@@ -12582,38 +12571,32 @@ auto regex_gen(meta::type_declaration& t) -> void
     CPP2_UFCS(add_runtime_support_include)(t, "cpp2regex.h");
 }
 
-#line 8543 "source/reflect.h2"
+#line 8539 "source/reflect.h2"
 auto register_autodiff(meta::type_declaration& t) -> void
 {
-    auto has_name_member {false}; 
-    auto has_n_args_member {false}; 
-    auto has_name_init {false}; 
-    auto has_n_args_init {false}; 
+    auto has_name {false}; 
+    auto has_n_args {false}; 
+    auto name_init {false}; 
+    auto n_args_init {false}; 
     auto has_forward {false}; 
     auto has_reverse {false}; 
 
     for ( auto const& obj : CPP2_UFCS(get_member_objects)(t) ) {
-        if (CPP2_UFCS(name)(obj) == "name") {
-            has_name_member = true;
-            has_name_init = CPP2_UFCS(has_initializer)(obj);
-        }
-        if (CPP2_UFCS(name)(obj) == "n_args") {
-            has_n_args_member = true;
-            has_n_args_init = CPP2_UFCS(has_initializer)(obj);
-        }
+        if (CPP2_UFCS(name)(obj) == "name") {has_name = true;name_init = CPP2_UFCS(has_initializer)(obj);}
+        if (CPP2_UFCS(name)(obj) == "n_args") {has_n_args = true;n_args_init = CPP2_UFCS(has_initializer)(obj);}
     }
     for ( auto const& func : CPP2_UFCS(get_member_functions)(t) ) {
         if (CPP2_UFCS(name)(func) == "forward") {has_forward = true; }
         if (CPP2_UFCS(name)(func) == "reverse") {has_reverse = true; }
     }
 
-    CPP2_UFCS(require)(t, has_name_member, 
+    CPP2_UFCS(require)(t, has_name, 
         "a @register_autodiff type must have a 'name: std::string' member");
-    CPP2_UFCS(require)(t, !(cpp2::move(has_name_member)) || cpp2::move(has_name_init), 
+    CPP2_UFCS(require)(t, !(cpp2::move(has_name)) || cpp2::move(name_init), 
         "the 'name' member must have an initializer (e.g., name: std::string = \"sin\")");
-    CPP2_UFCS(require)(t, has_n_args_member, 
+    CPP2_UFCS(require)(t, has_n_args, 
         "a @register_autodiff type must have an 'n_args: int' member");
-    CPP2_UFCS(require)(t, !(cpp2::move(has_n_args_member)) || cpp2::move(has_n_args_init), 
+    CPP2_UFCS(require)(t, !(cpp2::move(has_n_args)) || cpp2::move(n_args_init), 
         "the 'n_args' member must have an initializer (e.g., n_args: int = 1)");
     CPP2_UFCS(require)(t, cpp2::move(has_forward), 
         "a @register_autodiff type must have a 'forward' member function");
@@ -12621,27 +12604,23 @@ auto register_autodiff(meta::type_declaration& t) -> void
         "a @register_autodiff type must have a 'reverse' member function");
 }
 
-#line 8594 "source/reflect.h2"
+#line 8577 "source/reflect.h2"
 auto find_ad_rules(meta::type_declaration& t) -> void
 {
     auto rule_count {0}; 
 
-    // Walk TU-level declarations to find "meta" namespace
     for ( auto const& tu_decl : CPP2_UFCS(get_tu_declarations)(t) ) {
         if (CPP2_UFCS(is_namespace)(tu_decl) && CPP2_UFCS(name)(tu_decl) == "meta") {
             auto meta_ns {CPP2_UFCS(as_nonglobal_namespace)(tu_decl)}; 
 
-            // Find "ad" namespace inside "meta"
             for ( auto const& meta_member : CPP2_UFCS(get_members)(cpp2::move(meta_ns)) ) {
                 if (CPP2_UFCS(is_namespace)(meta_member) && CPP2_UFCS(name)(meta_member) == "ad") {
                     auto ad_ns {CPP2_UFCS(as_nonglobal_namespace)(meta_member)}; 
 
-                    // Iterate types inside meta::ad
                     for ( auto const& rule_decl : CPP2_UFCS(get_members)(cpp2::move(ad_ns)) ) {
                         if (CPP2_UFCS(is_type)(rule_decl)) {
                             auto rule_type {CPP2_UFCS(as_type)(rule_decl)}; 
 
-                            // Read the "name" member to get the function name
                             std::string rule_name {""}; 
                             std::string n_args_val {""}; 
                             for ( auto const& obj : CPP2_UFCS(get_member_objects)(rule_type) ) {
@@ -12649,12 +12628,11 @@ auto find_ad_rules(meta::type_declaration& t) -> void
                                 if (CPP2_UFCS(name)(obj) == "n_args") {n_args_val = CPP2_UFCS(initializer)(obj); }
                             }
 
-                            // Look for a "forward" member function and inline it
                             for ( auto const& func : CPP2_UFCS(get_member_functions)(cpp2::move(rule_type)) ) {
                                 if (CPP2_UFCS(name)(func) == "forward") {
                                     auto fwd_decl {CPP2_UFCS(print)(func)}; 
 
-                                    // Strip quotes from initializer string
+                                    // Strip quotes from initializer
                                     std::string clean_name {rule_name}; 
                                     if (cpp2::impl::cmp_greater_eq(CPP2_UFCS(ssize)(clean_name),2) 
                                         && CPP2_ASSERT_IN_BOUNDS_LITERAL(clean_name, 0) == '"' 
@@ -12663,10 +12641,8 @@ auto find_ad_rules(meta::type_declaration& t) -> void
                                         clean_name = CPP2_UFCS(substr)(clean_name, 1, CPP2_UFCS(ssize)(clean_name) - 2);
                                     }
 
-                                    // Replace "forward" in the declaration prefix with the rule name.
-                                    // We search only the first occurrence (the function name in the
-                                    // declaration) to avoid corrupting the body if it contains
-                                    // the word "forward" (e.g., std::forward).
+                                    // Replace first "forward" with rule name (avoids
+                                    // corrupting body references like std::forward)
                                     std::string new_decl {cpp2::move(fwd_decl)}; 
                                     auto pos {CPP2_UFCS(find)(new_decl, "forward")}; 
                                     if (pos != new_decl.npos) {
@@ -12686,12 +12662,12 @@ auto find_ad_rules(meta::type_declaration& t) -> void
     }
 
     if (cpp2::move(rule_count) == 0) {
-        CPP2_UFCS(error)(t, "find_ad_rules: could not find any types in meta::ad namespace. "
+        CPP2_UFCS(error)(t, "find_ad_rules: no types found in meta::ad namespace. "
                 "Ensure you #include a .h2 file that defines types in meta::ad.");
     }
 }
 
-#line 8668 "source/reflect.h2"
+#line 8644 "source/reflect.h2"
 [[nodiscard]] auto apply_metafunctions(
     declaration_node& n, 
     type_declaration& rtype, 
@@ -12834,7 +12810,7 @@ auto find_ad_rules(meta::type_declaration& t) -> void
     return true; 
 }
 
-#line 8811 "source/reflect.h2"
+#line 8787 "source/reflect.h2"
 }
 
 }

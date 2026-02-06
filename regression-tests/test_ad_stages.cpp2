@@ -1,15 +1,10 @@
-// Test file for AD IR stages 3, 4, 5 debug output
-// This file tests:
-// - Subtask 3: ad_rule registry and discovery
-// - Subtask 4: Operator token mapping
-// - Subtask 5: Base expression builder
+// Test: AD rule registry, operator mapping, and expression builder
 #include <iostream>
 #include "../include/cpp2ad_rules.h2"
 
 test_ns: namespace = {
 
-// Test type with reverse-mode autodiff - rules are now discovered
-// from the included header via get_tu_declarations() (path 3).
+// Rules discovered from included header via get_tu_declarations()
 test_ad_stages: @autodiff<"reverse"> @print type = {
 
     // Simple addition function

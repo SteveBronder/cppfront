@@ -10,11 +10,11 @@
 #line 3 "regression-tests/test_include_reflection.cpp2"
 namespace test_ns {
 
-#line 8 "regression-tests/test_include_reflection.cpp2"
+#line 6 "regression-tests/test_include_reflection.cpp2"
 class test_type;
     
 
-#line 15 "regression-tests/test_include_reflection.cpp2"
+#line 13 "regression-tests/test_include_reflection.cpp2"
 }
 
 
@@ -26,9 +26,7 @@ class test_type;
 #line 3 "regression-tests/test_include_reflection.cpp2"
 namespace test_ns {
 
-// @find_ad_rules searches for the ad_rules namespace from the include,
-// iterates its ad_rule_* types, and reads their name/n_args members.
-// This only passes if reflection can see types from included .h2 files.
+// Tests that @find_ad_rules can see types from included .h2 files.
 class test_type {
     private: int data {0}; 
     public: [[nodiscard]] static auto subsub(cpp2::impl::in<double> x0, cpp2::impl::in<double> x1) -> double;
@@ -48,7 +46,7 @@ public: [[nodiscard]] static auto my_binary(
     public: auto operator=(test_type const&) -> void = delete;
 
 
-#line 13 "regression-tests/test_include_reflection.cpp2"
+#line 11 "regression-tests/test_include_reflection.cpp2"
 };
 
 } // namespace test_ns
@@ -62,7 +60,7 @@ public: [[nodiscard]] static auto my_binary(
 #line 3 "regression-tests/test_include_reflection.cpp2"
 namespace test_ns {
 
-#line 10 "regression-tests/test_include_reflection.cpp2"
+#line 8 "regression-tests/test_include_reflection.cpp2"
     [[nodiscard]] auto test_type::subsub(cpp2::impl::in<double> x0, cpp2::impl::in<double> x1) -> double{
       return subtract(x0, x1); 
     }
@@ -85,10 +83,10 @@ namespace test_ns {
     return x * y; 
     }
 
-#line 15 "regression-tests/test_include_reflection.cpp2"
+#line 13 "regression-tests/test_include_reflection.cpp2"
 }
 
-#line 17 "regression-tests/test_include_reflection.cpp2"
+#line 15 "regression-tests/test_include_reflection.cpp2"
 [[nodiscard]] auto main() -> int{
     test_ns::test_type obj {}; 
 

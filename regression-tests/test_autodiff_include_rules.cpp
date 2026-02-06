@@ -8,14 +8,14 @@
 
 #line 1 "regression-tests/test_autodiff_include_rules.cpp2"
 
-#line 10 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 9 "regression-tests/test_autodiff_include_rules.cpp2"
 namespace test_ns {
 
-#line 14 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 13 "regression-tests/test_autodiff_include_rules.cpp2"
 class my_func;
     
 
-#line 20 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 19 "regression-tests/test_autodiff_include_rules.cpp2"
 }
 
 
@@ -24,13 +24,12 @@ class my_func;
 #line 1 "regression-tests/test_autodiff_include_rules.cpp2"
 #include "headers/ad_test_rules.h"
 
-// Free function wrapper so the user code can call subtract(x, y) directly.
-// The @autodiff metafunction resolves the rule by matching the function name "subtract"
-// in the ad_rule_registry (populated from the included header's meta::ad namespace).
-#line 6 "regression-tests/test_autodiff_include_rules.cpp2"
+// Wrapper so user code can call subtract(x, y) directly.
+// @autodiff resolves the rule by matching "subtract" in the ad_rule_registry.
+#line 5 "regression-tests/test_autodiff_include_rules.cpp2"
 [[nodiscard]] auto subtract(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> double;
 
-#line 10 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 9 "regression-tests/test_autodiff_include_rules.cpp2"
 namespace test_ns {
 
 // This type uses @autodiff<"reverse"> and calls subtract(),
@@ -38,7 +37,7 @@ namespace test_ns {
 class my_func {
 using f_ret = double;
 
-#line 15 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 14 "regression-tests/test_autodiff_include_rules.cpp2"
     public: [[nodiscard]] static auto f(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> f_ret;
 using f_d_ret = double;
 
@@ -56,7 +55,7 @@ using f_d_ret = double;
     public: auto operator=(my_func const&) -> void = delete;
 
 
-#line 18 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 17 "regression-tests/test_autodiff_include_rules.cpp2"
 };
 
 } // namespace test_ns
@@ -67,17 +66,17 @@ using f_d_ret = double;
 
 #line 1 "regression-tests/test_autodiff_include_rules.cpp2"
 
-#line 6 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 5 "regression-tests/test_autodiff_include_rules.cpp2"
 [[nodiscard]] auto subtract(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> double{
     return meta::ad::subtract::forward(x, y); 
 }
 
 namespace test_ns {
 
-#line 15 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 14 "regression-tests/test_autodiff_include_rules.cpp2"
     [[nodiscard]] auto my_func::f(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> f_ret{
             cpp2::impl::deferred_init<double> r;
-#line 16 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 15 "regression-tests/test_autodiff_include_rules.cpp2"
         r.construct(subtract(x, y));
     return std::move(r.value()); }
 
@@ -104,10 +103,10 @@ namespace test_ns {
     return r; 
     }
 
-#line 20 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 19 "regression-tests/test_autodiff_include_rules.cpp2"
 }
 
-#line 22 "regression-tests/test_autodiff_include_rules.cpp2"
+#line 21 "regression-tests/test_autodiff_include_rules.cpp2"
 [[nodiscard]] auto main() -> int{
     // If we get here, the metafunction successfully:
     // 1. Discovered the "subtract" rule from the included header

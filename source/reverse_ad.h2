@@ -2344,48 +2344,24 @@ ad_rule_registry_debug_dump: (reg: ad_rule_registry) = {
 }
 
 /**
- * @brief Check if a type conforms to the ad_rule pattern (duck-typing predicate).
+ * @brief Duck-typing predicate: does this type look like an ad_rule?
  *
- * A valid ad_rule type must have:
- * - A `name` member object (string)
- * - An `n_args` member object (int)
- * - A `forward` member function
- * - A `reverse` member function
- *
- * NOTE: This validation is mirrored by @register_autodiff in reflect.h2,
- * which performs the same structural check but with hard-fail error messages.
- * If you change the required members here, update that metafunction too.
- *
- * This predicate also accepts types NOT annotated with @register_autodiff,
- * supporting duck-typing discovery of rule types (e.g., ad_rule_* siblings).
- *
- * @param member_type Type declaration to check.
- * @return True if this looks like an ad_rule.
+ * Checks for name, n_args member objects and forward, reverse member functions.
+ * See also: @register_autodiff in reflect.h2 (hard-fail version).
  */
 is_ad_rule_type: (member_type: meta::type_declaration) -> bool = {
-    has_name: bool = false;
-    has_n_args: bool = false;
-    has_forward: bool = false;
-    has_reverse: bool = false;
+    has_name    := false;
+    has_n_args  := false;
+    has_forward := false;
+    has_reverse := false;
 
-    // Check member objects for name and n_args
     for member_type.get_member_objects() do (obj) {
-        if obj.name() == "name" {
-            has_name = true;
-        }
-        if obj.name() == "n_args" {
-            has_n_args = true;
-        }
+        if obj.name() == "name"   { has_name   = true; }
+        if obj.name() == "n_args" { has_n_args = true; }
     }
-
-    // Check member functions for forward and reverse
     for member_type.get_member_functions() do (func) {
-        if func.name() == "forward" {
-            has_forward = true;
-        }
-        if func.name() == "reverse" {
-            has_reverse = true;
-        }
+        if func.name() == "forward" { has_forward = true; }
+        if func.name() == "reverse" { has_reverse = true; }
     }
 
     return has_name && has_n_args && has_forward && has_reverse;
@@ -2395,22 +2371,16 @@ is_ad_rule_type: (member_type: meta::type_declaration) -> bool = {
  * @brief Extract ad_rule metadata from a type declaration.
  *
  * Assumes is_ad_rule_type() has already returned true.
- * Extracts the reverse() function body for later inlining.
- *
- * @param member_type Pointer to the rule type to extract from.
- * @return Extracted rule metadata.
+ * Extracts name, n_args, is_member, and the reverse() body AST.
  */
 extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
     rule: ad_rule_meta = ();
     rule.rule_type = member_type*.name() as std::string;
 
-    // Extract name, n_args, is_member from member objects
     for member_type*.get_member_objects() do (obj) {
         if obj.name() == "name" {
-            // Try to get the initializer value
             if obj.has_initializer() {
                 rule.name = obj.initializer().to_string();
-                // Strip quotes if present
                 if rule.name.starts_with("\"") && rule.name.ends_with("\"") {
                     rule.name = rule.name.substr(1, rule.name.ssize() - 2);
                 }
@@ -2433,12 +2403,10 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
         }
     }
 
-    // Extract the reverse() function body for later inlining
     for member_type*.get_member_functions() do (func) {
         if func.name() == "reverse" && func.has_compound_body() {
             body: meta::compound_statement = func.get_compound_body();
 
-            // NEW: Store the AST statements for IR-based parsing
             for body.get_statements() do (move stmt) {
                 rule.reverse_body_stmts.push_back(stmt);
             }
@@ -2446,25 +2414,24 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
             std::cout << "AD: Extracted " << rule.reverse_body_stmts.ssize()
                       << " AST statements for '" << rule.name << "'\n";
 
-            // DEPRECATED: Also build the string representation for backward compatibility
+            // TODO: Remove string representation after IR-based inlining is complete
             body_stmts: std::string = "";
             for body.get_statements() do (stmt) {
                 stmt_str: std::string = stmt.to_string() as std::string;
 
-                // BUG FIX: Trim trailing whitespace before checking last character
+                // Trim trailing whitespace before checking last character
                 trimmed: std::string = stmt_str;
                 while !trimmed.empty() && std::isspace(trimmed.back() as int) != 0 {
                     trimmed.pop_back();
                 }
 
-                // Add semicolon if not present (statement may or may not have it)
                 if !trimmed.empty() && trimmed.back() != ';' && trimmed.back() != '}' {
                     body_stmts += trimmed + ";\n";
                 } else if !trimmed.empty() {
                     body_stmts += trimmed + "\n";
                 }
             }
-            _ = body_stmts; // TODO: Remove after IR-based rule inlining is complete
+            _ = body_stmts;
         }
     }
 
@@ -2472,21 +2439,19 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
 }
 
 /**
- * @brief Discover ad_rule types inside an annotated type.
+ * @brief Discover ad_rule types and register them.
  *
- * Scans all nested types and checks if they conform to the ad_rule pattern.
- * Matching rules are registered in the output registry.
- *
- * @param t Type declaration to scan.
- * @param out Registry to populate.
+ * Searches three locations in priority order:
+ *   1. Nested types inside the @autodiff type
+ *   2. Sibling ad_rule_* types in the parent namespace
+ *   3. Types in meta::ad namespace (from included .h2 headers)
  */
 discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
     std::cout << "AD: Discovering rules in type " << t.name() << "\n";
 
-    // 1. Nested types inside the @autodiff type (highest priority)
+    // 1. Nested types inside the @autodiff type
     for t.get_member_types() do (inout member_type) {
-        type_name: std::string_view = member_type.name();
-        std::cout << "AD: Checking nested type: " << type_name << "\n";
+        std::cout << "AD: Checking nested type: " << member_type.name() << "\n";
 
         if is_ad_rule_type(member_type) {
             rule: ad_rule_meta = extract_ad_rule_meta(member_type&);
@@ -2495,21 +2460,17 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
         }
     }
 
-    // 2. Sibling types in the parent namespace (same file only)
-    //    NOTE: Rules from included .h2 files are now discovered via path 3 below.
+    // 2. Sibling ad_rule_* types in the parent namespace
     if t.parent_is_nonglobal_namespace() {
         ns := t.get_parent().as_nonglobal_namespace();
         std::cout << "AD: Checking siblings in namespace '" << ns.name() << "'\n";
 
-        // DEBUG: List ALL members returned by get_members()
         members := ns.get_members();
         std::cout << "AD DEBUG: ns.get_members() returned " << members.size() << " members:\n";
         for members do (m) {
             std::cout << "AD DEBUG:   - '" << m.name() << "' is_type=" << m.is_type()
                       << " is_func=" << m.is_function() << " is_ns=" << m.is_namespace() << "\n";
-        }
 
-        for members do (m) {
             if m.is_type() && !m.is_same(t) {
                 type_name: std::string = m.name() as std::string;
                 if type_name.starts_with("ad_rule_") {
@@ -2524,9 +2485,7 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
         }
     }
 
-    // 3. Types in meta::ad namespace from included .h2 headers
-    //    Uses get_tu_declarations() to find TU-level "meta" namespace,
-    //    then navigates to "ad" sub-namespace.
+    // 3. Types in meta::ad namespace (included .h2 headers)
     for t.get_tu_declarations() do (tu_decl) {
         if tu_decl.is_namespace() && tu_decl.name() == "meta" {
             meta_ns := tu_decl.as_nonglobal_namespace();
@@ -2538,14 +2497,11 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
                     for ad_ns.get_members() do (rule_decl) {
                         if rule_decl.is_type() {
                             rule_type := rule_decl.as_type();
-                            type_name: std::string = rule_type.name() as std::string;
-                            std::cout << "AD: Checking meta::ad type: " << type_name << "\n";
+                            std::cout << "AD: Checking meta::ad type: " << rule_type.name() << "\n";
 
                             if is_ad_rule_type(rule_type) {
-                                // Skip if already registered (built-in rules live in
-                                // meta::ad in reverse_ad.h2 and may already be found
-                                // via path 2 if the type is in the same namespace)
                                 rule: ad_rule_meta = extract_ad_rule_meta(rule_type&);
+                                // Skip duplicates (may already be found via path 2)
                                 if !out.has_rule(rule.name, rule.n_args, rule.is_member) {
                                     std::cout << "AD: Found included rule: " << rule.name
                                               << " (n_args=" << rule.n_args << ")\n";

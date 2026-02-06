@@ -1,4 +1,4 @@
-#line 6 "regression-tests/test_ad_stages.cpp2"
+#line 2 "regression-tests/test_ad_stages.cpp2"
 #include <iostream>
 
 #include "cpp2ad_stack.h"
@@ -10,59 +10,54 @@
 
 #line 1 "regression-tests/test_ad_stages.cpp2"
 
-#line 9 "regression-tests/test_ad_stages.cpp2"
+#line 5 "regression-tests/test_ad_stages.cpp2"
 namespace test_ns {
 
-#line 13 "regression-tests/test_ad_stages.cpp2"
+#line 8 "regression-tests/test_ad_stages.cpp2"
 class test_ad_stages;
 
-#line 37 "regression-tests/test_ad_stages.cpp2"
+#line 32 "regression-tests/test_ad_stages.cpp2"
 }
 
 
 //=== Cpp2 type definitions and function declarations ===========================
 
 #line 1 "regression-tests/test_ad_stages.cpp2"
-// Test file for AD IR stages 3, 4, 5 debug output
-// This file tests:
-// - Subtask 3: ad_rule registry and discovery
-// - Subtask 4: Operator token mapping
-// - Subtask 5: Base expression builder
-#line 7 "regression-tests/test_ad_stages.cpp2"
+// Test: AD rule registry, operator mapping, and expression builder
+#line 3 "regression-tests/test_ad_stages.cpp2"
 #include "../include/cpp2ad_rules.h"
 
-#line 9 "regression-tests/test_ad_stages.cpp2"
+#line 5 "regression-tests/test_ad_stages.cpp2"
 namespace test_ns {
 
-// Test type with reverse-mode autodiff - rules are now discovered
-// from the included header via get_tu_declarations() (path 3).
+// Rules discovered from included header via get_tu_declarations()
 class test_ad_stages {
 using add_xy_ret = double;
 
 
     // Simple addition function
-#line 16 "regression-tests/test_ad_stages.cpp2"
+#line 11 "regression-tests/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto add_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> add_xy_ret;
 using mul_xy_ret = double;
 
 
-#line 20 "regression-tests/test_ad_stages.cpp2"
+#line 15 "regression-tests/test_ad_stages.cpp2"
     // Multiplication function
-#line 21 "regression-tests/test_ad_stages.cpp2"
+#line 16 "regression-tests/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto mul_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> mul_xy_ret;
 using combined_ret = double;
 
 
-#line 25 "regression-tests/test_ad_stages.cpp2"
+#line 20 "regression-tests/test_ad_stages.cpp2"
     // Combined operations
-#line 26 "regression-tests/test_ad_stages.cpp2"
+#line 21 "regression-tests/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto combined(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> combined_ret;
 using simple_log_ret = double;
 
 
-#line 31 "regression-tests/test_ad_stages.cpp2"
+#line 26 "regression-tests/test_ad_stages.cpp2"
     // Simple log function (not scaled) to test user rule lookup
-#line 32 "regression-tests/test_ad_stages.cpp2"
+#line 27 "regression-tests/test_ad_stages.cpp2"
     public: [[nodiscard]] static auto simple_log(cpp2::impl::in<double> x) -> simple_log_ret;
 using add_xy_d_ret = double;
 
@@ -108,7 +103,7 @@ public: [[nodiscard]] static auto simple_log_d(
     public: auto operator=(test_ad_stages const&) -> void = delete;
 
 
-#line 35 "regression-tests/test_ad_stages.cpp2"
+#line 30 "regression-tests/test_ad_stages.cpp2"
 };
 
 } // namespace test_ns
@@ -119,35 +114,35 @@ auto main() -> int;
 
 #line 1 "regression-tests/test_ad_stages.cpp2"
 
-#line 9 "regression-tests/test_ad_stages.cpp2"
+#line 5 "regression-tests/test_ad_stages.cpp2"
 namespace test_ns {
 
-#line 16 "regression-tests/test_ad_stages.cpp2"
+#line 11 "regression-tests/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::add_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> add_xy_ret{
             cpp2::impl::deferred_init<double> r;
-#line 17 "regression-tests/test_ad_stages.cpp2"
+#line 12 "regression-tests/test_ad_stages.cpp2"
         r.construct(x + y);
     return std::move(r.value()); }
 
-#line 21 "regression-tests/test_ad_stages.cpp2"
+#line 16 "regression-tests/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::mul_xy(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> mul_xy_ret{
             cpp2::impl::deferred_init<double> r;
-#line 22 "regression-tests/test_ad_stages.cpp2"
+#line 17 "regression-tests/test_ad_stages.cpp2"
         r.construct(x * y);
     return std::move(r.value()); }
 
-#line 26 "regression-tests/test_ad_stages.cpp2"
+#line 21 "regression-tests/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::combined(cpp2::impl::in<double> x, cpp2::impl::in<double> y) -> combined_ret{
             cpp2::impl::deferred_init<double> r;
-#line 27 "regression-tests/test_ad_stages.cpp2"
+#line 22 "regression-tests/test_ad_stages.cpp2"
         auto z {x * log(y)}; 
         r.construct(cpp2::move(z) + x);
     return std::move(r.value()); }
 
-#line 32 "regression-tests/test_ad_stages.cpp2"
+#line 27 "regression-tests/test_ad_stages.cpp2"
     [[nodiscard]] auto test_ad_stages::simple_log(cpp2::impl::in<double> x) -> simple_log_ret{
             cpp2::impl::deferred_init<double> r;
-#line 33 "regression-tests/test_ad_stages.cpp2"
+#line 28 "regression-tests/test_ad_stages.cpp2"
         r.construct(log(x));
     return std::move(r.value()); }
 
@@ -244,10 +239,10 @@ namespace test_ns {
     return r; 
     }
 
-#line 37 "regression-tests/test_ad_stages.cpp2"
+#line 32 "regression-tests/test_ad_stages.cpp2"
 }
 
-#line 39 "regression-tests/test_ad_stages.cpp2"
+#line 34 "regression-tests/test_ad_stages.cpp2"
 auto main() -> int{
   auto x {3.0}; 
   auto y {4.0}; 

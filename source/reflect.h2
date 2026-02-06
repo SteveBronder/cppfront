@@ -8533,44 +8533,34 @@ regex_gen: (inout t: meta::type_declaration) =
 
 //-----------------------------------------------------------------------
 //
-//  register_autodiff - validates that a type has the required members
-//  for use as an autodiff rule (name, n_args, forward, reverse).
-//
-//  NOTE: This validation is mirrored by is_ad_rule_type() in reverse_ad.h2,
-//  which performs the same structural check as a bool predicate for duck-typing
-//  discovery. If you change the required members here, update that function too.
+//  register_autodiff - validates required members: name, n_args, forward, reverse.
+//  See also: is_ad_rule_type() in reverse_ad.h2 (duck-typing predicate).
 //
 register_autodiff: (inout t: meta::type_declaration) =
 {
-    has_name_member := false;
-    has_n_args_member := false;
-    has_name_init := false;
-    has_n_args_init := false;
+    has_name   := false;
+    has_n_args := false;
+    name_init  := false;
+    n_args_init := false;
     has_forward := false;
     has_reverse := false;
 
     for t.get_member_objects() do (obj) {
-        if obj.name() == "name" {
-            has_name_member = true;
-            has_name_init = obj.has_initializer();
-        }
-        if obj.name() == "n_args" {
-            has_n_args_member = true;
-            has_n_args_init = obj.has_initializer();
-        }
+        if obj.name() == "name"   { has_name   = true;  name_init   = obj.has_initializer(); }
+        if obj.name() == "n_args" { has_n_args = true;  n_args_init = obj.has_initializer(); }
     }
     for t.get_member_functions() do (func) {
         if func.name() == "forward" { has_forward = true; }
         if func.name() == "reverse" { has_reverse = true; }
     }
 
-    t.require(has_name_member,
+    t.require(has_name,
         "a @register_autodiff type must have a 'name: std::string' member");
-    t.require(!has_name_member || has_name_init,
+    t.require(!has_name || name_init,
         "the 'name' member must have an initializer (e.g., name: std::string = \"sin\")");
-    t.require(has_n_args_member,
+    t.require(has_n_args,
         "a @register_autodiff type must have an 'n_args: int' member");
-    t.require(!has_n_args_member || has_n_args_init,
+    t.require(!has_n_args || n_args_init,
         "the 'n_args' member must have an initializer (e.g., n_args: int = 1)");
     t.require(has_forward,
         "a @register_autodiff type must have a 'forward' member function");
@@ -8581,36 +8571,25 @@ register_autodiff: (inout t: meta::type_declaration) =
 
 //-----------------------------------------------------------------------
 //
-//  find_ad_rules - LEGACY metafunction for forward-mode rule inlining.
-//
-//  NOTE: For reverse-mode AD, rule discovery is now handled by
-//  discover_ad_rules() in reverse_ad.h2, which uses the same
-//  get_tu_declarations() walk but also validates rules via is_ad_rule_type()
-//  and extracts reverse() bodies for IR-based inlining.
-//
-//  This metafunction only inlines forward() functions and does not check
-//  for reverse(). It is retained for forward-mode / non-@autodiff use cases.
+//  find_ad_rules - forward-mode rule inlining from meta::ad namespace.
+//  For reverse-mode, see discover_ad_rules() in reverse_ad.h2.
 //
 find_ad_rules: (inout t: meta::type_declaration) =
 {
     rule_count := 0;
 
-    // Walk TU-level declarations to find "meta" namespace
     for t.get_tu_declarations() do (tu_decl) {
         if tu_decl.is_namespace() && tu_decl.name() == "meta" {
             meta_ns := tu_decl.as_nonglobal_namespace();
 
-            // Find "ad" namespace inside "meta"
             for meta_ns.get_members() do (meta_member) {
                 if meta_member.is_namespace() && meta_member.name() == "ad" {
                     ad_ns := meta_member.as_nonglobal_namespace();
 
-                    // Iterate types inside meta::ad
                     for ad_ns.get_members() do (rule_decl) {
                         if rule_decl.is_type() {
                             rule_type := rule_decl.as_type();
 
-                            // Read the "name" member to get the function name
                             rule_name: std::string = "";
                             n_args_val: std::string = "";
                             for rule_type.get_member_objects() do (obj) {
@@ -8618,12 +8597,11 @@ find_ad_rules: (inout t: meta::type_declaration) =
                                 if obj.name() == "n_args" { n_args_val = obj.initializer(); }
                             }
 
-                            // Look for a "forward" member function and inline it
                             for rule_type.get_member_functions() do (func) {
                                 if func.name() == "forward" {
                                     fwd_decl := func.print();
 
-                                    // Strip quotes from initializer string
+                                    // Strip quotes from initializer
                                     clean_name: std::string = rule_name;
                                     if clean_name.ssize() >= 2
                                         && clean_name[0] == '"'
@@ -8632,10 +8610,8 @@ find_ad_rules: (inout t: meta::type_declaration) =
                                         clean_name = clean_name.substr(1, clean_name.ssize() - 2);
                                     }
 
-                                    // Replace "forward" in the declaration prefix with the rule name.
-                                    // We search only the first occurrence (the function name in the
-                                    // declaration) to avoid corrupting the body if it contains
-                                    // the word "forward" (e.g., std::forward).
+                                    // Replace first "forward" with rule name (avoids
+                                    // corrupting body references like std::forward)
                                     new_decl: std::string = fwd_decl;
                                     pos := new_decl.find("forward");
                                     if pos != new_decl.npos {
@@ -8655,7 +8631,7 @@ find_ad_rules: (inout t: meta::type_declaration) =
     }
 
     if rule_count == 0 {
-        t.error("find_ad_rules: could not find any types in meta::ad namespace. "
+        t.error("find_ad_rules: no types found in meta::ad namespace. "
                 "Ensure you #include a .h2 file that defines types in meta::ad.");
     }
 }
