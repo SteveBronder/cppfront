@@ -1,0 +1,28 @@
+#include "headers/ad_test_rules.h2"
+
+// Free function wrapper so the user code can call subtract(x, y) directly.
+// The @autodiff metafunction resolves the rule by matching the function name "subtract"
+// in the ad_rule_registry (populated from the included header's meta::ad namespace).
+subtract: (x: double, y: double) -> double = {
+    return meta::ad::subtract::forward(x, y);
+}
+
+test_ns: namespace = {
+
+// This type uses @autodiff<"reverse"> and calls subtract(),
+// which is a custom rule defined in the included header.
+my_func: @autodiff<"reverse", "debug"> type = {
+    f: (x: double, y: double) -> (r: double) = {
+        r = subtract(x, y);
+    }
+}
+
+} // namespace test_ns
+
+main: () -> int = {
+    // If we get here, the metafunction successfully:
+    // 1. Discovered the "subtract" rule from the included header
+    // 2. Generated the backward function using the custom reverse() body
+    std::cout << "PASS: @autodiff<reverse> found custom rules from included header\n";
+    return 0;
+}

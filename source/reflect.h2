@@ -8534,30 +8534,62 @@ regex_gen: (inout t: meta::type_declaration) =
 //-----------------------------------------------------------------------
 //
 //  register_autodiff - validates that a type has the required members
-//  for use as an autodiff rule (name, n_args).
+//  for use as an autodiff rule (name, n_args, forward, reverse).
+//
+//  NOTE: This validation is mirrored by is_ad_rule_type() in reverse_ad.h2,
+//  which performs the same structural check as a bool predicate for duck-typing
+//  discovery. If you change the required members here, update that function too.
 //
 register_autodiff: (inout t: meta::type_declaration) =
 {
     has_name_member := false;
     has_n_args_member := false;
+    has_name_init := false;
+    has_n_args_init := false;
+    has_forward := false;
+    has_reverse := false;
 
     for t.get_member_objects() do (obj) {
-        if obj.name() == "name"   { has_name_member = true; }
-        if obj.name() == "n_args" { has_n_args_member = true; }
+        if obj.name() == "name" {
+            has_name_member = true;
+            has_name_init = obj.has_initializer();
+        }
+        if obj.name() == "n_args" {
+            has_n_args_member = true;
+            has_n_args_init = obj.has_initializer();
+        }
+    }
+    for t.get_member_functions() do (func) {
+        if func.name() == "forward" { has_forward = true; }
+        if func.name() == "reverse" { has_reverse = true; }
     }
 
     t.require(has_name_member,
         "a @register_autodiff type must have a 'name: std::string' member");
+    t.require(!has_name_member || has_name_init,
+        "the 'name' member must have an initializer (e.g., name: std::string = \"sin\")");
     t.require(has_n_args_member,
         "a @register_autodiff type must have an 'n_args: int' member");
+    t.require(!has_n_args_member || has_n_args_init,
+        "the 'n_args' member must have an initializer (e.g., n_args: int = 1)");
+    t.require(has_forward,
+        "a @register_autodiff type must have a 'forward' member function");
+    t.require(has_reverse,
+        "a @register_autodiff type must have a 'reverse' member function");
 }
 
 
 //-----------------------------------------------------------------------
 //
-//  find_ad_rules - discovers types in the meta::ad namespace from included
-//  .h2 files via get_tu_declarations(), then inlines their "forward"
-//  member function as a new member of the target type.
+//  find_ad_rules - LEGACY metafunction for forward-mode rule inlining.
+//
+//  NOTE: For reverse-mode AD, rule discovery is now handled by
+//  discover_ad_rules() in reverse_ad.h2, which uses the same
+//  get_tu_declarations() walk but also validates rules via is_ad_rule_type()
+//  and extracts reverse() bodies for IR-based inlining.
+//
+//  This metafunction only inlines forward() functions and does not check
+//  for reverse(). It is retained for forward-mode / non-@autodiff use cases.
 //
 find_ad_rules: (inout t: meta::type_declaration) =
 {
@@ -8600,7 +8632,10 @@ find_ad_rules: (inout t: meta::type_declaration) =
                                         clean_name = clean_name.substr(1, clean_name.ssize() - 2);
                                     }
 
-                                    // Replace "forward" with the clean function name
+                                    // Replace "forward" in the declaration prefix with the rule name.
+                                    // We search only the first occurrence (the function name in the
+                                    // declaration) to avoid corrupting the body if it contains
+                                    // the word "forward" (e.g., std::forward).
                                     new_decl: std::string = fwd_decl;
                                     pos := new_decl.find("forward");
                                     if pos != new_decl.npos {

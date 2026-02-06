@@ -5,25 +5,25 @@
 
 #include "cpp2util.h"
 
-#line 1 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 1 "regression-tests/test_include_reflection.cpp2"
 
-#line 3 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 3 "regression-tests/test_include_reflection.cpp2"
 namespace test_ns {
 
-#line 8 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 8 "regression-tests/test_include_reflection.cpp2"
 class test_type;
     
 
-#line 15 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 15 "regression-tests/test_include_reflection.cpp2"
 }
 
 
 //=== Cpp2 type definitions and function declarations ===========================
 
-#line 1 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 1 "regression-tests/test_include_reflection.cpp2"
 #include "headers/ad_test_rules.h"
 
-#line 3 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 3 "regression-tests/test_include_reflection.cpp2"
 namespace test_ns {
 
 // @find_ad_rules searches for the ad_rules namespace from the include,
@@ -33,8 +33,13 @@ class test_type {
     private: int data {0}; 
     public: [[nodiscard]] static auto subsub(cpp2::impl::in<double> x0, cpp2::impl::in<double> x1) -> double;
     public: [[nodiscard]] static auto subtract(
-    cpp2::impl::in<double> x0, 
-    cpp2::impl::in<double> x1
+    cpp2::impl::in<double> x, 
+    cpp2::impl::in<double> y
+    )
+     -> double;
+public: [[nodiscard]] static auto my_binary(
+    cpp2::impl::in<double> x, 
+    cpp2::impl::in<double> y
     )
      -> double;
 
@@ -43,7 +48,7 @@ class test_type {
     public: auto operator=(test_type const&) -> void = delete;
 
 
-#line 13 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 13 "regression-tests/test_include_reflection.cpp2"
 };
 
 } // namespace test_ns
@@ -52,29 +57,38 @@ class test_type {
 
 //=== Cpp2 function definitions =================================================
 
-#line 1 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 1 "regression-tests/test_include_reflection.cpp2"
 
-#line 3 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 3 "regression-tests/test_include_reflection.cpp2"
 namespace test_ns {
 
-#line 10 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 10 "regression-tests/test_include_reflection.cpp2"
     [[nodiscard]] auto test_type::subsub(cpp2::impl::in<double> x0, cpp2::impl::in<double> x1) -> double{
       return subtract(x0, x1); 
     }
 
     [[nodiscard]] auto test_type::subtract(
-    cpp2::impl::in<double> x0, 
-    cpp2::impl::in<double> x1
+    cpp2::impl::in<double> x, 
+    cpp2::impl::in<double> y
     )
      -> double
     {
-    return x0 - x1; 
+    return x - y; 
     }
 
-#line 15 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+    [[nodiscard]] auto test_type::my_binary(
+    cpp2::impl::in<double> x, 
+    cpp2::impl::in<double> y
+    )
+     -> double
+    {
+    return x * y; 
+    }
+
+#line 15 "regression-tests/test_include_reflection.cpp2"
 }
 
-#line 17 "/home/sbronder/open_source/cppfront/regression-tests/test_include_reflection.cpp2"
+#line 17 "regression-tests/test_include_reflection.cpp2"
 [[nodiscard]] auto main() -> int{
     test_ns::test_type obj {}; 
 

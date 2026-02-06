@@ -7,14 +7,29 @@ subtract: @register_autodiff type = {
     name: std::string = "subtract";
     n_args: int = 2;
     is_member: bool = false;
-    forward: (x0: double, x1: double) -> double = {
-      return x0 - x1;
+    forward: (x: double, y: double) -> double = {
+      return x - y;
+    }
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += res_adj;
+        y_adj -= res_adj;
     }
 }
 my_binary: @register_autodiff type = {
     name: std::string = "my_binary";
     n_args: int = 2;
     is_member: bool = false;
+    forward: (x: double, y: double) -> double = {
+      return x * y;
+    }
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += y_val * res_adj;
+        y_adj += x_val * res_adj;
+    }
 }
 }
 }

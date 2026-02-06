@@ -2344,13 +2344,20 @@ ad_rule_registry_debug_dump: (reg: ad_rule_registry) = {
 }
 
 /**
- * @brief Check if a type member looks like an ad_rule definition.
+ * @brief Check if a type conforms to the ad_rule pattern (duck-typing predicate).
  *
  * A valid ad_rule type must have:
  * - A `name` member object (string)
  * - An `n_args` member object (int)
  * - A `forward` member function
  * - A `reverse` member function
+ *
+ * NOTE: This validation is mirrored by @register_autodiff in reflect.h2,
+ * which performs the same structural check but with hard-fail error messages.
+ * If you change the required members here, update that metafunction too.
+ *
+ * This predicate also accepts types NOT annotated with @register_autodiff,
+ * supporting duck-typing discovery of rule types (e.g., ad_rule_* siblings).
  *
  * @param member_type Type declaration to check.
  * @return True if this looks like an ad_rule.
@@ -2427,7 +2434,6 @@ extract_ad_rule_meta: (member_type: *meta::type_declaration) -> ad_rule_meta = {
     }
 
     // Extract the reverse() function body for later inlining
-    // Extract the reverse() function body for later inlining
     for member_type*.get_member_functions() do (func) {
         if func.name() == "reverse" && func.has_compound_body() {
             body: meta::compound_statement = func.get_compound_body();
@@ -2490,8 +2496,7 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
     }
 
     // 2. Sibling types in the parent namespace (same file only)
-    //    NOTE: #include doesn't merge ASTs, so rules from included files are NOT visible.
-    //    Users must define all rules in the same file as their @autodiff type.
+    //    NOTE: Rules from included .h2 files are now discovered via path 3 below.
     if t.parent_is_nonglobal_namespace() {
         ns := t.get_parent().as_nonglobal_namespace();
         std::cout << "AD: Checking siblings in namespace '" << ns.name() << "'\n";
@@ -2513,6 +2518,41 @@ discover_ad_rules: (t: meta::type_declaration, inout out: ad_rule_registry) = {
                         rule: ad_rule_meta = extract_ad_rule_meta(sibling_type&);
                         std::cout << "AD: Found sibling rule: " << rule.name << " (n_args=" << rule.n_args << ")\n";
                         out.register_rule(rule);
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Types in meta::ad namespace from included .h2 headers
+    //    Uses get_tu_declarations() to find TU-level "meta" namespace,
+    //    then navigates to "ad" sub-namespace.
+    for t.get_tu_declarations() do (tu_decl) {
+        if tu_decl.is_namespace() && tu_decl.name() == "meta" {
+            meta_ns := tu_decl.as_nonglobal_namespace();
+
+            for meta_ns.get_members() do (meta_member) {
+                if meta_member.is_namespace() && meta_member.name() == "ad" {
+                    ad_ns := meta_member.as_nonglobal_namespace();
+
+                    for ad_ns.get_members() do (rule_decl) {
+                        if rule_decl.is_type() {
+                            rule_type := rule_decl.as_type();
+                            type_name: std::string = rule_type.name() as std::string;
+                            std::cout << "AD: Checking meta::ad type: " << type_name << "\n";
+
+                            if is_ad_rule_type(rule_type) {
+                                // Skip if already registered (built-in rules live in
+                                // meta::ad in reverse_ad.h2 and may already be found
+                                // via path 2 if the type is in the same namespace)
+                                rule: ad_rule_meta = extract_ad_rule_meta(rule_type&);
+                                if !out.has_rule(rule.name, rule.n_args, rule.is_member) {
+                                    std::cout << "AD: Found included rule: " << rule.name
+                                              << " (n_args=" << rule.n_args << ")\n";
+                                    out.register_rule(rule);
+                                }
+                            }
+                        }
                     }
                 }
             }

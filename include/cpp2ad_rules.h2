@@ -1,138 +1,30 @@
-#ifndef CPP2_CPP2AD_RULES_H
-#define CPP2_CPP2AD_RULES_H
-
 // =============================================================================
 // Standard Autodiff Rules for Reverse-Mode Automatic Differentiation
 // =============================================================================
 //
-// OVERVIEW
-// --------
-// This file contains ad_rule_* types that define derivatives for common
-// mathematical functions. These can be used as templates for creating
-// custom differentiation rules in your @autodiff types.
+// Rules live in meta::ad namespace so that @autodiff<"reverse"> discovers them
+// via get_tu_declarations() (path 3 in discover_ad_rules).
 //
-// HOW RULES ARE DISCOVERED AND USED
-// ---------------------------------
-// The @autodiff<"reverse"> metafunction discovers rules in this priority order:
+// Each rule uses @register_autodiff which validates name, n_args, forward(),
+// and reverse() at metafunction application time.
 //
-//   1. User nested rules (HIGHEST PRIORITY):
-//      Rules defined as ad_rule_<name> types nested inside your @autodiff type.
-//      These take precedence over all other rules.
-//
-//   2. Built-in hardcoded rules (LOWEST PRIORITY):
-//      Basic math functions (sin, cos, exp, log, sqrt) have built-in
-//      derivatives as fallbacks.
-//
-// DEFINING CUSTOM RULES
-// ---------------------
-// To define a custom rule for a function, nest an ad_rule_<name> type
-// inside your @autodiff type. The rule must have:
-//
-//   ad_rule_<function_name>: type = {
-//       name: std::string = "<function_name>";  // Must match the function name
-//       n_args: int = <number_of_arguments>;    // Number of arguments
-//       is_member: bool = <true_if_member_function>;  // Usually false
-//
-//       forward: (<args>) -> <return_type> = { <primal computation> }
-//
-//       reverse: (res_val: <return_type>, res_adj: <adj_type>,
-//                 x_val: <arg1_type>, inout x_adj: <adj_type>,
-//                 [y_val: <arg2_type>, inout y_adj: <adj_type>, ...]) = {
-//           // Accumulate adjoints using chain rule
-//           x_adj += <d_result_d_x> * res_adj;
-//           [y_adj += <d_result_d_y> * res_adj;]
-//       }
-//   }
-//
-// PARAMETERS IN reverse() FUNCTION
-// --------------------------------
-//   res_val - The result of the forward pass f(x) (may be used for efficiency)
-//   res_adj - The incoming adjoint from the output (used in chain rule)
-//   x_val   - First argument value (saved from forward pass)
-//   x_adj   - First argument adjoint accumulator (inout, += to accumulate)
-//   y_val, y_adj, ... - Additional arguments for multi-parameter functions
-//
-// The parameter naming convention uses: x, y, z, w for 1st, 2nd, 3rd, 4th args.
-//
-// EXAMPLE: Defining a Custom Rule
-// -------------------------------
-//
-//   my_math: @autodiff<"reverse"> type = {
-//       // Custom rule for GELU activation function
-//       ad_rule_gelu: type = {
-//           name: std::string = "gelu";
-//           n_args: int = 1;
-//           is_member: bool = false;
-//
-//           forward: (x: double) -> double = {
-//               return 0.5 * x * (1.0 + std::tanh(0.797885 * (x + 0.044715 * x * x * x)));
-//           }
-//
-//           reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-//               // GELU derivative (approximation)
-//               cdf := 0.5 * (1.0 + std::tanh(0.797885 * (x_val + 0.044715 * x_val * x_val * x_val)));
-//               pdf_coeff := 0.797885 * (1.0 + 3.0 * 0.044715 * x_val * x_val);
-//               tanh_arg := 0.797885 * (x_val + 0.044715 * x_val * x_val * x_val);
-//               sech2 := 1.0 - std::tanh(tanh_arg) * std::tanh(tanh_arg);
-//               x_adj += (cdf + 0.5 * x_val * pdf_coeff * sech2) * res_adj;
-//           }
-//       }
-//
-//       // Function that uses the custom GELU rule
-//       my_func: (x: double) -> (r: double) = {
-//           r = gelu(x);  // Automatically uses ad_rule_gelu for derivative
-//       }
-//   }
-//
-// EXAMPLE: Overriding a Built-in Rule
-// -----------------------------------
-//
-//   stable_math: @autodiff<"reverse"> type = {
-//       // Override exp with numerically stable version (clamped)
-//       ad_rule_exp: type = {
-//           name: std::string = "exp";
-//           n_args: int = 1;
-//           is_member: bool = false;
-//
-//           forward: (x: double) -> double = {
-//               clamped := (x > 700.0) ? 700.0 : x;  // Prevent overflow
-//               return std::exp(clamped);
-//           }
-//
-//           reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-//               if x_val <= 700.0 {
-//                   x_adj += res_val * res_adj;  // d/dx exp(x) = exp(x)
-//               }
-//               // If clamped, gradient is zero (saturated)
-//           }
-//       }
-//
-//       f: (x: double) -> (r: double) = {
-//           r = exp(x);  // Uses custom clamped exp rule
-//       }
-//   }
-//
-// REFERENCE RULES BELOW
-// ---------------------
-// The rules in this file can be used as templates for your own rules.
-// They cover common mathematical functions with correct derivatives.
-//
+// Parameter naming convention in reverse(): x, y, z, w for 1st-4th args.
 // =============================================================================
 
-std::reverse_ad: namespace = {
+meta: namespace = {
+ad: namespace = {
 
 // =============================================================================
 // Basic Arithmetic Operators
 // =============================================================================
 
 // Rule for addition: d/dx (x + y) = 1, d/dy (x + y) = 1
-ad_rule_add: type = {
+ad_rule_add: @register_autodiff type = {
     name: std::string = "+";
     n_args: int = 2;
     is_member: bool = false;
 
     forward: (x: double, y: double) -> double = x + y;
-
     reverse: (res_val: double, res_adj: double,
               x_val: double, inout x_adj: double,
               y_val: double, inout y_adj: double) = {
@@ -142,13 +34,12 @@ ad_rule_add: type = {
 }
 
 // Rule for subtraction: d/dx (x - y) = 1, d/dy (x - y) = -1
-ad_rule_sub: type = {
+ad_rule_sub: @register_autodiff type = {
     name: std::string = "-";
     n_args: int = 2;
     is_member: bool = false;
 
     forward: (x: double, y: double) -> double = x - y;
-
     reverse: (res_val: double, res_adj: double,
               x_val: double, inout x_adj: double,
               y_val: double, inout y_adj: double) = {
@@ -158,13 +49,12 @@ ad_rule_sub: type = {
 }
 
 // Rule for multiplication: d/dx (x * y) = y, d/dy (x * y) = x
-ad_rule_mul: type = {
+ad_rule_mul: @register_autodiff type = {
     name: std::string = "*";
     n_args: int = 2;
     is_member: bool = false;
 
     forward: (x: double, y: double) -> double = x * y;
-
     reverse: (res_val: double, res_adj: double,
               x_val: double, inout x_adj: double,
               y_val: double, inout y_adj: double) = {
@@ -174,13 +64,12 @@ ad_rule_mul: type = {
 }
 
 // Rule for division: d/dx (x / y) = 1/y, d/dy (x / y) = -x/y^2
-ad_rule_div: type = {
+ad_rule_div: @register_autodiff type = {
     name: std::string = "/";
     n_args: int = 2;
     is_member: bool = false;
 
     forward: (x: double, y: double) -> double = x / y;
-
     reverse: (res_val: double, res_adj: double,
               x_val: double, inout x_adj: double,
               y_val: double, inout y_adj: double) = {
@@ -189,173 +78,43 @@ ad_rule_div: type = {
     }
 }
 
-// Rule for modulo: Not differentiable in general, gradient is zero
-// This is provided for completeness but modulo should be avoided in AD
-ad_rule_mod: type = {
-    name: std::string = "%";
-    n_args: int = 2;
-    is_member: bool = false;
-
-    forward: (x: double, y: double) -> double = std::fmod(x, y);
-
-    reverse: (res_val: double, res_adj: double,
-              x_val: double, inout x_adj: double,
-              y_val: double, inout y_adj: double) = {
-        // Modulo is not differentiable in the traditional sense
-        // The subgradient is 1 for x and floor(-x/y) for y
-        x_adj += res_adj;
-        y_adj -= std::floor(x_val / y_val) * res_adj;
-    }
-}
-
-// Rule for unary negation: d/dx (-x) = -1
-ad_rule_neg: type = {
-    name: std::string = "unary-";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = -x;
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj -= res_adj;
-    }
-}
-
 // =============================================================================
 // Exponential and Logarithmic Functions
 // =============================================================================
 
 // Rule for exp(x): d/dx exp(x) = exp(x)
-ad_rule_exp: type = {
+ad_rule_exp: @register_autodiff type = {
     name: std::string = "exp";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::exp(x);
-
+    forward: (x: double) -> double = { return std::exp(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx exp(x) = exp(x) = res_val (reuse forward result)
         x_adj += res_val * res_adj;
     }
 }
 
 // Rule for log(x): d/dx log(x) = 1/x
-ad_rule_log: type = {
+ad_rule_log: @register_autodiff type = {
     name: std::string = "log";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::log(x);
-
+    forward: (x: double) -> double = { return log(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx log(x) = 1/x
         x_adj += res_adj / x_val;
     }
 }
 
-// Rule for log10(x): d/dx log10(x) = 1/(x * ln(10))
-ad_rule_log10: type = {
-    name: std::string = "log10";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::log10(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx log10(x) = 1/(x * ln(10)) = log10(e) / x
-        x_adj += res_adj / (x_val * std::log(10.0));
-    }
-}
-
-// Rule for log2(x): d/dx log2(x) = 1/(x * ln(2))
-ad_rule_log2: type = {
-    name: std::string = "log2";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::log2(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx log2(x) = 1/(x * ln(2))
-        x_adj += res_adj / (x_val * std::log(2.0));
-    }
-}
-
-// Rule for log1p(x): d/dx log(1+x) = 1/(1+x)
-ad_rule_log1p: type = {
-    name: std::string = "log1p";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::log1p(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += res_adj / (1.0 + x_val);
-    }
-}
-
-// Rule for expm1(x): d/dx (exp(x)-1) = exp(x)
-ad_rule_expm1: type = {
-    name: std::string = "expm1";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::expm1(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx (exp(x) - 1) = exp(x) = res_val + 1
-        x_adj += (res_val + 1.0) * res_adj;
-    }
-}
-
-// =============================================================================
-// Power Functions
-// =============================================================================
-
-// Rule for sqrt(x): d/dx sqrt(x) = 1/(2*sqrt(x)) = 0.5/sqrt(x)
-ad_rule_sqrt: type = {
+// Rule for sqrt(x): d/dx sqrt(x) = 1/(2*sqrt(x))
+ad_rule_sqrt: @register_autodiff type = {
     name: std::string = "sqrt";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::sqrt(x);
-
+    forward: (x: double) -> double = { return std::sqrt(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx sqrt(x) = 0.5/sqrt(x) = 0.5/res_val (reuse forward result)
         x_adj += 0.5 * res_adj / res_val;
-    }
-}
-
-// Rule for cbrt(x): d/dx cbrt(x) = 1/(3*cbrt(x)^2)
-ad_rule_cbrt: type = {
-    name: std::string = "cbrt";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::cbrt(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx cbrt(x) = 1/(3*cbrt(x)^2) = 1/(3*res_val^2)
-        x_adj += res_adj / (3.0 * res_val * res_val);
-    }
-}
-
-// Rule for pow(x, y): d/dx = y*x^(y-1), d/dy = x^y * log(x)
-// Note: pow is a 2-argument function
-ad_rule_pow: type = {
-    name: std::string = "pow";
-    n_args: int = 2;
-    is_member: bool = false;
-
-    forward: (x: double, y: double) -> double = std::pow(x, y);
-
-    reverse: (res_val: double, res_adj: double,
-              x_val: double, inout x_adj: double,
-              y_val: double, inout y_adj: double) = {
-        // d/dx x^y = y * x^(y-1) = y * res_val / x
-        x_adj += y_val * res_val / x_val * res_adj;
-        // d/dy x^y = x^y * log(x) = res_val * log(x)
-        y_adj += res_val * std::log(x_val) * res_adj;
     }
 }
 
@@ -364,102 +123,38 @@ ad_rule_pow: type = {
 // =============================================================================
 
 // Rule for sin(x): d/dx sin(x) = cos(x)
-ad_rule_sin: type = {
+ad_rule_sin: @register_autodiff type = {
     name: std::string = "sin";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::sin(x);
-
+    forward: (x: double) -> double = { return std::sin(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
         x_adj += std::cos(x_val) * res_adj;
     }
 }
 
 // Rule for cos(x): d/dx cos(x) = -sin(x)
-ad_rule_cos: type = {
+ad_rule_cos: @register_autodiff type = {
     name: std::string = "cos";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::cos(x);
-
+    forward: (x: double) -> double = { return std::cos(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
         x_adj -= std::sin(x_val) * res_adj;
     }
 }
 
-// Rule for tan(x): d/dx tan(x) = sec^2(x) = 1/cos^2(x) = 1 + tan^2(x)
-ad_rule_tan: type = {
+// Rule for tan(x): d/dx tan(x) = 1 + tan^2(x)
+ad_rule_tan: @register_autodiff type = {
     name: std::string = "tan";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::tan(x);
-
+    forward: (x: double) -> double = { return std::tan(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx tan(x) = 1 + tan^2(x) = 1 + res_val^2
         x_adj += (1.0 + res_val * res_val) * res_adj;
-    }
-}
-
-// =============================================================================
-// Inverse Trigonometric Functions
-// =============================================================================
-
-// Rule for asin(x): d/dx asin(x) = 1/sqrt(1-x^2)
-ad_rule_asin: type = {
-    name: std::string = "asin";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::asin(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += res_adj / std::sqrt(1.0 - x_val * x_val);
-    }
-}
-
-// Rule for acos(x): d/dx acos(x) = -1/sqrt(1-x^2)
-ad_rule_acos: type = {
-    name: std::string = "acos";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::acos(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj -= res_adj / std::sqrt(1.0 - x_val * x_val);
-    }
-}
-
-// Rule for atan(x): d/dx atan(x) = 1/(1+x^2)
-ad_rule_atan: type = {
-    name: std::string = "atan";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::atan(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += res_adj / (1.0 + x_val * x_val);
-    }
-}
-
-// Rule for atan2(y, x): d/dy = x/(x^2+y^2), d/dx = -y/(x^2+y^2)
-ad_rule_atan2: type = {
-    name: std::string = "atan2";
-    n_args: int = 2;
-    is_member: bool = false;
-
-    forward: (y: double, x: double) -> double = std::atan2(y, x);
-
-    reverse: (res_val: double, res_adj: double,
-              y_val: double, inout y_adj: double,
-              x_val: double, inout x_adj: double) = {
-        denom := x_val * x_val + y_val * y_val;
-        y_adj += x_val / denom * res_adj;
-        x_adj -= y_val / denom * res_adj;
     }
 }
 
@@ -467,219 +162,32 @@ ad_rule_atan2: type = {
 // Hyperbolic Functions
 // =============================================================================
 
-// Rule for sinh(x): d/dx sinh(x) = cosh(x)
-ad_rule_sinh: type = {
-    name: std::string = "sinh";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::sinh(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += std::cosh(x_val) * res_adj;
-    }
-}
-
-// Rule for cosh(x): d/dx cosh(x) = sinh(x)
-ad_rule_cosh: type = {
-    name: std::string = "cosh";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::cosh(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += std::sinh(x_val) * res_adj;
-    }
-}
-
-// Rule for tanh(x): d/dx tanh(x) = sech^2(x) = 1 - tanh^2(x)
-ad_rule_tanh: type = {
+// Rule for tanh(x): d/dx tanh(x) = 1 - tanh^2(x)
+ad_rule_tanh: @register_autodiff type = {
     name: std::string = "tanh";
     n_args: int = 1;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::tanh(x);
-
+    forward: (x: double) -> double = { return std::tanh(x); }
     reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx tanh(x) = 1 - tanh^2(x) = 1 - res_val^2
         x_adj += (1.0 - res_val * res_val) * res_adj;
     }
 }
 
-// =============================================================================
-// Inverse Hyperbolic Functions
-// =============================================================================
-
-// Rule for asinh(x): d/dx asinh(x) = 1/sqrt(x^2+1)
-ad_rule_asinh: type = {
-    name: std::string = "asinh";
-    n_args: int = 1;
+// Rule for pow(x, y): d/dx = y*x^(y-1), d/dy = x^y * log(x)
+ad_rule_pow: @register_autodiff type = {
+    name: std::string = "pow";
+    n_args: int = 2;
     is_member: bool = false;
 
-    forward: (x: double) -> double = std::asinh(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += res_adj / std::sqrt(x_val * x_val + 1.0);
+    forward: (x: double, y: double) -> double = { return std::pow(x, y); }
+    reverse: (res_val: double, res_adj: double,
+              x_val: double, inout x_adj: double,
+              y_val: double, inout y_adj: double) = {
+        x_adj += y_val * res_val / x_val * res_adj;
+        y_adj += res_val * std::log(x_val) * res_adj;
     }
 }
 
-// Rule for acosh(x): d/dx acosh(x) = 1/sqrt(x^2-1)
-ad_rule_acosh: type = {
-    name: std::string = "acosh";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::acosh(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += res_adj / std::sqrt(x_val * x_val - 1.0);
-    }
 }
-
-// Rule for atanh(x): d/dx atanh(x) = 1/(1-x^2)
-ad_rule_atanh: type = {
-    name: std::string = "atanh";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::atanh(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        x_adj += res_adj / (1.0 - x_val * x_val);
-    }
 }
-
-// =============================================================================
-// Other Functions
-// =============================================================================
-
-// Rule for abs(x): d/dx |x| = sign(x)
-ad_rule_abs: type = {
-    name: std::string = "abs";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::abs(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx |x| = sign(x) = x / |x| = x / res_val (undefined at x=0)
-        if x_val != 0.0 {
-            x_adj += (x_val / res_val) * res_adj;
-        }
-    }
-}
-
-// Rule for fabs(x): same as abs
-ad_rule_fabs: type = {
-    name: std::string = "fabs";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::fabs(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        if x_val != 0.0 {
-            x_adj += (x_val / res_val) * res_adj;
-        }
-    }
-}
-
-// Rule for erf(x): d/dx erf(x) = 2/sqrt(pi) * exp(-x^2)
-ad_rule_erf: type = {
-    name: std::string = "erf";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::erf(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx erf(x) = 2/sqrt(pi) * exp(-x^2)
-        two_over_sqrt_pi : double == 1.1283791670955126;  // 2/sqrt(pi)
-        x_adj += two_over_sqrt_pi * std::exp(-x_val * x_val) * res_adj;
-    }
-}
-
-// Rule for erfc(x): d/dx erfc(x) = -2/sqrt(pi) * exp(-x^2)
-ad_rule_erfc: type = {
-    name: std::string = "erfc";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::erfc(x);
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        two_over_sqrt_pi : double == 1.1283791670955126;
-        x_adj -= two_over_sqrt_pi * std::exp(-x_val * x_val) * res_adj;
-    }
-}
-
-// =============================================================================
-// Machine Learning Activation Functions
-// =============================================================================
-
-// Rule for sigmoid(x): d/dx sigmoid(x) = sigmoid(x) * (1 - sigmoid(x))
-ad_rule_sigmoid: type = {
-    name: std::string = "sigmoid";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = 1.0 / (1.0 + std::exp(-x));
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx sigmoid(x) = sigmoid * (1 - sigmoid) = res_val * (1 - res_val)
-        x_adj += res_val * (1.0 - res_val) * res_adj;
-    }
-}
-
-// Rule for softplus(x): log(1 + exp(x)), d/dx = sigmoid(x) = 1/(1+exp(-x))
-ad_rule_softplus: type = {
-    name: std::string = "softplus";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = std::log(1.0 + std::exp(x));
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        // d/dx softplus(x) = sigmoid(x) = 1/(1+exp(-x))
-        x_adj += res_adj / (1.0 + std::exp(-x_val));
-    }
-}
-
-// Rule for relu(x): d/dx relu(x) = 1 if x > 0, else 0
-ad_rule_relu: type = {
-    name: std::string = "relu";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    forward: (x: double) -> double = { if x > 0.0 { return x; } return 0.0; }
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        if x_val > 0.0 {
-            x_adj += res_adj;
-        }
-    }
-}
-
-// Rule for leaky_relu with alpha=0.01
-ad_rule_leaky_relu: type = {
-    name: std::string = "leaky_relu";
-    n_args: int = 1;
-    is_member: bool = false;
-
-    alpha: double = 0.01;
-
-    forward: (x: double) -> double = { if x > 0.0 { return x; } return 0.01 * x; }
-
-    reverse: (res_val: double, res_adj: double, x_val: double, inout x_adj: double) = {
-        if x_val > 0.0 {
-            x_adj += res_adj;
-        } else {
-            x_adj += 0.01 * res_adj;
-        }
-    }
-}
-
-} // namespace std::reverse_ad
-
-#endif // CPP2_CPP2AD_RULES_H
